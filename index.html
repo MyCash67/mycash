@@ -1293,6 +1293,7 @@
           <div>
             <div class="bc-label">মোট ব্যালেন্স</div>
             <div class="bc-amount">৳ ১,২৪০</div>
+            <div class="bc-today-income" id="main-today-income"><span class="bc-today-income-label">আজকের আয়</span><strong>৳ ০</strong></div>
           </div>
           <span class="bc-badge">সক্রিয়</span>
         </div>
@@ -2217,6 +2218,7 @@
       localStorage.setItem(AD_INCOME_DATE_KEY,todayKey);
       localStorage.setItem(AD_INCOME_KEY,'0');
       todayAdIncome=0;
+      updateMainBalanceUI();
     }
   }
   const AD_WATCH_SECONDS = 15;
@@ -2233,6 +2235,7 @@
   function updateMainBalanceUI(){
     document.querySelectorAll('.bc-amount').forEach(el => el.textContent = `৳ ${formatMoneyBn(mainBalance)}`);
     document.querySelectorAll('.withdraw-balance-value').forEach(el => el.textContent = `৳ ${formatMoneyBn(mainBalance)}`);
+    document.querySelectorAll('.bc-today-income strong').forEach(el => el.textContent = `৳ ${formatMoneyBn(todayAdIncome)}`);
   }
 
   function saveMainBalance(){
@@ -2279,6 +2282,7 @@
     const state=adStates[adNumber];
     if(!state || state.claimed) return;
     state.ready=true;
+    state.claimed=false;
     saveAdStates();
     btn.disabled=false;
     btn.classList.add('claim');
@@ -2312,39 +2316,43 @@
     const state=adStates[adNumber];
     const card=document.querySelector(`.ad-card[data-ad="${adNumber}"]`);
     const btn=card?.querySelector('.ad-watch-btn');
-    if(!state || !state.ready || state.claimed || !btn) return;
     const u = window.myCashFirebase?.auth?.currentUser;
     if(!u){
       if(window.myCashRequireLogin) await window.myCashRequireLogin();
       return;
     }
+    if(!state || !state.ready || state.claimed || !btn) return;
+
+    const amount=Number(reward||0);
+    const todayKey=getBangladeshDateKey();
+    // Mark locally first so the claim cannot be double-submitted.
     state.claimed=true;
     state.claimedAt=Date.now();
     state.cooldownUntil=Date.now()+AD_COOLDOWN;
-    todayAdIncome += Number(reward||0);
-    mainBalance += Number(reward||0);
-    localStorage.setItem(AD_INCOME_KEY, String(todayAdIncome));
-    localStorage.setItem(AD_INCOME_DATE_KEY, getBangladeshDateKey());
+    todayAdIncome=Number(todayAdIncome||0)+amount;
+    mainBalance=Number(mainBalance||0)+amount;
+    localStorage.setItem(AD_INCOME_KEY,String(todayAdIncome));
+    localStorage.setItem(AD_INCOME_DATE_KEY,todayKey);
     saveAdStates();
-    saveMainBalance();
-    // Persist the daily income and balance for THIS logged-in account.
-    try {
-      await window.myCashFirebase.db.collection('users').doc(u.uid).set({
-        balance:Number(mainBalance),
-        todayAdIncome:Number(todayAdIncome),
-        todayAdIncomeDate:getBangladeshDateKey()
-      },{merge:true});
-    } catch(e) {
-      // Keep the local UI responsive; the next auth/data refresh will reconcile it.
-    }
+    updateMainBalanceUI();
+    updateIncomeSummary();
     btn.disabled=true;
     btn.classList.remove('claim');
     btn.classList.add('done');
     btn.textContent='✓ ক্লেইম হয়েছে';
     setAdTimerText(card,'২৪ ঘণ্টা পরে আবার এই এড দেখা যাবে');
-    updateMainBalanceUI();
-    updateIncomeSummary();
     startCooldownCountdown(adNumber);
+
+    // Save the same account's balance and daily income in Firestore.
+    try{
+      await window.myCashFirebase.db.collection('users').doc(u.uid).set({
+        balance:Number(mainBalance),
+        todayAdIncome:Number(todayAdIncome),
+        todayAdIncomeDate:todayKey
+      },{merge:true});
+    }catch(e){
+      console.warn('Claim saved locally; Firestore update failed:', e);
+    }
   }
 
   function startCooldownCountdown(adNumber){
@@ -2939,6 +2947,12 @@ document.addEventListener('click', function(e){
     setupInnerPageBackButtons();
   </script>
 
+
+<style id="main-today-income-style">
+.bc-today-income{margin-top:8px;display:flex;align-items:center;gap:7px;font-size:12px;color:rgba(255,255,255,.78)}
+.bc-today-income-label{opacity:.9}.bc-today-income strong{font-size:13px;color:#fff;font-weight:800}
+body.logged-out .bc-today-income{display:none!important}
+</style>
 <style id="logged-out-income-hide">
 /* আজকের আয় শুধু লগইন করা অবস্থায় দেখা যাবে */
 body.logged-out .income-summary{display:none !important;}
