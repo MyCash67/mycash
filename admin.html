@@ -134,8 +134,62 @@ async function adminLogin(){const email=document.getElementById('adminEmail').va
 async function adminLogout(){await auth.signOut();}
 auth.onAuthStateChanged(async user=>{const gate=document.getElementById('adminAuth');if(user && user.email.toLowerCase()===ADMIN_EMAIL){gate.style.display='none';await loadSettings();}else{gate.style.display='flex';}});
 function requireAdmin(){const u=auth.currentUser;if(!u||u.email.toLowerCase()!==ADMIN_EMAIL){alert('Admin login required');return false}return true}
-async function showUsersPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Users');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Users</h3><div id="usersList">Loading...</div></div>';const snap=await db.collection('users').orderBy('createdAt','desc').get();let html='';snap.forEach(d=>{const u=d.data();html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>${u.firstName||''} ${u.lastName||''}</b><div style="font-size:12px;color:#7b8495">${u.mobile||''}</div><input id="bal-${d.id}" type="number" value="${Number(u.balance||0)}" style="margin-top:8px"><button class="save" onclick="updateUserBalance('${d.id}')">Update Balance</button></div>`});document.getElementById('usersList').innerHTML=html||'No users';}
-async function updateUserBalance(uid){if(!requireAdmin())return;const amount=Number(document.getElementById('bal-'+uid).value);await db.collection('users').doc(uid).update({balance:amount});alert('Balance updated ✓');}
+let __usersCache=[];
+let __paymentsByUid={};
+async function showUsersPage(){
+if(!requireAdmin())return;
+hidePages();
+document.getElementById('homePage').style.display='none';
+showBack('Users');
+const c=document.getElementById('dataPage');
+c.style.display='block';
+c.innerHTML='<div class="form show"><h3>Users</h3><input id="userSearchInput" type="text" placeholder="নাম বা মোবাইল দিয়ে সার্চ করুন" style="margin-bottom:14px" oninput="renderUsersList(this.value)"><div id="usersList">Loading...</div></div>';
+const [usersSnap,paymentsSnap]=await Promise.all([
+db.collection('users').orderBy('createdAt','desc').get(),
+db.collection('payments').get()
+]);
+__paymentsByUid={};
+paymentsSnap.forEach(d=>{const p=d.data();if(!p.uid)return;(__paymentsByUid[p.uid]=__paymentsByUid[p.uid]||[]).push(p);});
+__usersCache=[];
+usersSnap.forEach(d=>__usersCache.push({id:d.id,...d.data()}));
+renderUsersList('');
+}
+function renderUsersList(filterText){
+const q=(filterText||'').trim().toLowerCase();
+const filtered=__usersCache.filter(u=>{
+if(!q)return true;
+const name=`${u.firstName||''} ${u.lastName||''}`.toLowerCase();
+const mobile=(u.mobile||'').toLowerCase();
+return name.includes(q)||mobile.includes(q);
+});
+let html='';
+filtered.forEach(u=>{
+const d=u.id;
+const joined=(u.createdAt&&u.createdAt.toDate)?u.createdAt.toDate().toLocaleDateString('bn-BD'):'—';
+const purchases=__paymentsByUid[d]||[];
+const approved=purchases.filter(p=>p.status==='approved');
+const packagesHtml=approved.length?approved.map(p=>`${p.packageName||'প্যাকেজ'} (৳${Number(p.amount||0)})`).join(', '):'কোনো প্যাকেজ কেনা হয়নি';
+const pendingCount=purchases.filter(p=>p.status==='pending').length;
+html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0">
+<b>${u.firstName||''} ${u.lastName||''}</b>
+<div style="font-size:12px;color:#7b8495">মোবাইল: ${u.mobile||'—'}</div>
+<div style="font-size:12px;color:#7b8495">যোগ দিয়েছেন: ${joined}</div>
+<div style="font-size:12px;color:#7b8495">UID: ${d}</div>
+<div style="font-size:13px;margin-top:6px"><b>প্যাকেজ:</b> ${packagesHtml}${pendingCount?` <span style="color:#ee7515">(${pendingCount}টি pending)</span>`:''}</div>
+<input id="bal-${d}" type="number" value="${Number(u.balance||0)}" style="margin-top:8px">
+<button class="save" onclick="updateUserBalance('${d}')">Update Balance</button>
+</div>`;
+});
+document.getElementById('usersList').innerHTML=html||'কোনো ইউজার পাওয়া যায়নি';
+}
+async function updateUserBalance(uid){
+if(!requireAdmin())return;
+const amount=Number(document.getElementById('bal-'+uid).value);
+await db.collection('users').doc(uid).update({balance:amount});
+const idx=__usersCache.findIndex(u=>u.id===uid);
+if(idx>-1)__usersCache[idx].balance=amount;
+alert('Balance updated ✓');
+}
 async function showWithdrawalsPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Withdraw History');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Withdraw Requests</h3><div id="withdrawList">Loading...</div></div>';const snap=await db.collection('withdrawals').orderBy('createdAt','desc').get();let html='';snap.forEach(d=>{const x=d.data();html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>৳${x.amount||0} — ${x.method||''}</b><div style="font-size:12px">${x.number||''} | ${x.mobile||''}</div><div style="font-size:12px;color:#7b8495">Status: ${x.status||'pending'}</div>${x.status==='pending'?`<button class="save" onclick="setWithdrawalStatus('${d.id}','approved')">Approve</button><button class="save" style="margin-top:8px" onclick="setWithdrawalStatus('${d.id}','rejected')">Reject</button>`:''}</div>`});document.getElementById('withdrawList').innerHTML=html||'No requests';}
 async function setWithdrawalStatus(id,status){
  if(!requireAdmin())return;
