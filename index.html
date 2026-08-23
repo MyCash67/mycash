@@ -2143,13 +2143,13 @@
     // Home/Login/Register remain publicly accessible.
     const protectedScreens = ['income-screen','contact-screen','profile-screen','package-screen','package-history-screen','refer-screen','withdrawal-history-screen'];
     if(protectedScreens.includes(id) && window.myCashFirebase && !window.myCashFirebase.auth.currentUser){
-      alert('এই কাজটি করতে আগে লগইন করুন।');
-      screenHistory = [];
-      currentScreenId = 'home-screen';
-      document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
-      const home = document.getElementById('home-screen');
-      if(home) home.classList.add('visible');
-      showScreen('login-screen');
+      // Never use an OK/alert here. Show the same login animation on every device,
+      // then take the user to the login page automatically.
+      if(typeof window.myCashRequireLogin === 'function'){
+        window.myCashRequireLogin();
+      } else {
+        showScreen('login-screen');
+      }
       return;
     }
     if(id === currentScreenId) return;
@@ -3132,10 +3132,11 @@ body.logged-out .income-summary{display:none !important;}
   async function requireLogin(action){
     if(auth.currentUser) return true;
     setAuthLoading(true,'লগইন করতে হচ্ছে...');
-    // Desktop ও mobile—দুই জায়গাতেই animation স্পষ্টভাবে দেখা যাবে।
+    // Keep the overlay visible while the navigation to Login is completed.
+    // This is viewport-independent, so desktop and mobile behave identically.
     await wait(650);
-    showScreen('login-screen');
-    await wait(650);
+    showScreen('login-screen', true);
+    await wait(450);
     setAuthLoading(false);
     return false;
   }
@@ -3171,7 +3172,10 @@ body.logged-out .income-summary{display:none !important;}
     const el=e.target.closest('button, a, [data-nav]');
     if(!el) return;
     if(el.closest('#login-screen, #register-screen, [data-auth-actions], .auth-actions')) return;
-    const protectedButton = el.matches('.pkg-btn, .ad-watch-btn, .bc-btn.primary, .contact-send-btn');
+    // Direct-action buttons that do not first call showScreen() need their own guard.
+    // Social tasks are included so Telegram/YouTube/Facebook task buttons behave
+    // exactly like Package/Ads/Withdraw on both desktop and mobile.
+    const protectedButton = el.matches('.pkg-btn, .ad-watch-btn, .bc-btn.primary, .contact-send-btn, .task-btn, .package-history-card, .refer-share-btn, .refer-copy-btn, .profile-action-btn');
     const nav=el.closest('[data-nav]');
     const protectedNav = nav && ['income','contact','profile'].includes(nav.dataset.nav);
     if(protectedButton || protectedNav){
