@@ -2194,7 +2194,7 @@
   const AD_WATCH_SECONDS = 15;
   let adStates = {};
   let todayAdIncome = Number(localStorage.getItem(AD_INCOME_KEY) || 0);
-  let mainBalance = Number(localStorage.getItem(MAIN_BALANCE_KEY) || 1240);
+  let mainBalance = Number(localStorage.getItem(MAIN_BALANCE_KEY) || 0);
   let countdownIntervals = {};
 
   function formatMoneyBn(amount){
@@ -2890,6 +2890,15 @@ document.addEventListener('click', function(e){
     setupInnerPageBackButtons();
   </script>
 
+<style id="mycash-auth-loading-style">
+.auth-loading-overlay{position:fixed;inset:0;background:rgba(247,245,239,.72);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:99999}
+.auth-loading-overlay.show{display:flex}
+.auth-loading-box{background:#fff;border:1px solid #e7eee9;border-radius:18px;padding:18px 24px;box-shadow:0 14px 40px rgba(15,46,29,.14);display:flex;align-items:center;gap:12px;color:#173b28;font-weight:800;font-size:14px}
+.auth-loading-spinner{width:24px;height:24px;border:3px solid #dcebe2;border-top-color:#176b3b;border-radius:50%;animation:mycashSpin .75s linear infinite}
+@keyframes mycashSpin{to{transform:rotate(360deg)}}
+.auth-loading-box button{opacity:.65}
+</style>
+<div class="auth-loading-overlay" id="auth-loading-overlay" aria-hidden="true"><div class="auth-loading-box"><span class="auth-loading-spinner"></span><span id="auth-loading-text">অপেক্ষা করুন...</span></div></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -2908,6 +2917,14 @@ document.addEventListener('click', function(e){
   const db = firebase.firestore();
   const auth = firebase.auth();
   window.myCashFirebase = {db, auth};
+
+  function setAuthLoading(show, text){
+    const overlay=document.getElementById('auth-loading-overlay');
+    const label=document.getElementById('auth-loading-text');
+    if(label) label.textContent=text || 'অপেক্ষা করুন...';
+    if(overlay){ overlay.classList.toggle('show', !!show); overlay.setAttribute('aria-hidden', show ? 'false' : 'true'); }
+    document.querySelectorAll('.auth-login-submit,.auth-btn.login,.auth-btn.register,.profile-logout').forEach(btn=>{ btn.disabled=!!show; btn.style.pointerEvents=show?'none':''; btn.style.opacity=show?'.6':''; });
+  }
 
   function mobileEmail(mobile){ return String(mobile||'').replace(/\D/g,'') + '@mycash.local'; }
   function friendlyError(err){
@@ -2938,12 +2955,14 @@ document.addEventListener('click', function(e){
     if(!repassword){showFieldMessage('register-repassword','register-repassword-message','পাসওয়ার্ড পুনরায় লিখুন।');return;}
     if(password!==repassword){showFieldMessage('register-repassword','register-repassword-message','দুইটি পাসওয়ার্ড একই হতে হবে।');return;}
     try{
+      setAuthLoading(true,'অ্যাকাউন্ট তৈরি হচ্ছে...');
       const cred=await auth.createUserWithEmailAndPassword(mobileEmail(mobile),password);
       const data={uid:cred.user.uid,firstName,lastName,mobile,balance:1240,todayAdIncome:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
       await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
       localStorage.setItem(PROFILE_KEY,JSON.stringify({firstName,lastName,mobile}));
-      mainBalance=1240; todayAdIncome=0; updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
+      mainBalance=1240; todayAdIncome=0; localStorage.setItem(MAIN_BALANCE_KEY,String(mainBalance)); updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
     }catch(err){showFieldMessage('register-mobile','register-mobile-message',friendlyError(err));}
+    finally{ setAuthLoading(false); }
   };
 
   window.handleLogin = async function(){
@@ -2952,8 +2971,9 @@ document.addEventListener('click', function(e){
     clearFieldMessages();
     if(!mobile){showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর লিখুন।');return;}
     if(!password){showFieldMessage('login-password','login-password-message','পাসওয়ার্ড লিখুন।');return;}
-    try{ await auth.signInWithEmailAndPassword(mobileEmail(mobile),password); }
+    try{ setAuthLoading(true,'লগইন হচ্ছে...'); await auth.signInWithEmailAndPassword(mobileEmail(mobile),password); }
     catch(err){showFieldMessage('login-password','login-password-message',friendlyError(err));}
+    finally{ setAuthLoading(false); }
   };
 
   const oldSaveMainBalance=window.saveMainBalance;
@@ -3011,7 +3031,14 @@ document.addEventListener('click', function(e){
 
   auth.onAuthStateChanged(async function(user){
     updateLoggedInHeader(user, user ? getProfile() : null);
-    if(!user)return;
+    if(!user){
+      localStorage.removeItem(PROFILE_KEY);
+      localStorage.removeItem(MAIN_BALANCE_KEY);
+      mainBalance=0; todayAdIncome=0;
+      updateProfileUI(); updateMainBalanceUI();
+      if(!document.getElementById('home-screen')?.classList.contains('visible')) showScreen('home-screen');
+      return;
+    }
     try{
       const snap=await db.collection('users').doc(user.uid).get();
       if(snap.exists){
@@ -3057,7 +3084,19 @@ document.addEventListener('click', function(e){
     return originalSendContactPageMessage.apply(this, arguments);
   };
 
-  window.profileLogout=function(){auth.signOut().then(function(){localStorage.removeItem(PROFILE_KEY); updateLoggedInHeader(null); showScreen('login-screen');});};
+  window.profileLogout=async function(){
+    if(!auth.currentUser) return;
+    try{
+      setAuthLoading(true,'লগআউট হচ্ছে...');
+      await auth.signOut();
+      localStorage.removeItem(PROFILE_KEY);
+      localStorage.removeItem(MAIN_BALANCE_KEY);
+      mainBalance=0; todayAdIncome=0;
+      updateLoggedInHeader(null); updateProfileUI(); updateMainBalanceUI();
+      showScreen('home-screen');
+    }catch(err){ alert('লগআউট করা যায়নি। আবার চেষ্টা করুন।'); }
+    finally{ setAuthLoading(false); }
+  };
 })();
 </script>
 
