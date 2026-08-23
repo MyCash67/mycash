@@ -2336,88 +2336,64 @@
 
     const amount=Number(reward||0);
     const todayKey=getBangladeshDateKey();
-    const db=window.myCashFirebase.db;
-    const userRef=db.collection('users').doc(u.uid);
-    const claimRef=userRef.collection('adClaims').doc(String(adNumber));
-
+    const ref=window.myCashFirebase.db.collection('users').doc(u.uid);
+    const oldText=btn.textContent;
     btn.disabled=true;
+    btn.classList.remove('claim');
     btn.textContent='ক্লেইম হচ্ছে...';
+    setAdTimerText(card,'রিওয়ার্ড সেভ হচ্ছে...');
+
     try{
-      await db.runTransaction(async tx=>{
-        const userSnap=await tx.get(userRef);
-        const claimSnap=await tx.get(claimRef);
-        const userData=userSnap.exists ? (userSnap.data()||{}) : {};
-        const existing=claimSnap.exists ? (claimSnap.data()||{}) : {};
-        const existingUntil=Number(existing.cooldownUntil||0);
-        if(existingUntil>Date.now()) throw new Error('AD_COOLDOWN');
-
-        const currentBalance=Number(userData.balance||0);
-        const incomeDate=userData.todayAdIncomeDate || '';
-        const currentToday=incomeDate===todayKey ? Number(userData.todayAdIncome||0) : 0;
-        const nextBalance=currentBalance+amount;
-        const nextToday=currentToday+amount;
-
-        tx.set(userRef,{
-          balance:nextBalance,
-          todayAdIncome:nextToday,
-          todayAdIncomeDate:todayKey
+      // IMPORTANT: Firebase must succeed BEFORE we mark the ad as claimed locally.
+      // This prevents the old bug where the button showed "claimed" but refresh lost the money.
+      let saved={};
+      await window.myCashFirebase.db.runTransaction(async tx=>{
+        const snap=await tx.get(ref);
+        const d=snap.exists ? (snap.data()||{}) : {};
+        const serverBalance=Number(d.balance||0);
+        const serverDate=d.todayAdIncomeDate || '';
+        const serverTodayIncome=serverDate===todayKey ? Number(d.todayAdIncome||0) : 0;
+        const newBalance=serverBalance+amount;
+        const newTodayIncome=serverTodayIncome+amount;
+        tx.set(ref,{
+          uid:u.uid,
+          balance:newBalance,
+          todayAdIncome:newTodayIncome,
+          todayAdIncomeDate:todayKey,
+          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
         },{merge:true});
-        tx.set(claimRef,{
-          adNumber:String(adNumber),
-          reward:amount,
-          claimedAt:firebase.firestore.FieldValue.serverTimestamp(),
-          cooldownUntil:Date.now()+AD_COOLDOWN,
-          dateKey:todayKey
-        },{merge:true});
+        saved={balance:newBalance,todayAdIncome:newTodayIncome};
       });
 
-      // Only update the UI/local state AFTER Firestore confirms the claim.
+      // Only after the transaction succeeds do we update the local/UI state.
+      mainBalance=Number(saved.balance||0);
+      todayAdIncome=Number(saved.todayAdIncome||0);
       state.claimed=true;
+      state.ready=false;
       state.claimedAt=Date.now();
       state.cooldownUntil=Date.now()+AD_COOLDOWN;
-      todayAdIncome=Number(todayAdIncome||0)+amount;
-      mainBalance=Number(mainBalance||0)+amount;
-      localStorage.setItem(accountKey(AD_INCOME_KEY_BASE,u.uid),String(todayAdIncome));
-      localStorage.setItem(accountKey(AD_INCOME_DATE_KEY_BASE,u.uid),todayKey);
       saveAdStates();
+      if(currentAccountUid()){
+        localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance));
+        localStorage.setItem(accountKey(AD_INCOME_KEY_BASE,currentAccountUid()),String(todayAdIncome));
+        localStorage.setItem(accountKey(AD_INCOME_DATE_KEY_BASE,currentAccountUid()),todayKey);
+      }
       updateMainBalanceUI();
       updateIncomeSummary();
-      btn.className='ad-watch-btn done';
+      btn.disabled=true;
+      btn.classList.remove('claim');
+      btn.classList.add('done');
       btn.textContent='✓ ক্লেইম হয়েছে';
       setAdTimerText(card,'২৪ ঘণ্টা পরে আবার এই এড দেখা যাবে');
       startCooldownCountdown(adNumber);
     }catch(e){
-      console.warn('Ad claim failed:',e);
+      // Never consume the claim if Firebase rejected the write.
       btn.disabled=false;
-      btn.className='ad-watch-btn claim';
+      btn.classList.add('claim');
       btn.textContent=`৳${amount} ক্লেইম`;
-      if(e && e.message==='AD_COOLDOWN') setAdTimerText(card,'২৪ ঘণ্টা পূর্ণ হয়নি');
-      else setAdTimerText(card,'ক্লেইম করা যায়নি — আবার চেষ্টা করুন');
+      setAdTimerText(card,'ক্লেইম সেভ হয়নি — আবার চেষ্টা করুন');
+      console.error('Ad claim failed:',e);
     }
-  }
-
-  async function loadFirestoreAdClaims(uid){
-    try{
-      const snap=await window.myCashFirebase.db.collection('users').doc(uid).collection('adClaims').get();
-      const remote={};
-      snap.forEach(doc=>{
-        const d=doc.data()||{};
-        const n=Number(d.adNumber||doc.id);
-        if(n) remote[n]={
-          startedAt:Number(d.startedAt||0),
-          ready:false,
-          claimed:true,
-          claimedAt:d.claimedAt?.toMillis ? d.claimedAt.toMillis() : Number(d.claimedAt||0),
-          cooldownUntil:Number(d.cooldownUntil||0)
-        };
-      });
-      Object.keys(remote).forEach(k=>{
-        const n=Number(k);
-        if(remote[n].cooldownUntil>Date.now()) adStates[n]=remote[n];
-        else delete adStates[n];
-      });
-      saveAdStates();
-    }catch(e){ console.warn('Ad claims load failed:',e); }
   }
 
   function startCooldownCountdown(adNumber){
@@ -3222,7 +3198,6 @@ body.logged-out .income-summary{display:none !important;}
       const profileData={firstName:d.firstName||'',lastName:d.lastName||'',mobile:d.mobile||''};
       localStorage.setItem(PROFILE_KEY,JSON.stringify(profileData));
       try { adStates=JSON.parse(localStorage.getItem(accountKey(AD_STATE_KEY_BASE,user.uid)) || '{}'); } catch(e){ adStates={}; }
-      await loadFirestoreAdClaims(user.uid);
       restoreAdStates();
       // Always repaint the visible UI after Firebase data is loaded.
       updateProfileUI();
