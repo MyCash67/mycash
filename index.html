@@ -2917,6 +2917,8 @@ document.addEventListener('click', function(e){
   const db = firebase.firestore();
   const auth = firebase.auth();
   window.myCashFirebase = {db, auth};
+  let authFlowPending = false;
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   function setAuthLoading(show, text){
     const overlay=document.getElementById('auth-loading-overlay');
@@ -2955,14 +2957,21 @@ document.addEventListener('click', function(e){
     if(!repassword){showFieldMessage('register-repassword','register-repassword-message','পাসওয়ার্ড পুনরায় লিখুন।');return;}
     if(password!==repassword){showFieldMessage('register-repassword','register-repassword-message','দুইটি পাসওয়ার্ড একই হতে হবে।');return;}
     try{
+      authFlowPending=true;
       setAuthLoading(true,'অ্যাকাউন্ট তৈরি হচ্ছে...');
       const cred=await auth.createUserWithEmailAndPassword(mobileEmail(mobile),password);
       const data={uid:cred.user.uid,firstName,lastName,mobile,balance:1240,todayAdIncome:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
       await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
       localStorage.setItem(PROFILE_KEY,JSON.stringify({firstName,lastName,mobile}));
       mainBalance=1240; todayAdIncome=0; localStorage.setItem(MAIN_BALANCE_KEY,String(mainBalance)); updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
-    }catch(err){showFieldMessage('register-mobile','register-mobile-message',friendlyError(err));}
-    finally{ setAuthLoading(false); }
+      await wait(250);
+      authFlowPending=false;
+      setAuthLoading(false);
+    }catch(err){
+      authFlowPending=false;
+      setAuthLoading(false);
+      showFieldMessage('register-mobile','register-mobile-message',friendlyError(err));
+    }
   };
 
   window.handleLogin = async function(){
@@ -2971,9 +2980,16 @@ document.addEventListener('click', function(e){
     clearFieldMessages();
     if(!mobile){showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর লিখুন।');return;}
     if(!password){showFieldMessage('login-password','login-password-message','পাসওয়ার্ড লিখুন।');return;}
-    try{ setAuthLoading(true,'লগইন হচ্ছে...'); await auth.signInWithEmailAndPassword(mobileEmail(mobile),password); }
-    catch(err){showFieldMessage('login-password','login-password-message',friendlyError(err));}
-    finally{ setAuthLoading(false); }
+    try{
+      authFlowPending=true;
+      setAuthLoading(true,'লগইন হচ্ছে...');
+      await auth.signInWithEmailAndPassword(mobileEmail(mobile),password);
+      // Loading stays visible until Firebase auth state + user data are loaded and Home is shown.
+    }catch(err){
+      authFlowPending=false;
+      setAuthLoading(false);
+      showFieldMessage('login-password','login-password-message',friendlyError(err));
+    }
   };
 
   const oldSaveMainBalance=window.saveMainBalance;
@@ -3037,6 +3053,10 @@ document.addEventListener('click', function(e){
       mainBalance=0; todayAdIncome=0;
       updateProfileUI(); updateMainBalanceUI();
       if(!document.getElementById('home-screen')?.classList.contains('visible')) showScreen('home-screen');
+      if(authFlowPending){
+        authFlowPending=false;
+        setAuthLoading(false);
+      }
       return;
     }
     try{
@@ -3049,7 +3069,17 @@ document.addEventListener('click', function(e){
         updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(user, profileData);
       }
       if(document.getElementById('login-screen')?.classList.contains('visible')) showScreen('home-screen');
-    }catch(e){}
+      if(authFlowPending){
+        await wait(250);
+        authFlowPending=false;
+        setAuthLoading(false);
+      }
+    }catch(e){
+      if(authFlowPending){
+        authFlowPending=false;
+        setAuthLoading(false);
+      }
+    }
   });
 
   // Guard actions that can be triggered directly without first opening a protected screen.
@@ -3088,14 +3118,20 @@ document.addEventListener('click', function(e){
     if(!auth.currentUser) return;
     try{
       setAuthLoading(true,'লগআউট হচ্ছে...');
+      const started=Date.now();
       await auth.signOut();
       localStorage.removeItem(PROFILE_KEY);
       localStorage.removeItem(MAIN_BALANCE_KEY);
       mainBalance=0; todayAdIncome=0;
       updateLoggedInHeader(null); updateProfileUI(); updateMainBalanceUI();
       showScreen('home-screen');
-    }catch(err){ alert('লগআউট করা যায়নি। আবার চেষ্টা করুন।'); }
-    finally{ setAuthLoading(false); }
+      // Keep the logout animation visible for a short, noticeable moment.
+      await wait(Math.max(900 - (Date.now()-started), 0));
+      setAuthLoading(false);
+    }catch(err){
+      setAuthLoading(false);
+      alert('লগআউট করা যায়নি। আবার চেষ্টা করুন।');
+    }
   };
 })();
 </script>
