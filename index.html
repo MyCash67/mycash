@@ -1296,7 +1296,6 @@
           </div>
           <span class="bc-badge">সক্রিয়</span>
         </div>
-        <div class="bc-delta"><span id="today-income-delta">↑ আজ +৳০ জমা হয়েছে</span></div>
         <div class="bc-actions">
           <button type="button" class="bc-btn primary" onclick="openWithdrawModal()">উত্তোলন করুন</button>
           <button type="button" class="bc-btn ghost" onclick="showScreen('withdrawal-history-screen')">উত্তোলন হিস্টোরি</button>
@@ -2259,10 +2258,8 @@
     const completed = Object.values(adStates).filter(x => x && x.claimed && x.claimedAt && new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(x.claimedAt))===todayKey).length;
     const count=document.querySelector('.income-summary-count');
     const value=document.querySelector('.income-summary-value');
-    const delta=document.getElementById('today-income-delta');
     if(count) count.textContent=`${completed}/১০ এড দেখা হয়েছে`;
     if(value) value.textContent=`৳${formatMoneyBn(todayAdIncome)}`;
-    if(delta) delta.textContent=`↑ আজ +৳${formatMoneyBn(todayAdIncome)} জমা হয়েছে`;
   }
 
   function setAdTimerText(card, text){
@@ -2926,6 +2923,10 @@ document.addEventListener('click', function(e){
     setupInnerPageBackButtons();
   </script>
 
+<style id="logged-out-income-hide">
+/* আজকের আয় শুধু লগইন করা অবস্থায় দেখা যাবে */
+body.logged-out .income-summary{display:none !important;}
+</style>
 <style id="mycash-auth-loading-style">
 .auth-loading-overlay{position:fixed;inset:0;background:rgba(247,245,239,.72);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:99999}
 .auth-loading-overlay.show{display:flex}
@@ -3131,12 +3132,14 @@ document.addEventListener('click', function(e){
   async function requireLogin(action){
     if(auth.currentUser) return true;
     setAuthLoading(true,'লগইন করতে হচ্ছে...');
-    await wait(350);
+    // Desktop ও mobile—দুই জায়গাতেই animation স্পষ্টভাবে দেখা যাবে।
+    await wait(650);
     showScreen('login-screen');
-    await wait(450);
+    await wait(650);
     setAuthLoading(false);
     return false;
   }
+  window.myCashRequireLogin = requireLogin;
 
   const originalOpenWithdrawModal = window.openWithdrawModal;
   window.openWithdrawModal = async function(){
@@ -3161,6 +3164,22 @@ document.addEventListener('click', function(e){
     if(!(await requireLogin())) return;
     return originalSendContactPageMessage.apply(this, arguments);
   };
+
+  // Logged-out অবস্থায় protected button/navigation-এ click করলে আগে login animation দেখাবে।
+  document.addEventListener('click', function(e){
+    if(auth.currentUser) return;
+    const el=e.target.closest('button, a, [data-nav]');
+    if(!el) return;
+    if(el.closest('#login-screen, #register-screen, [data-auth-actions], .auth-actions')) return;
+    const protectedButton = el.matches('.pkg-btn, .ad-watch-btn, .bc-btn.primary, .contact-send-btn');
+    const nav=el.closest('[data-nav]');
+    const protectedNav = nav && ['income','contact','profile'].includes(nav.dataset.nav);
+    if(protectedButton || protectedNav){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      window.myCashRequireLogin && window.myCashRequireLogin();
+    }
+  }, true);
 
   setInterval(function(){
     const before=localStorage.getItem(AD_INCOME_DATE_KEY);
