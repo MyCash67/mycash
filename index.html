@@ -2143,7 +2143,7 @@
     // Login is required for all member-only screens.
     // Home/Login/Register remain publicly accessible.
     const protectedScreens = ['income-screen','contact-screen','profile-screen','package-screen','package-history-screen','refer-screen','withdrawal-history-screen'];
-    if(protectedScreens.includes(id) && window.myCashFirebase && !window.myCashFirebase.auth.currentUser){
+    if(protectedScreens.includes(id) && !(window.myCashFirebase && window.myCashFirebase.auth.currentUser)){
       // Never use an OK/alert here. Show the same login animation on every device,
       // then take the user to the login page automatically.
       if(typeof window.myCashRequireLogin === 'function'){
