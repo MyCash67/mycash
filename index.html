@@ -277,6 +277,8 @@
   }
   .status-card.inactive .status-btn{ background:var(--gold); color:var(--taka-deep); }
   .status-card.active .status-btn{ background:rgba(246,242,233,0.12); color:var(--paper); border:1px solid rgba(246,242,233,0.3); }
+  .status-card.active .status-btn.status-claim-btn{ background:var(--gold); color:#fff; border:none; }
+  .status-btn:disabled{ opacity:0.65; cursor:not-allowed; }
 
   .pkg-list{ display:flex; flex-direction:column; gap:12px; }
   .pkg-card{
@@ -2184,6 +2186,9 @@
     const target = document.getElementById(id);
     if (target) target.classList.add('visible');
     updateBottomNav(id);
+    if(id === 'package-screen' && typeof loadActivePackagesFromFirestore === 'function'){
+      loadActivePackagesFromFirestore();
+    }
   }
 
   function activatePackage(name, days, income){
@@ -2214,6 +2219,152 @@
     card.scrollIntoView({behavior:'smooth', block:'start'});
   }
 
+  // ---------- APPROVED PACKAGE STATUS + DAILY CLAIM ----------
+  // Admin অ্যাডমিন প্যানেল থেকে payments ডকুমেন্টের status = 'approved' করলে
+  // এখানে সেটি প্যাকেজ স্ট্যাটাস বক্স হিসেবে দেখানো হয়, এবং ইউজার প্রতিদিন
+  // একবার করে সেই প্যাকেজের নির্ধারিত আয় দাবি (claim) করতে পারে —
+  // যা মূল ব্যালেন্স ও আজকের আয়-তে যোগ হয়।
+  async function loadActivePackagesFromFirestore(){
+    const list = document.getElementById('active-packages-list');
+    const inactiveBox = document.getElementById('status-inactive');
+    if(!list) return;
+    const fb = window.myCashFirebase;
+    const u = fb && fb.auth ? fb.auth.currentUser : null;
+    if(!u){
+      list.innerHTML = '';
+      if(inactiveBox) inactiveBox.style.display = '';
+      return;
+    }
+    try{
+      const snap = await fb.db.collection('payments').where('uid','==',u.uid).where('status','==','approved').get();
+      if(snap.empty){
+        list.innerHTML = '';
+        if(inactiveBox) inactiveBox.style.display = '';
+        return;
+      }
+      const todayKey = getBangladeshDateKey();
+      const docs = snap.docs.slice().sort((a,b)=>{
+        const ta = a.data().createdAt && a.data().createdAt.toMillis ? a.data().createdAt.toMillis() : 0;
+        const tb = b.data().createdAt && b.data().createdAt.toMillis ? b.data().createdAt.toMillis() : 0;
+        return tb - ta;
+      });
+      list.innerHTML = '';
+      docs.forEach(doc=>{
+        const p = doc.data();
+        const dailyIncome = Number(p.dailyIncome||0);
+        const durationDays = Number(p.durationDays||0);
+        const claimedDays = Number(p.claimedDays||0);
+        const remainingDays = Math.max(0, durationDays - claimedDays);
+        const title = String(p.packageName||'প্যাকেজ').replace(/\s*একটিভ\s*/g,'').trim() || 'প্যাকেজ';
+        const expired = durationDays > 0 && claimedDays >= durationDays;
+        const claimedToday = !expired && p.lastClaimDate === todayKey;
+
+        let btnHtml;
+        if(expired){
+          btnHtml = `<button type="button" class="status-btn" onclick="document.getElementById('packages').scrollIntoView({behavior:'smooth'})">মেয়াদ শেষ, নতুন প্যাকেজ কিনুন</button>`;
+        }else if(claimedToday){
+          btnHtml = `<button type="button" class="status-btn" disabled>✓ আজকের আয় নেওয়া হয়েছে</button>`;
+        }else{
+          btnHtml = `<button type="button" class="status-btn status-claim-btn" data-claim-id="${doc.id}" onclick="claimPackageIncome('${doc.id}', this)">আজকের আয় ৳${formatMoneyBn(dailyIncome)} দাবি করুন</button>`;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'status-card active';
+        card.innerHTML = `
+          <div class="status-icon">✅</div>
+          <div class="status-label">প্যাকেজ স্ট্যাটাস</div>
+          <div class="status-title">${title}</div>
+          <div class="status-sub">${expired ? 'আপনার প্যাকেজের মেয়াদ শেষ হয়েছে।' : 'আপনার প্যাকেজ একটিভ আছে, প্রতিদিন আয় দাবি করুন।'}</div>
+          <div class="status-detail">
+            <div class="sd-item">
+              <div class="sd-label">বাকি দিন</div>
+              <div class="sd-val">${remainingDays} দিন</div>
+            </div>
+            <div class="sd-item right">
+              <div class="sd-label">দৈনিক আয়</div>
+              <div class="sd-val">৳${formatMoneyBn(dailyIncome)}</div>
+            </div>
+          </div>
+          ${btnHtml}
+        `;
+        list.appendChild(card);
+      });
+      if(inactiveBox) inactiveBox.style.display = 'none';
+    }catch(e){
+      console.error('Active package load failed:', e);
+    }
+  }
+  window.loadActivePackagesFromFirestore = loadActivePackagesFromFirestore;
+
+  async function claimPackageIncome(paymentId, btn){
+    const fb = window.myCashFirebase;
+    const u = fb && fb.auth ? fb.auth.currentUser : null;
+    if(!u){
+      if(window.myCashRequireLogin) await window.myCashRequireLogin();
+      return;
+    }
+    const todayKey = getBangladeshDateKey();
+    const payRef = fb.db.collection('payments').doc(paymentId);
+    const userRef = fb.db.collection('users').doc(u.uid);
+
+    const originalText = btn ? btn.textContent : '';
+    if(btn){ btn.disabled = true; btn.textContent = 'দাবি করা হচ্ছে...'; }
+
+    try{
+      let savedBalance = 0, savedToday = 0;
+      await fb.db.runTransaction(async tx=>{
+        const paySnap = await tx.get(payRef);
+        if(!paySnap.exists) throw new Error('PACKAGE_NOT_FOUND');
+        const p = paySnap.data() || {};
+        if(p.uid !== u.uid || p.status !== 'approved') throw new Error('NOT_ALLOWED');
+        if(p.lastClaimDate === todayKey) throw new Error('ALREADY_CLAIMED');
+        const durationDays = Number(p.durationDays||0);
+        const claimedDays = Number(p.claimedDays||0);
+        if(durationDays > 0 && claimedDays >= durationDays) throw new Error('EXPIRED');
+        const dailyIncome = Number(p.dailyIncome||0);
+
+        const userSnap = await tx.get(userRef);
+        if(!userSnap.exists) throw new Error('USER_NOT_FOUND');
+        const d = userSnap.data() || {};
+        const oldBalance = Number(d.balance||0);
+        const oldDate = String(d.todayAdIncomeDate||'');
+        const oldToday = oldDate === todayKey ? Number(d.todayAdIncome||0) : 0;
+        const newBalance = oldBalance + dailyIncome;
+        const newToday = oldToday + dailyIncome;
+
+        // মূল ব্যালেন্স এবং আজকের আয় — উভয়েই প্যাকেজ Details অনুযায়ী নির্ধারিত দৈনিক আয় যোগ হবে।
+        tx.update(payRef, { claimedDays: claimedDays+1, lastClaimDate: todayKey });
+        tx.update(userRef, { balance:newBalance, todayAdIncome:newToday, todayAdIncomeDate:todayKey });
+        savedBalance = newBalance;
+        savedToday = newToday;
+      });
+
+      mainBalance = savedBalance;
+      todayAdIncome = savedToday;
+      if(currentAccountUid()){
+        localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()), String(mainBalance));
+        localStorage.setItem(accountKey(AD_INCOME_KEY_BASE,currentAccountUid()), String(todayAdIncome));
+        localStorage.setItem(accountKey(AD_INCOME_DATE_KEY_BASE,currentAccountUid()), todayKey);
+      }
+      updateMainBalanceUI();
+      updateIncomeSummary();
+      await loadActivePackagesFromFirestore();
+    }catch(e){
+      console.error('Package claim failed:', e);
+      if(btn){
+        btn.disabled = false;
+        if(String(e && e.message) === 'ALREADY_CLAIMED'){
+          btn.textContent = '✓ আজকের আয় নেওয়া হয়েছে';
+          btn.disabled = true;
+        }else if(String(e && e.message) === 'EXPIRED'){
+          await loadActivePackagesFromFirestore();
+        }else{
+          btn.textContent = originalText || 'আবার চেষ্টা করুন';
+        }
+      }
+    }
+  }
+  window.claimPackageIncome = claimPackageIncome;
 
   const AD_STATE_KEY_BASE = 'mycash_ad_states_v23';
   const AD_INCOME_KEY_BASE = 'mycash_ad_income_v23';
@@ -2233,6 +2384,16 @@
 
   function getBangladeshDateKey(){
     return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  }
+
+  // Bengali digits/৳/কমা যুক্ত স্ট্রিং (যেমন "৳৫,০০০" বা "৩০ দিন বাকি") থেকে সংখ্যা বের করা।
+  function bnDigitsToEn(str){
+    const map={'০':'0','১':'1','২':'2','৩':'3','৪':'4','৫':'5','৬':'6','৭':'7','৮':'8','৯':'9'};
+    return String(str||'').replace(/[০-৯]/g, ch => map[ch] !== undefined ? map[ch] : ch);
+  }
+  function parseBnNumber(str){
+    const cleaned = bnDigitsToEn(str).replace(/[^0-9.]/g,'');
+    return Number(cleaned) || 0;
   }
 
   function resetDailyIncomeIfNeeded(){
@@ -3195,7 +3356,20 @@ body.logged-out .income-summary{display:none !important;}
     if(!u){showScreen('login-screen');return;}
     setAuthLoading(true,'পেমেন্ট রিকোয়েস্ট পাঠানো হচ্ছে...');
     try{
-      await db.collection('payments').add({uid:u.uid,packageId:pendingPackage.id||null,packageName:pendingPackage.name||'',amount:Number(pendingPackage.price||0),method:selectedMethod,transactionId,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      await db.collection('payments').add({
+        uid:u.uid,
+        packageId:pendingPackage.id||null,
+        packageName:pendingPackage.name||'',
+        amount:parseBnNumber(pendingPackage.price),
+        dailyIncome:parseBnNumber(pendingPackage.income),
+        durationDays:parseBnNumber(pendingPackage.days),
+        claimedDays:0,
+        lastClaimDate:'',
+        method:selectedMethod,
+        transactionId,
+        status:'pending',
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
       closePaymentModal(); showScreen('package-history-screen'); await loadPackageHistoryFromFirestore(); pendingPackage=null; selectedMethod=null;
     }catch(err){alert('পেমেন্ট রিকোয়েস্ট পাঠানো যায়নি। Firebase Rules/connection পরীক্ষা করুন।');}
     finally{setAuthLoading(false);}
@@ -3285,6 +3459,7 @@ body.logged-out .income-summary{display:none !important;}
       document.body.classList.add('logged-in');
       document.body.classList.remove('logged-out');
       if(document.getElementById('login-screen')?.classList.contains('visible')) showScreen('home-screen');
+      if(document.getElementById('package-screen')?.classList.contains('visible')) loadActivePackagesFromFirestore();
       if(authFlowPending){
         await wait(250);
         authFlowPending=false;
