@@ -178,9 +178,18 @@ html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10p
 <div style="font-size:13px;margin-top:6px"><b>প্যাকেজ:</b> ${packagesHtml}${pendingCount?` <span style="color:#ee7515">(${pendingCount}টি pending)</span>`:''}</div>
 <input id="bal-${d}" type="number" value="${Number(u.balance||0)}" style="margin-top:8px">
 <button class="save" onclick="updateUserBalance('${d}')">Update Balance</button>
+<button class="save" style="margin-top:8px;background:linear-gradient(135deg,#bd3030,#7a1f1f)" onclick="deleteUserDoc('${d}')">Delete User Data</button>
 </div>`;
 });
 document.getElementById('usersList').innerHTML=html||'কোনো ইউজার পাওয়া যায়নি';
+}
+async function deleteUserDoc(uid){
+if(!requireAdmin())return;
+if(!confirm('এই ইউজারের Firestore ডাটা মুছে ফেলবেন? এটা শুধু Firestore-এর ডাটা মুছবে, Firebase Authentication account না — সেটা আলাদাভাবে Firebase Console থেকে মুছতে হবে।'))return;
+await db.collection('users').doc(uid).delete();
+__usersCache=__usersCache.filter(u=>u.id!==uid);
+renderUsersList(document.getElementById('userSearchInput')?document.getElementById('userSearchInput').value:'');
+alert('মুছে ফেলা হয়েছে ✓');
 }
 async function updateUserBalance(uid){
 if(!requireAdmin())return;
