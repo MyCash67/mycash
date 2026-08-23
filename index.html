@@ -2520,27 +2520,40 @@
     setAdTimerText(card,'রিওয়ার্ড সেভ হচ্ছে...');
 
     try{
-      // Only update the fields that the current Firestore Rules explicitly allow.
-      // No adClaims subcollection is used here, so Claim cannot be blocked by a
-      // second Firestore write/rule.
-      let saved={balance:0,todayAdIncome:0};
+      // adClaims.{adNumber} = এই এড সর্বশেষ কখন claim হয়েছে (ms), সরাসরি ইউজারের
+      // Firestore ডকুমেন্টে সেভ হয়। এর ফলে localStorage মুছে গেলে, অন্য ব্রাউজার/
+      // ডিভাইসে ঢুকলেও ২৪ ঘণ্টার কুলডাউন ঠিকভাবে সার্ভার থেকে যাচাই হবে।
+      // users/{uid} rule-এ owner-এর পুরো ডকুমেন্ট read/write অনুমতি আগে থেকেই আছে,
+      // তাই এই নতুন ফিল্ডের জন্য আলাদা কোনো rules পরিবর্তন লাগছে না।
+      let saved={balance:0,todayAdIncome:0,claimedAt:Date.now()};
       await fb.db.runTransaction(async tx=>{
         const snap=await tx.get(ref);
         if(!snap.exists) throw new Error('USER_DOC_NOT_FOUND');
         const d=snap.data()||{};
+
+        // সার্ভারে যা লেখা আছে সেটাই আসল সত্য ধরে কুলডাউন চেক করা হচ্ছে —
+        // লোকাল স্টেট (state.ready) নয়, কারণ সেটা মুছে/বদলে যেতে পারে।
+        const adClaims=d.adClaims||{};
+        const lastClaimedAt=Number(adClaims[adNumber]||0);
+        if(lastClaimedAt && (Date.now()-lastClaimedAt) < AD_COOLDOWN){
+          throw new Error('COOLDOWN_ACTIVE');
+        }
+
         const oldBalance=Number(d.balance||0);
         const oldDate=String(d.todayAdIncomeDate||'');
         const oldToday=oldDate===todayKey ? Number(d.todayAdIncome||0) : 0;
         const newBalance=oldBalance+amount;
         const newToday=oldToday+amount;
+        const nowMs=Date.now();
 
-        // Keep this write limited to balance/todayAdIncome/date.
+        // এখন balance/todayAdIncome/date-এর পাশাপাশি এই নির্দিষ্ট এড-স্লটের claim সময়ও লেখা হচ্ছে।
         tx.update(ref,{
           balance:newBalance,
           todayAdIncome:newToday,
-          todayAdIncomeDate:todayKey
+          todayAdIncomeDate:todayKey,
+          [`adClaims.${adNumber}`]:nowMs
         });
-        saved={balance:newBalance,todayAdIncome:newToday};
+        saved={balance:newBalance,todayAdIncome:newToday,claimedAt:nowMs};
       });
 
       // Firebase succeeded. Only now consume the Ad and show success.
@@ -2548,8 +2561,8 @@
       todayAdIncome=Number(saved.todayAdIncome||0);
       state.claimed=true;
       state.ready=false;
-      state.claimedAt=Date.now();
-      state.cooldownUntil=Date.now()+AD_COOLDOWN;
+      state.claimedAt=Number(saved.claimedAt||Date.now());
+      state.cooldownUntil=state.claimedAt+AD_COOLDOWN;
       saveAdStates();
       if(currentAccountUid()){
         localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance));
@@ -2565,8 +2578,25 @@
       setAdTimerText(card,'২৪ ঘণ্টা পরে আবার এই এড দেখা যাবে');
       startCooldownCountdown(adNumber);
     }catch(e){
-      // Do not mark the Ad claimed when Firebase rejects the write.
       console.error('Ad claim failed:',e);
+      if(String(e && e.message) === 'COOLDOWN_ACTIVE'){
+        // সার্ভার বলছে এই এড এখনো ২৪ ঘণ্টার কুলডাউনে আছে (হয়তো localStorage মুছে গিয়েছিল
+        // বা অন্য ডিভাইসে আগেই claim হয়েছে) — তাই লোকাল স্টেট সার্ভারের সাথে মিলিয়ে নেওয়া হচ্ছে।
+        try{
+          const freshSnap=await ref.get();
+          const freshData=freshSnap.exists ? (freshSnap.data()||{}) : {};
+          const lastClaimedAt=Number((freshData.adClaims||{})[adNumber]||Date.now());
+          adStates[adNumber]={ startedAt:lastClaimedAt, ready:false, claimed:true, claimedAt:lastClaimedAt, cooldownUntil:lastClaimedAt+AD_COOLDOWN };
+          saveAdStates();
+          startCooldownCountdown(adNumber);
+        }catch(err2){
+          btn.disabled=false;
+          btn.classList.add('claim');
+          btn.textContent=`৳${amount} ক্লেইম`;
+        }
+        return;
+      }
+      // Do not mark the Ad claimed when Firebase rejects the write for any other reason.
       btn.disabled=false;
       btn.classList.add('claim');
       btn.textContent=`৳${amount} ক্লেইম`;
@@ -3474,6 +3504,26 @@ body.logged-out .income-summary{display:none !important;}
       const profileData={firstName:d.firstName||'',lastName:d.lastName||'',mobile:d.mobile||''};
       localStorage.setItem(PROFILE_KEY,JSON.stringify(profileData));
       try { adStates=JSON.parse(localStorage.getItem(accountKey(AD_STATE_KEY_BASE,user.uid)) || '{}'); } catch(e){ adStates={}; }
+
+      // ---- Firestore-এর adClaims দিয়ে লোকাল adStates সিঙ্ক করা ----
+      // localStorage মুছে গেলে, অন্য ব্রাউজার/ডিভাইসে লগইন করলে, বা in-app browser
+      // নিজে থেকে সাইট ডেটা ক্লিয়ার করে দিলে — এই সিঙ্ক ছাড়া কুলডাউন ও কাউন্ট ভুল দেখাত।
+      // এখন সার্ভারের ডেটাকেই আসল সত্য ধরে লোকাল স্টেট মিলিয়ে নেওয়া হচ্ছে।
+      const serverAdClaims=d.adClaims||{};
+      Object.keys(serverAdClaims).forEach(function(slot){
+        const lastClaimedAt=Number(serverAdClaims[slot]||0);
+        if(!lastClaimedAt) return;
+        const cooldownUntil=lastClaimedAt+AD_COOLDOWN;
+        if(cooldownUntil>Date.now()){
+          // সার্ভার অনুযায়ী এখনো কুলডাউনে — লোকাল স্টেট যাই থাকুক, এটাই সঠিক।
+          adStates[slot]={ startedAt:lastClaimedAt, ready:false, claimed:true, claimedAt:lastClaimedAt, cooldownUntil:cooldownUntil };
+        }else if(adStates[slot] && Number(adStates[slot].claimedAt||0)<=lastClaimedAt){
+          // কুলডাউন শেষ — পুরনো লোকাল "claimed" স্টেট থাকলে মুছে আবার দেখার সুযোগ দেওয়া হচ্ছে।
+          delete adStates[slot];
+        }
+      });
+      saveAdStates();
+
       restoreAdStates();
       // Always repaint the visible UI after Firebase data is loaded.
       updateProfileUI();
