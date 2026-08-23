@@ -2395,7 +2395,8 @@
       btn.disabled=false;
       btn.classList.add('claim');
       btn.textContent=`৳${amount} ক্লেইম`;
-      setAdTimerText(card,'ক্লেইম করা যায়নি — আবার চেষ্টা করুন');
+      const debugMsg = (e && (e.code || e.message)) ? ((e.code||'')+' '+(e.message||'')).trim() : String(e);
+      setAdTimerText(card,'ক্লেইম করা যায়নি: '+debugMsg);
     }
   }
 
