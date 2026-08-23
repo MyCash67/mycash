@@ -154,7 +154,8 @@
   .bc-label{ font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.6; margin-bottom:8px; }
   .bc-amount{ font-family:'JetBrains Mono',monospace; font-size:36px; font-weight:700; }
   .bc-badge{
-    background:var(--gold); color:var(--taka-deep);
+    display:none;
+    background:var(--taka); color:#fff;
     font-size:11px; font-weight:700; padding:5px 10px; border-radius:100px;
     font-family:'JetBrains Mono',monospace;
   }
@@ -1239,6 +1240,19 @@
 
 
 
+
+<style id="responsive-and-login-state-style">
+  /* Logged-out: hide the account status badge. Logged-in: show it in green. */
+  body.logged-in .bc-badge{display:inline-block;}
+  body.logged-out .bc-badge{display:none;}
+  @media (min-width:700px){
+    body{padding:0; align-items:stretch;}
+    .phone{width:min(100vw, 760px); max-width:760px; min-height:100vh; border-radius:0; box-shadow:none;}
+    .content{max-width:760px; margin:0 auto;}
+    .topbar{max-width:760px; margin:0 auto;}
+  }
+
+</style>
 
 <style id="logged-in-profile-header-style">
   .logged-in-profile{
@@ -3054,6 +3068,8 @@ document.addEventListener('click', function(e){
   };
 
   function updateLoggedInHeader(user, profileData){
+    document.body.classList.toggle('logged-in', !!user);
+    document.body.classList.toggle('logged-out', !user);
     document.querySelectorAll('[data-auth-actions]').forEach(function(box){
       if(user){
         const p=profileData || getProfile() || {};
@@ -3067,6 +3083,7 @@ document.addEventListener('click', function(e){
     });
   }
 
+  document.body.classList.add('logged-out');
   auth.onAuthStateChanged(async function(user){
     updateLoggedInHeader(user, user ? getProfile() : null);
     if(!user){
