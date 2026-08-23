@@ -2308,25 +2308,41 @@
     },1000);
   }
 
-  function claimAd(adNumber, reward){
+  async function claimAd(adNumber, reward){
     const state=adStates[adNumber];
     const card=document.querySelector(`.ad-card[data-ad="${adNumber}"]`);
     const btn=card?.querySelector('.ad-watch-btn');
     if(!state || !state.ready || state.claimed || !btn) return;
+    const u = window.myCashFirebase?.auth?.currentUser;
+    if(!u){
+      if(window.myCashRequireLogin) await window.myCashRequireLogin();
+      return;
+    }
     state.claimed=true;
     state.claimedAt=Date.now();
     state.cooldownUntil=Date.now()+AD_COOLDOWN;
-    todayAdIncome += reward;
+    todayAdIncome += Number(reward||0);
+    mainBalance += Number(reward||0);
     localStorage.setItem(AD_INCOME_KEY, String(todayAdIncome));
     localStorage.setItem(AD_INCOME_DATE_KEY, getBangladeshDateKey());
-    mainBalance += reward;
-    saveMainBalance();
     saveAdStates();
+    saveMainBalance();
+    // Persist the daily income and balance for THIS logged-in account.
+    try {
+      await window.myCashFirebase.db.collection('users').doc(u.uid).set({
+        balance:Number(mainBalance),
+        todayAdIncome:Number(todayAdIncome),
+        todayAdIncomeDate:getBangladeshDateKey()
+      },{merge:true});
+    } catch(e) {
+      // Keep the local UI responsive; the next auth/data refresh will reconcile it.
+    }
     btn.disabled=true;
     btn.classList.remove('claim');
     btn.classList.add('done');
     btn.textContent='✓ ক্লেইম হয়েছে';
     setAdTimerText(card,'২৪ ঘণ্টা পরে আবার এই এড দেখা যাবে');
+    updateMainBalanceUI();
     updateIncomeSummary();
     startCooldownCountdown(adNumber);
   }
@@ -3091,7 +3107,8 @@ body.logged-out .income-summary{display:none !important;}
       localStorage.removeItem(PROFILE_KEY);
       localStorage.removeItem(MAIN_BALANCE_KEY);
       mainBalance=0;
-      resetDailyIncomeIfNeeded();
+      todayAdIncome=0;
+      localStorage.setItem(AD_INCOME_KEY,'0');
       updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary();
       if(!document.getElementById('home-screen')?.classList.contains('visible')) showScreen('home-screen');
       if(authFlowPending){
@@ -3101,19 +3118,35 @@ body.logged-out .income-summary{display:none !important;}
       return;
     }
     try{
-      const snap=await db.collection('users').doc(user.uid).get();
+      const todayKey=getBangladeshDateKey();
+      const ref=db.collection('users').doc(user.uid);
+      const snap=await ref.get();
+      let d;
       if(snap.exists){
-        const d=snap.data();
-        mainBalance=Number(d.balance||0);
-        resetDailyIncomeIfNeeded();
-        todayAdIncome=Number(d.todayAdIncome||0);
-        if(localStorage.getItem(AD_INCOME_DATE_KEY)!==getBangladeshDateKey()) todayAdIncome=0;
-        localStorage.setItem(AD_INCOME_KEY,String(todayAdIncome));
-        localStorage.setItem(AD_INCOME_DATE_KEY,getBangladeshDateKey());
-        const profileData={firstName:d.firstName||'',lastName:d.lastName||'',mobile:d.mobile||''};
-        localStorage.setItem(PROFILE_KEY,JSON.stringify(profileData));
-        updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary(); updateLoggedInHeader(user, profileData);
+        d=snap.data() || {};
+      }else{
+        // Never inherit another account's local balance/income.
+        d={uid:user.uid,firstName:user.displayName||'',lastName:'',mobile:'',balance:0,todayAdIncome:0,todayAdIncomeDate:todayKey};
+        await ref.set({...d,createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
       }
+      mainBalance=Number(d.balance||0);
+      const storedIncomeDate=d.todayAdIncomeDate || '';
+      todayAdIncome = storedIncomeDate===todayKey ? Number(d.todayAdIncome||0) : 0;
+      if(storedIncomeDate!==todayKey){
+        await ref.set({todayAdIncome:0,todayAdIncomeDate:todayKey},{merge:true});
+      }
+      localStorage.setItem(MAIN_BALANCE_KEY,String(mainBalance));
+      localStorage.setItem(AD_INCOME_KEY,String(todayAdIncome));
+      localStorage.setItem(AD_INCOME_DATE_KEY,todayKey);
+      const profileData={firstName:d.firstName||'',lastName:d.lastName||'',mobile:d.mobile||''};
+      localStorage.setItem(PROFILE_KEY,JSON.stringify(profileData));
+      // Always repaint the visible UI after Firebase data is loaded.
+      updateProfileUI();
+      updateMainBalanceUI();
+      updateIncomeSummary();
+      updateLoggedInHeader(user, profileData);
+      document.body.classList.add('logged-in');
+      document.body.classList.remove('logged-out');
       if(document.getElementById('login-screen')?.classList.contains('visible')) showScreen('home-screen');
       if(authFlowPending){
         await wait(250);
@@ -3121,6 +3154,9 @@ body.logged-out .income-summary{display:none !important;}
         setAuthLoading(false);
       }
     }catch(e){
+      // Keep the UI consistent even if Firestore is temporarily unavailable.
+      mainBalance=0; todayAdIncome=0;
+      updateMainBalanceUI(); updateIncomeSummary();
       if(authFlowPending){
         authFlowPending=false;
         setAuthLoading(false);
