@@ -3427,14 +3427,38 @@ body.logged-out .income-summary{display:none !important;}
     try{
       // Switch all local UI state to this Firebase account. Never reuse another account's ad claims.
       loadAccountState();
+      // দুর্বল নেটওয়ার্কে সার্ভার থেকে ডেটা আসার আগ পর্যন্ত, localStorage-এ যা ক্যাশ করা আছে
+      // সেটাই দেখানো হচ্ছে — যাতে "ফাঁকা/ভুয়া প্রোফাইল" মুহূর্তের জন্যও না দেখায়।
+      updateProfileUI();
+      updateMainBalanceUI();
       const todayKey=getBangladeshDateKey();
       const ref=db.collection('users').doc(user.uid);
-      const snap=await ref.get();
+
+      // দুর্বল নেটওয়ার্কে (cache-only পড়ার কারণে) আসল, আগে থেকে রেজিস্টার করা ইউজারকেও
+      // "নতুন ইউজার" ভেবে ফাঁকা প্রোফাইল দিয়ে ওভাররাইট করে ফেলার বাগ এখানেই হচ্ছিল।
+      // তাই এখন সবসময় আগে সরাসরি সার্ভার থেকে নিশ্চিত হওয়ার চেষ্টা হয়; সার্ভারে না পৌঁছালে
+      // কখনোই কাউকে "নতুন" ধরে নেওয়া হয় না বা Firestore-এ কিছু ওভাররাইট করা হয় না।
+      let snap = null;
+      let serverConfirmed = false;
+      try{
+        snap = await ref.get({source:'server'});
+        serverConfirmed = true;
+      }catch(networkErr){
+        try{ snap = await ref.get(); }catch(cacheErr){ snap = null; }
+      }
+
+      if(!snap || (!snap.exists && !serverConfirmed)){
+        // নেটওয়ার্ক দুর্বল থাকায় সার্ভার থেকে নিশ্চিত হওয়া যায়নি — এই মুহূর্তে কিছু পরিবর্তন না করে
+        // আগে থেকে দেখানো (cache করা) তথ্যই বহাল রাখা হচ্ছে, যাতে আসল ডেটা মুছে না যায়।
+        if(authFlowPending){ authFlowPending=false; setAuthLoading(false); }
+        return;
+      }
+
       let d;
       if(snap.exists){
         d=snap.data() || {};
       }else{
-        // Never inherit another account's local balance/income.
+        // এই পয়েন্টে সার্ভার নিজে নিশ্চিত করেছে যে ডকুমেন্ট নেই — তাই এখন নতুন প্রোফাইল বানানো নিরাপদ।
         d={uid:user.uid,firstName:user.displayName||'',lastName:'',mobile:'',balance:0,todayAdIncome:0,todayAdIncomeDate:todayKey};
         await ref.set({...d,createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
       }
@@ -3466,8 +3490,9 @@ body.logged-out .income-summary{display:none !important;}
         setAuthLoading(false);
       }
     }catch(e){
-      // Keep the UI consistent even if Firestore is temporarily unavailable.
-      mainBalance=0; todayAdIncome=0;
+      // অপ্রত্যাশিত এরর হলেও ব্যালেন্স/আয় জোর করে শূন্য না করে, loadAccountState() থেকে
+      // localStorage-এ যা আছে সেটাই দেখানো থাকবে — আসল ইউজারকে যেন ফাঁকা/ভুয়া অবস্থায় না দেখায়।
+      console.error('Account sync failed:', e);
       updateMainBalanceUI(); updateIncomeSummary();
       if(authFlowPending){
         authFlowPending=false;
