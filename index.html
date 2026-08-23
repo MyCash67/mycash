@@ -2355,12 +2355,28 @@
         const serverTodayIncome=serverDate===todayKey ? Number(d.todayAdIncome||0) : 0;
         const newBalance=serverBalance+amount;
         const newTodayIncome=serverTodayIncome+amount;
+        const claimRef=ref.collection('adClaims').doc(String(adNumber));
+        const claimSnap=await tx.get(claimRef);
+        if(claimSnap.exists){
+          const claimData=claimSnap.data()||{};
+          const cooldownUntil=Number(claimData.cooldownUntil||0);
+          if(claimData.claimed===true && cooldownUntil>Date.now()){
+            throw new Error('AD_ALREADY_CLAIMED');
+          }
+        }
+        // Firestore Rules intentionally allow ONLY these reward fields to change.
+        // Do not include uid/updatedAt here, otherwise the Rules reject the transaction.
         tx.set(ref,{
-          uid:u.uid,
           balance:newBalance,
           todayAdIncome:newTodayIncome,
-          todayAdIncomeDate:todayKey,
-          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+          todayAdIncomeDate:todayKey
+        },{merge:true});
+        tx.set(claimRef,{
+          adNumber:String(adNumber),
+          reward:amount,
+          claimed:true,
+          claimedAt:firebase.firestore.FieldValue.serverTimestamp(),
+          cooldownUntil:Date.now()+AD_COOLDOWN
         },{merge:true});
         saved={balance:newBalance,todayAdIncome:newTodayIncome};
       });
