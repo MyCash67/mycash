@@ -689,6 +689,20 @@
   .history-row.pending{
     border:1.5px solid rgba(212,167,58,0.35);
   }
+  .history-row.approved{
+    border:1.5px solid rgba(23,107,59,0.35);
+  }
+  .history-row.approved .history-status{
+    background:rgba(23,107,59,0.14);
+    color:#176B3B;
+  }
+  .history-row.rejected{
+    border:1.5px solid rgba(189,48,48,0.35);
+  }
+  .history-row.rejected .history-status{
+    background:rgba(189,48,48,0.14);
+    color:#BD3030;
+  }
 
   .withdrawal-history-list{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
   .withdrawal-history-row{background:var(--card);border-radius:16px;padding:14px;box-shadow:0 1px 2px rgba(15,46,29,0.05);}
@@ -1605,7 +1619,7 @@
     <div class="content">
 
       <!-- PACKAGE HISTORY BOX -->
-      <button class="package-history-card" onclick="showScreen('package-history-screen')">
+      <button class="package-history-card" onclick="showPackageHistory()">
         <div class="package-history-icon">🧾</div>
         <div class="package-history-body">
           <div class="package-history-title">প্যাকেজ ইতিহাস</div>
@@ -1930,14 +1944,14 @@
           <div class="copy-feedback" id="copy-feedback"></div>
         </div>
 
-        <label class="transaction-label" for="transaction-id">লেনদেন আইডি</label>
+        <label class="transaction-label" for="transaction-id">ট্রানজেকশন আইডি দিন</label>
         <input
           class="transaction-input"
           id="transaction-id"
           type="text"
           inputmode="text"
           autocomplete="off"
-          placeholder="লেনদেন আইডি লিখুন"
+          placeholder="বিকাশ/নগদ থেকে পাওয়া ট্রানজেকশন আইডি লিখুন"
           maxlength="80"
         />
 
@@ -2770,19 +2784,72 @@
     if(empty) empty.remove();
 
     const methodName = method === 'bkash' ? 'বিকাশ' : 'নগদ';
+    // Strip the "একটিভ" wording here — the package isn't active yet while it's pending review.
+    const title = String(pkg.name||'').replace(/\s*একটিভ\s*/g,'').trim() || 'প্যাকেজ';
     const row = document.createElement('div');
     row.className = 'history-row pending';
 
     row.innerHTML = `
       <div class="history-row-icon">📦</div>
       <div class="history-row-body">
-        <div class="history-row-title">${pkg.name}</div>
+        <div class="history-row-title">${title}</div>
         <div class="history-row-meta">${methodName} · TXN: ${transactionId}</div>
       </div>
       <div class="history-status">যাচাই করা হচ্ছে</div>
     `;
 
     list.prepend(row);
+  }
+
+  async function loadPackageHistoryFromFirestore(){
+    const list = document.getElementById('package-history-list');
+    if(!list) return;
+    const fb = window.myCashFirebase;
+    const u = fb && fb.auth ? fb.auth.currentUser : null;
+    if(!u){
+      list.innerHTML = '<div class="history-empty" id="history-empty">এখনো কোনো প্যাকেজ কেনা হয়নি।</div>';
+      return;
+    }
+    list.innerHTML = '<div class="history-empty">লোড হচ্ছে...</div>';
+    try{
+      const snap = await fb.db.collection('payments').where('uid','==',u.uid).get();
+      if(snap.empty){
+        list.innerHTML = '<div class="history-empty" id="history-empty">এখনো কোনো প্যাকেজ কেনা হয়নি।</div>';
+        return;
+      }
+      const docs = snap.docs.slice().sort((a,b)=>{
+        const ta = a.data().createdAt && a.data().createdAt.toMillis ? a.data().createdAt.toMillis() : 0;
+        const tb = b.data().createdAt && b.data().createdAt.toMillis ? b.data().createdAt.toMillis() : 0;
+        return tb - ta;
+      });
+      let html = '';
+      docs.forEach(doc=>{
+        const p = doc.data();
+        const methodName = p.method === 'bkash' ? 'বিকাশ' : p.method === 'nagad' ? 'নগদ' : (p.method||'');
+        // Strip the "একটিভ" wording — only reflect the real approval status, never the raw button label.
+        const title = String(p.packageName||'প্যাকেজ').replace(/\s*একটিভ\s*/g,'').trim() || 'প্যাকেজ';
+        let statusText = 'যাচাই করা হচ্ছে', statusClass = 'pending';
+        if(p.status === 'approved'){ statusText = 'একটিভ ✓'; statusClass = 'approved'; }
+        else if(p.status === 'rejected'){ statusText = 'বাতিল হয়েছে'; statusClass = 'rejected'; }
+        html += `
+          <div class="history-row ${statusClass}">
+            <div class="history-row-icon">📦</div>
+            <div class="history-row-body">
+              <div class="history-row-title">${title}</div>
+              <div class="history-row-meta">${methodName} · TXN: ${p.transactionId||''}</div>
+            </div>
+            <div class="history-status">${statusText}</div>
+          </div>`;
+      });
+      list.innerHTML = html;
+    }catch(e){
+      list.innerHTML = '<div class="history-empty">ইতিহাস লোড করা যায়নি। আবার চেষ্টা করুন।</div>';
+    }
+  }
+  window.loadPackageHistoryFromFirestore = loadPackageHistoryFromFirestore;
+  function showPackageHistory(){
+    showScreen('package-history-screen');
+    loadPackageHistoryFromFirestore();
   }
 
   function submitPayment(){
@@ -3129,9 +3196,7 @@ body.logged-out .income-summary{display:none !important;}
     setAuthLoading(true,'পেমেন্ট রিকোয়েস্ট পাঠানো হচ্ছে...');
     try{
       await db.collection('payments').add({uid:u.uid,packageId:pendingPackage.id||null,packageName:pendingPackage.name||'',amount:Number(pendingPackage.price||0),method:selectedMethod,transactionId,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-      const submittedPackage={...pendingPackage},submittedMethod=selectedMethod;
-      addPendingPackageHistory(submittedPackage,submittedMethod,transactionId);
-      closePaymentModal(); showScreen('package-history-screen'); pendingPackage=null; selectedMethod=null;
+      closePaymentModal(); showScreen('package-history-screen'); await loadPackageHistoryFromFirestore(); pendingPackage=null; selectedMethod=null;
     }catch(err){alert('পেমেন্ট রিকোয়েস্ট পাঠানো যায়নি। Firebase Rules/connection পরীক্ষা করুন।');}
     finally{setAuthLoading(false);}
   };
