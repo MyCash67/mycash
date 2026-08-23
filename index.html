@@ -1282,7 +1282,7 @@
           </div>
           <span class="bc-badge">সক্রিয়</span>
         </div>
-        <div class="bc-delta">↑ আজ +৳৩৫ জমা হয়েছে</div>
+        <div class="bc-delta"><span id="today-income-delta">↑ আজ +৳০ জমা হয়েছে</span></div>
         <div class="bc-actions">
           <button type="button" class="bc-btn primary" onclick="openWithdrawModal()">উত্তোলন করুন</button>
           <button type="button" class="bc-btn ghost" onclick="showScreen('withdrawal-history-screen')">উত্তোলন হিস্টোরি</button>
@@ -2189,11 +2189,27 @@
 
   const AD_STATE_KEY = 'mycash_ad_states_v21';
   const AD_INCOME_KEY = 'mycash_ad_income_v21';
+  const AD_INCOME_DATE_KEY = 'mycash_ad_income_date_v22';
   const MAIN_BALANCE_KEY = 'mycash_main_balance_v22';
   const AD_COOLDOWN = 24 * 60 * 60 * 1000;
+
+  function getBangladeshDateKey(){
+    return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  }
+
+  function resetDailyIncomeIfNeeded(){
+    const todayKey=getBangladeshDateKey();
+    const savedKey=localStorage.getItem(AD_INCOME_DATE_KEY);
+    if(savedKey!==todayKey){
+      localStorage.setItem(AD_INCOME_DATE_KEY,todayKey);
+      localStorage.setItem(AD_INCOME_KEY,'0');
+      todayAdIncome=0;
+    }
+  }
   const AD_WATCH_SECONDS = 15;
   let adStates = {};
   let todayAdIncome = Number(localStorage.getItem(AD_INCOME_KEY) || 0);
+  resetDailyIncomeIfNeeded();
   let mainBalance = Number(localStorage.getItem(MAIN_BALANCE_KEY) || 0);
   let countdownIntervals = {};
 
@@ -2224,11 +2240,15 @@
   }
 
   function updateIncomeSummary(){
-    const completed = Object.values(adStates).filter(x => x && x.claimed).length;
+    resetDailyIncomeIfNeeded();
+    const todayKey=getBangladeshDateKey();
+    const completed = Object.values(adStates).filter(x => x && x.claimed && x.claimedAt && new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(x.claimedAt))===todayKey).length;
     const count=document.querySelector('.income-summary-count');
     const value=document.querySelector('.income-summary-value');
+    const delta=document.getElementById('today-income-delta');
     if(count) count.textContent=`${completed}/১০ এড দেখা হয়েছে`;
-    if(value) value.textContent=`৳${todayAdIncome}`;
+    if(value) value.textContent=`৳${formatMoneyBn(todayAdIncome)}`;
+    if(delta) delta.textContent=`↑ আজ +৳${formatMoneyBn(todayAdIncome)} জমা হয়েছে`;
   }
 
   function setAdTimerText(card, text){
@@ -2283,9 +2303,11 @@
     const btn=card?.querySelector('.ad-watch-btn');
     if(!state || !state.ready || state.claimed || !btn) return;
     state.claimed=true;
+    state.claimedAt=Date.now();
     state.cooldownUntil=Date.now()+AD_COOLDOWN;
     todayAdIncome += reward;
     localStorage.setItem(AD_INCOME_KEY, String(todayAdIncome));
+    localStorage.setItem(AD_INCOME_DATE_KEY, getBangladeshDateKey());
     mainBalance += reward;
     saveMainBalance();
     saveAdStates();
@@ -2960,10 +2982,10 @@ document.addEventListener('click', function(e){
       authFlowPending=true;
       setAuthLoading(true,'অ্যাকাউন্ট তৈরি হচ্ছে...');
       const cred=await auth.createUserWithEmailAndPassword(mobileEmail(mobile),password);
-      const data={uid:cred.user.uid,firstName,lastName,mobile,balance:1240,todayAdIncome:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+      const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
       await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
       localStorage.setItem(PROFILE_KEY,JSON.stringify({firstName,lastName,mobile}));
-      mainBalance=1240; todayAdIncome=0; localStorage.setItem(MAIN_BALANCE_KEY,String(mainBalance)); updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
+      mainBalance=0; todayAdIncome=0; localStorage.setItem(MAIN_BALANCE_KEY,String(mainBalance)); updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
       await wait(250);
       authFlowPending=false;
       setAuthLoading(false);
@@ -3050,8 +3072,9 @@ document.addEventListener('click', function(e){
     if(!user){
       localStorage.removeItem(PROFILE_KEY);
       localStorage.removeItem(MAIN_BALANCE_KEY);
-      mainBalance=0; todayAdIncome=0;
-      updateProfileUI(); updateMainBalanceUI();
+      mainBalance=0;
+      resetDailyIncomeIfNeeded();
+      updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary();
       if(!document.getElementById('home-screen')?.classList.contains('visible')) showScreen('home-screen');
       if(authFlowPending){
         authFlowPending=false;
@@ -3063,10 +3086,15 @@ document.addEventListener('click', function(e){
       const snap=await db.collection('users').doc(user.uid).get();
       if(snap.exists){
         const d=snap.data();
-        mainBalance=Number(d.balance||0); todayAdIncome=Number(d.todayAdIncome||0);
+        mainBalance=Number(d.balance||0);
+        resetDailyIncomeIfNeeded();
+        todayAdIncome=Number(d.todayAdIncome||0);
+        if(localStorage.getItem(AD_INCOME_DATE_KEY)!==getBangladeshDateKey()) todayAdIncome=0;
+        localStorage.setItem(AD_INCOME_KEY,String(todayAdIncome));
+        localStorage.setItem(AD_INCOME_DATE_KEY,getBangladeshDateKey());
         const profileData={firstName:d.firstName||'',lastName:d.lastName||'',mobile:d.mobile||''};
         localStorage.setItem(PROFILE_KEY,JSON.stringify(profileData));
-        updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(user, profileData);
+        updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary(); updateLoggedInHeader(user, profileData);
       }
       if(document.getElementById('login-screen')?.classList.contains('visible')) showScreen('home-screen');
       if(authFlowPending){
@@ -3083,36 +3111,50 @@ document.addEventListener('click', function(e){
   });
 
   // Guard actions that can be triggered directly without first opening a protected screen.
-  function requireLogin(action){
+  async function requireLogin(action){
     if(auth.currentUser) return true;
-    alert('এই কাজটি করতে আগে লগইন করুন।');
+    setAuthLoading(true,'লগইন করতে হচ্ছে...');
+    await wait(350);
     showScreen('login-screen');
+    await wait(450);
+    setAuthLoading(false);
     return false;
   }
 
   const originalOpenWithdrawModal = window.openWithdrawModal;
-  window.openWithdrawModal = function(){
-    if(!requireLogin()) return;
+  window.openWithdrawModal = async function(){
+    if(!(await requireLogin())) return;
     return originalOpenWithdrawModal.apply(this, arguments);
   };
 
   const originalOpenPaymentModal = window.openPaymentModal;
-  window.openPaymentModal = function(){
-    if(!requireLogin()) return;
+  window.openPaymentModal = async function(){
+    if(!(await requireLogin())) return;
     return originalOpenPaymentModal.apply(this, arguments);
   };
 
   const originalWatchAd = window.watchAd;
-  window.watchAd = function(){
-    if(!requireLogin()) return;
+  window.watchAd = async function(){
+    if(!(await requireLogin())) return;
     return originalWatchAd.apply(this, arguments);
   };
 
   const originalSendContactPageMessage = window.sendContactPageMessage;
-  window.sendContactPageMessage = function(){
-    if(!requireLogin()) return;
+  window.sendContactPageMessage = async function(){
+    if(!(await requireLogin())) return;
     return originalSendContactPageMessage.apply(this, arguments);
   };
+
+  setInterval(function(){
+    const before=localStorage.getItem(AD_INCOME_DATE_KEY);
+    resetDailyIncomeIfNeeded();
+    if(before!==localStorage.getItem(AD_INCOME_DATE_KEY)){
+      todayAdIncome=0;
+      updateIncomeSummary();
+      const u=auth.currentUser;
+      if(u) db.collection('users').doc(u.uid).set({todayAdIncome:0},{merge:true}).catch(()=>{});
+    }
+  },60000);
 
   window.profileLogout=async function(){
     if(!auth.currentUser) return;
@@ -3122,8 +3164,9 @@ document.addEventListener('click', function(e){
       await auth.signOut();
       localStorage.removeItem(PROFILE_KEY);
       localStorage.removeItem(MAIN_BALANCE_KEY);
-      mainBalance=0; todayAdIncome=0;
-      updateLoggedInHeader(null); updateProfileUI(); updateMainBalanceUI();
+      mainBalance=0;
+      resetDailyIncomeIfNeeded();
+      updateLoggedInHeader(null); updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary();
       showScreen('home-screen');
       // Keep the logout animation visible for a short, noticeable moment.
       await wait(Math.max(900 - (Date.now()-started), 0));
