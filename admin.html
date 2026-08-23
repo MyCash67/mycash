@@ -75,6 +75,7 @@ firebase.initializeApp(firebaseConfig); const db=firebase.firestore(); const aut
 <div id="homePage">
 <div class="menu-grid">
 <button class="menu-box" onclick="showUsersPage()"><div class="icon">👤</div><h3>User</h3></button>
+<button class="menu-box" onclick="showPackageOrdersPage()"><div class="icon">📦</div><h3>Package Order</h3></button>
 <button class="menu-box" onclick="showWithdrawalsPage()"><div class="icon">💰</div><h3>Withdraw History</h3></button>
 <button class="menu-box" onclick="showMobilePage()"><div class="icon">📱</div><h3>Mobile Number</h3></button>
 <button class="menu-box" onclick="showSocialPage()"><div class="icon">📋</div><h3>Social Task</h3></button>
@@ -210,6 +211,49 @@ async function setWithdrawalStatus(id,status){
    await db.runTransaction(async tx=>{const us=await tx.get(uref);if(!us.exists)throw new Error('User not found');const current=Number(us.data().balance||0);const amount=Number(w.amount||0);if(current<amount)throw new Error('Insufficient balance');tx.update(uref,{balance:current-amount});tx.update(wref,{status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});});
  }else{await wref.update({status:'rejected',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});}
  showWithdrawalsPage();
+}
+async function showPackageOrdersPage(){
+if(!requireAdmin())return;
+hidePages();
+document.getElementById('homePage').style.display='none';
+showBack('Package Order');
+const c=document.getElementById('dataPage');
+c.style.display='block';
+c.innerHTML='<div class="form show"><h3>Package Orders</h3><div id="packageOrderList">Loading...</div></div>';
+const [paymentsSnap,usersSnap]=await Promise.all([
+db.collection('payments').get(),
+db.collection('users').get()
+]);
+const userMap={};
+usersSnap.forEach(d=>{userMap[d.id]=d.data();});
+const docs=paymentsSnap.docs.slice().sort((a,b)=>{
+const ta=a.data().createdAt&&a.data().createdAt.toMillis?a.data().createdAt.toMillis():0;
+const tb=b.data().createdAt&&b.data().createdAt.toMillis?b.data().createdAt.toMillis():0;
+return tb-ta;
+});
+let html='';
+docs.forEach(d=>{
+const x=d.data();
+const methodName=x.method==='bkash'?'বিকাশ':x.method==='nagad'?'নগদ':(x.method||'');
+const u=userMap[x.uid]||{};
+const userLabel=`${u.firstName||''} ${u.lastName||''}`.trim()||'(নাম নেই)';
+html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0">
+<b>${x.packageName||'প্যাকেজ'} — ৳${Number(x.amount||0)}</b>
+<div style="font-size:12px;color:#7b8495">${userLabel} · ${u.mobile||'মোবাইল নেই'}</div>
+<div style="font-size:12px;color:#7b8495">${methodName} · TXN: ${x.transactionId||''}</div>
+<div style="font-size:12px;color:#7b8495">Status: ${x.status||'pending'}</div>
+${x.status==='pending'?`<button class="save" onclick="setPackageOrderStatus('${d.id}','approved')">Approve</button><button class="save" style="margin-top:8px;background:linear-gradient(135deg,#bd3030,#7a1f1f)" onclick="setPackageOrderStatus('${d.id}','rejected')">Reject</button>`:''}
+</div>`;
+});
+document.getElementById('packageOrderList').innerHTML=html||'কোনো প্যাকেজ অর্ডার নেই';
+}
+async function setPackageOrderStatus(id,status){
+if(!requireAdmin())return;
+const pref=db.collection('payments').doc(id);
+const ps=await pref.get(); if(!ps.exists)return; const p=ps.data();
+if(p.status!=='pending')return;
+await pref.update({status,reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
+showPackageOrdersPage();
 }
 async function showMessagesPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Inbox');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Inbox</h3><div id="msgList">Loading...</div></div>';const snap=await db.collection('messages').orderBy('createdAt','desc').get();let html='';snap.forEach(d=>{const x=d.data();html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>${x.mobile||'User'}</b><p style="margin-top:6px">${x.message||''}</p></div>`});document.getElementById('msgList').innerHTML=html||'No messages';}
 </script>
