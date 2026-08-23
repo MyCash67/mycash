@@ -1239,49 +1239,6 @@
 
 
 
-
-<style id="new-home-page-styles">
-.home-new{padding-bottom:95px}
-.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.home-tile{background:var(--card);border:1px solid var(--line);border-radius:18px;min-height:150px;padding:14px;box-shadow:0 5px 16px rgba(15,46,29,.055);display:flex;flex-direction:column;position:relative;overflow:hidden}
-.home-tile-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}
-.home-tile-icon{width:38px;height:38px;border-radius:12px;background:var(--taka-soft);display:grid;place-items:center;font-size:19px;flex-shrink:0}
-.home-tile-title{font-size:13px;font-weight:900;color:var(--ink);line-height:1.2}
-.home-tile-sub{font-size:10px;color:var(--muted);margin-top:3px}
-.home-user-name{font-size:15px;font-weight:900;color:var(--ink);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.home-user-mobile{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.home-user-balance{margin-top:auto;background:var(--ink);color:var(--paper);border-radius:12px;padding:9px 10px}
-.home-user-balance span{display:block;font-size:9px;opacity:.7}.home-user-balance strong{display:block;font-size:15px;margin-top:2px}
-.home-number-value{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;color:var(--taka-deep);word-break:break-word}
-.home-tile-action{margin-top:auto;width:100%;height:34px;border:0;border-radius:10px;background:var(--taka-deep);color:#fff;font-size:10.5px;font-weight:800}
-.home-history-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}.home-history-row:last-of-type{margin-bottom:0}.home-history-mini{width:30px;height:30px;border-radius:9px;background:#eef7ef;color:var(--taka-deep);display:grid;place-items:center;font-weight:900;font-size:13px}.home-history-copy{min-width:0;flex:1}.home-history-copy strong{display:block;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.home-history-copy span{display:block;font-size:9px;color:var(--muted);margin-top:1px}.home-history-amount{font-size:10px;font-weight:900;white-space:nowrap}
-.home-social-list{display:flex;flex-direction:column;gap:7px}.social-task-row{display:flex;align-items:center;gap:7px}.social-icon{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:13px;flex-shrink:0}.social-icon.tg{background:#28a7e8}.social-icon.yt{background:#e14538}.social-icon.fb{background:#3b5fa6}.social-task-row>div{min-width:0;flex:1}.social-task-row strong{display:block;font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.social-task-row small{display:block;color:#3fa65c;font-weight:800;font-size:8.5px;margin-top:1px}.social-task-row button{border:0;border-radius:8px;padding:6px 7px;background:#f0f6f1;color:var(--taka-deep);font-size:8px;font-weight:800;white-space:nowrap}
-.home-inbox-strip{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:11px 13px;display:flex;align-items:center;gap:9px}.home-inbox-icon{width:34px;height:34px;border-radius:10px;background:#fff3df;display:grid;place-items:center;font-size:17px}.home-inbox-copy{flex:1}.home-inbox-copy strong{font-size:12px}.home-inbox-copy span{display:block;font-size:9.5px;color:var(--muted);margin-top:2px}.home-inbox-badge{font-size:8px;font-weight:900;color:#fff;background:#d34a3d;border-radius:20px;padding:4px 6px}.home-inbox-arrow{font-size:20px;color:var(--muted)}
-</style>
-
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCjVduy7zLXQNO_HCfFmEXLMjD1EZKpBFM",
-  authDomain: "mycash-96.firebaseapp.com",
-  projectId: "mycash-96",
-  storageBucket: "mycash-96.firebasestorage.app",
-  messagingSenderId: "456949677588",
-  appId: "1:456949677588:web:bffcc5529b354b858c7101"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
-const MYCASH_EMAIL_DOMAIN = '@mycash.local';
-const ADMIN_EMAIL = 'admin@mycash.com';
-const adminEmailKey = ADMIN_EMAIL.toLowerCase();
-function authEmailFromMobile(mobile){ return String(mobile).replace(/\D/g,'') + MYCASH_EMAIL_DOMAIN; }
-</script>
-
 </head>
 <body>
 
@@ -1291,50 +1248,115 @@ function authEmailFromMobile(mobile){ return String(mobile).replace(/\D/g,'') + 
   <!-- SCREEN 1: HOME -->
   <!-- ============================================================ -->
   <div class="screen visible" id="home-screen">
+
     <div class="topbar">
-      <div class="brand-logo"><div class="brand-mark">৳</div><span>My Cash</span></div>
+      <div class="brand-logo">
+        <div class="brand-mark">৳</div>
+        <span>My Cash</span>
+      </div>
       <div class="auth-actions">
         <button class="auth-btn login" onclick="showScreen('login-screen')">লগইন</button>
         <button class="auth-btn register" onclick="showScreen('register-screen')">রেজিস্ট্রেশন</button>
       </div>
     </div>
 
-    <div class="content home-new">
-      <div class="home-grid">
-        <div class="home-tile">
-          <div class="home-tile-head"><div class="home-tile-icon">👤</div><div><div class="home-tile-title">User Box</div><div class="home-tile-sub">আপনার অ্যাকাউন্ট</div></div></div>
-          <div class="home-user-name" id="home-user-name">আপনার নাম</div>
-          <div class="home-user-mobile" id="home-user-mobile">মোবাইল নম্বর সেট করা হয়নি</div>
-          <div class="home-user-balance"><span>ব্যালেন্স</span><strong>৳১,২৪০</strong></div>
-        </div>
+    <div class="content">
 
-        <div class="home-tile">
-          <div class="home-tile-head"><div class="home-tile-icon">📱</div><div><div class="home-tile-title">Mobile Number</div><div class="home-tile-sub">রেজিস্টার্ড নম্বর</div></div></div>
-          <div class="home-number-value" id="home-mobile-value">মোবাইল নম্বর সেট করা হয়নি</div>
-          <button class="home-tile-action" type="button" onclick="showScreen('profile-screen')">দেখুন</button>
-        </div>
-
-        <div class="home-tile">
-          <div class="home-tile-head"><div class="home-tile-icon">৳</div><div><div class="home-tile-title">Withdraw History</div><div class="home-tile-sub">সাম্প্রতিক উত্তোলন</div></div></div>
-          <div class="home-history-row"><div class="home-history-mini">৳</div><div class="home-history-copy"><strong>উত্তোলনের তথ্য</strong><span>হিস্টোরি দেখুন</span></div><div class="home-history-amount">—</div></div>
-          <button class="home-tile-action" type="button" onclick="showScreen('withdrawal-history-screen')">সব দেখুন</button>
-        </div>
-
-        <div class="home-tile">
-          <div class="home-tile-head"><div class="home-tile-icon">📲</div><div><div class="home-tile-title">Social Task</div><div class="home-tile-sub">টাস্ক করে আয়</div></div></div>
-          <div class="home-social-list">
-            <div class="social-task-row"><span class="social-icon tg">✈</span><div><strong>Telegram</strong><small>+৳১০</small></div><button>Join</button></div>
-            <div class="social-task-row"><span class="social-icon yt">▶</span><div><strong>YouTube</strong><small>+৳১৫</small></div><button>Subscribe</button></div>
-            <div class="social-task-row"><span class="social-icon fb">f</span><div><strong>Facebook</strong><small>+৳১০</small></div><button>Follow</button></div>
+      <div class="balance-card">
+        <div class="bc-top">
+          <div>
+            <div class="bc-label">মোট ব্যালেন্স</div>
+            <div class="bc-amount">৳ ১,২৪০</div>
           </div>
+          <span class="bc-badge">সক্রিয়</span>
+        </div>
+        <div class="bc-delta">↑ আজ +৳৩৫ জমা হয়েছে</div>
+        <div class="bc-actions">
+          <button type="button" class="bc-btn primary" onclick="openWithdrawModal()">উত্তোলন করুন</button>
+          <button type="button" class="bc-btn ghost" onclick="showScreen('withdrawal-history-screen')">উত্তোলন হিস্টোরি</button>
         </div>
       </div>
 
-      <button class="home-inbox-strip" type="button" onclick="showScreen('contact-screen')">
-        <div class="home-inbox-icon">📥</div><div class="home-inbox-copy"><strong>Inbox</strong><span>আপনার নতুন মেসেজ ও আপডেট</span></div><span class="home-inbox-badge">নতুন</span><span class="home-inbox-arrow">›</span>
-      </button>
+      <div class="quick-grid">
+        <button class="quick-card plants" onclick="showScreen('package-screen')">
+          <div class="quick-icon">📦</div>
+          <div class="quick-title">প্যাকেজ কিনুন</div>
+          <div class="quick-sub">আয় বাড়ান</div>
+        </button>
+        <button class="quick-card refer" onclick="showScreen('refer-screen')">
+          <div class="quick-icon">🎁</div>
+          <div class="quick-title">রেফার করুন</div>
+          <div class="quick-sub">+৳৫০ বোনাস</div>
+        </button>
+      </div>
+
+      <div class="sec-head">
+        <h2>টাস্ক করে আয় করুন</h2>
+        <a href="#" class="see-all">সব দেখুন</a>
+      </div>
+      <div class="sec-sub">প্রতিটা টাস্ক শেষ করলেই সাথে সাথে টাকা যোগ হবে</div>
+
+      <div class="task-list">
+
+        <div class="task-row">
+          <div class="task-icon tg">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M21.5 3.5L2.7 10.9c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.9 5.7c.2.5.4.7.9.7.4 0 .6-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.7l3-14.1c.3-1.2-.4-1.6-1.9-1.6z" fill="#28A7E8"/><path d="M9 15.5l9.5-8.5c.4-.4 0-.6-.4-.3L7.5 13.8l-.5 3.8c.4 0 .6-.2.8-.5z" fill="#fff"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">টেলিগ্রাম চ্যানেলে জয়েন করুন</div>
+            <div class="task-reward">+৳১০ পুরস্কার</div>
+          </div>
+          <button class="task-btn tg">জয়েন করুন</button>
+        </div>
+
+        <div class="task-row">
+          <div class="task-icon yt">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="1" y="5" width="22" height="14" rx="4" fill="#E14538"/><path d="M10 8.5L16 12L10 15.5V8.5Z" fill="#fff"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">ইউটিউব চ্যানেল সাবস্ক্রাইব করুন</div>
+            <div class="task-reward">+৳১৫ পুরস্কার</div>
+          </div>
+          <button class="task-btn yt">সাবস্ক্রাইব</button>
+        </div>
+
+        <div class="task-row">
+          <div class="task-icon fb">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#3B5FA6"/><path d="M14 8.5h1.7V6h-1.9c-2 0-3 1.1-3 3.1V11H9v2.5h1.8V19h2.6v-5.5h1.9L15.7 11h-2.3V9.3c0-.5.2-.8.6-.8z" fill="#fff"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">ফেসবুক পেজ ফলো করুন</div>
+            <div class="task-reward">+৳১০ পুরস্কার</div>
+          </div>
+          <button class="task-btn fb">ফলো করুন</button>
+        </div>
+
+        <div class="task-row">
+          <div class="task-icon chk">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2C7 6 4 10 4 14a8 8 0 0016 0c0-4-3-8-8-12z" fill="#3FA65C"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">প্রতিদিনের অ্যাপ চেক-ইন</div>
+            <div class="task-reward">সম্পন্ন হয়েছে</div>
+          </div>
+          <span class="task-done">✓ সম্পন্ন</span>
+        </div>
+
+      </div>
     </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item active"><span class="nav-dot">🏠</span>হোম</button>
+      <button class="nav-item" onclick="showScreen('package-screen')"><span class="nav-dot">📦</span>প্যাকেজ</button>
+      <button class="nav-item"><span class="nav-dot">✅</span>টাস্ক</button>
+      <button class="nav-item"><span class="nav-dot">🎁</span>রেফার</button>
+      <button class="nav-item"><span class="nav-dot">👤</span>প্রোফাইল</button>
+    </div>
+
   </div>
+
+
+
 
   <!-- ============================================================ -->
   <!-- SCREEN: REGISTRATION -->
@@ -2177,7 +2199,7 @@ function authEmailFromMobile(mobile){ return String(mobile).replace(/\D/g,'') + 
     document.querySelectorAll('.withdraw-balance-value').forEach(el => el.textContent = `৳ ${formatMoneyBn(mainBalance)}`);
   }
 
-  async function saveMainBalance(){
+  function saveMainBalance(){
     localStorage.setItem(MAIN_BALANCE_KEY, String(mainBalance));
     updateMainBalanceUI();
   }
@@ -2248,7 +2270,7 @@ function authEmailFromMobile(mobile){ return String(mobile).replace(/\D/g,'') + 
     },1000);
   }
 
-  async function claimAd(adNumber, reward){
+  function claimAd(adNumber, reward){
     const state=adStates[adNumber];
     const card=document.querySelector(`.ad-card[data-ad="${adNumber}"]`);
     const btn=card?.querySelector('.ad-watch-btn');
@@ -2258,7 +2280,7 @@ function authEmailFromMobile(mobile){ return String(mobile).replace(/\D/g,'') + 
     todayAdIncome += reward;
     localStorage.setItem(AD_INCOME_KEY, String(todayAdIncome));
     mainBalance += reward;
-    await saveMainBalance();
+    saveMainBalance();
     saveAdStates();
     btn.disabled=true;
     btn.classList.remove('claim');
@@ -2443,73 +2465,61 @@ function authEmailFromMobile(mobile){ return String(mobile).replace(/\D/g,'') + 
 
 
 
-  // ---------- FIREBASE AUTH + PROFILE ----------
-  async function handleRegistration(){
+  // ---------- REGISTRATION ----------
+  function handleRegistration(){
     const firstName = document.getElementById('register-first-name').value.trim();
     const lastName = document.getElementById('register-last-name').value.trim();
     const mobile = document.getElementById('register-mobile').value.trim();
     const password = document.getElementById('register-password').value;
     const repassword = document.getElementById('register-repassword').value;
     clearFieldMessages();
-    if(!firstName){ showFieldMessage('register-first-name','register-first-message','প্রথম নাম লিখুন।'); return; }
-    if(!lastName){ showFieldMessage('register-last-name','register-last-message','শেষ নাম লিখুন।'); return; }
-    if(!mobile){ showFieldMessage('register-mobile','register-mobile-message','মোবাইল নম্বর লিখুন।'); return; }
-    if(!/^01\d{9}$/.test(mobile)){ showFieldMessage('register-mobile','register-mobile-message','সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন।'); return; }
-    if(!password){ showFieldMessage('register-password','register-password-message','পাসওয়ার্ড লিখুন।'); return; }
-    if(password.length < 6){ showFieldMessage('register-password','register-password-message','পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।'); return; }
-    if(!repassword){ showFieldMessage('register-repassword','register-repassword-message','পাসওয়ার্ড পুনরায় লিখুন।'); return; }
-    if(password !== repassword){ showFieldMessage('register-repassword','register-repassword-message','দুইটি পাসওয়ার্ড একই হতে হবে।'); return; }
-    try{
-      const cred = await auth.createUserWithEmailAndPassword(authEmailFromMobile(mobile), password);
-      const profile = {firstName,lastName,mobile,role:'user',balance:1240,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
-      await db.collection('users').doc(cred.user.uid).set(profile, {merge:true});
-      localStorage.setItem(PROFILE_KEY, JSON.stringify({...profile,password:undefined}));
-      mainBalance = 1240; todayAdIncome = 0;
-      updateProfileUI(); updateNewHomeUser(); updateMainBalanceUI();
-      await loadCloudSettings();
-      showScreen('home-screen');
-    }catch(e){
-      const msg = e.code === 'auth/email-already-in-use' ? 'এই মোবাইল নম্বর দিয়ে আগে থেকেই অ্যাকাউন্ট আছে।' : (e.message || 'রেজিস্ট্রেশন করা যায়নি।');
-      showFieldMessage('register-mobile','register-mobile-message',msg);
+
+    if(!firstName){
+      showFieldMessage('register-first-name','register-first-message','প্রথম নাম লিখুন।');
+      return;
     }
+    if(!lastName){
+      showFieldMessage('register-last-name','register-last-message','শেষ নাম লিখুন।');
+      return;
+    }
+    if(!mobile){
+      showFieldMessage('register-mobile','register-mobile-message','মোবাইল নম্বর লিখুন।');
+      return;
+    }
+    if(!password){
+      showFieldMessage('register-password','register-password-message','পাসওয়ার্ড লিখুন।');
+      return;
+    }
+    if(!repassword){
+      showFieldMessage('register-repassword','register-repassword-message','পাসওয়ার্ড পুনরায় লিখুন।');
+      return;
+    }
+    if(password !== repassword){
+      showFieldMessage('register-repassword','register-repassword-message','দুইটি পাসওয়ার্ড একই হতে হবে।');
+      return;
+    }
+    localStorage.setItem(PROFILE_KEY, JSON.stringify({firstName,lastName,mobile,password}));
+    updateProfileUI();
+    showScreen('home-screen');
   }
 
-  async function handleLogin(){
+  // ---------- LOGIN ----------
+  function handleLogin(){
     const mobile = document.getElementById('login-mobile').value.trim();
     const password = document.getElementById('login-password').value.trim();
     clearFieldMessages();
-    if(!mobile){ showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর লিখুন।'); return; }
-    if(!password){ showFieldMessage('login-password','login-password-message','পাসওয়ার্ড লিখুন।'); return; }
-    try{
-      await auth.signInWithEmailAndPassword(authEmailFromMobile(mobile), password);
-    }catch(e){
-      showFieldMessage('login-password','login-password-message','মোবাইল নম্বর অথবা পাসওয়ার্ড সঠিক নয়।');
-    }
-  }
 
-  async function loadCloudUser(){
-    const user=auth.currentUser; if(!user) return;
-    const snap=await db.collection('users').doc(user.uid).get();
-    if(!snap.exists) return;
-    const d=snap.data();
-    mainBalance=Number(d.balance||0);
-    const profile={firstName:d.firstName||'',lastName:d.lastName||'',mobile:d.mobile||'',role:d.role||'user'};
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    updateProfileUI(); updateNewHomeUser(); updateMainBalanceUI();
-    if(typeof loadUserTransactions==='function') await loadUserTransactions();
-  }
-
-  auth.onAuthStateChanged(async user=>{
-    if(user){
-      await loadCloudUser().catch(console.error);
-      await loadCloudSettings().catch(console.error);
-      const current=document.querySelector('.screen.visible')?.id;
-      if(current==='login-screen'||current==='register-screen') showScreen('home-screen');
-    }else{
-      mainBalance=0;
-      updateMainBalanceUI();
+    if(!mobile){
+      showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর লিখুন।');
+      return;
     }
-  });
+    if(!password){
+      showFieldMessage('login-password','login-password-message','পাসওয়ার্ড লিখুন।');
+      return;
+    }
+
+    showScreen('home-screen');
+  }
 
   // ---------- REFER ----------
   function copyReferLink(){
@@ -2557,24 +2567,10 @@ function authEmailFromMobile(mobile){ return String(mobile).replace(/\D/g,'') + 
   let pendingPackage = null;
   let selectedMethod = null;
 
-  let paymentNumbers = { bkash: '01711-000000', nagad: '01911-000000' };
-  let cloudSettings = { social:{youtube:'',telegram:'',facebook:''}, ads:{}, paymentNumbers:{...paymentNumbers} };
-  async function loadCloudSettings(){
-    try{
-      const snap=await db.collection('settings').doc('public').get();
-      if(snap.exists){
-        cloudSettings={...cloudSettings,...snap.data()};
-        paymentNumbers={...paymentNumbers,...(cloudSettings.paymentNumbers||{})};
-        const social=cloudSettings.social||{};
-        window.MYCASH_SOCIAL=social;
-        window.MYCASH_ADS=cloudSettings.ads||{};
-        // Refresh visible payment/social/ads content without changing layout.
-        const byId=(id,val)=>{const el=document.getElementById(id); if(el && typeof val==='string') el.value=val;};
-        byId('youtubeLink',social.youtube||''); byId('telegramLink',social.telegram||''); byId('facebookLink',social.facebook||'');
-        for(let i=1;i<=10;i++) byId('ads'+i+'Link',(cloudSettings.ads||{})['ads'+i]||'');
-      }
-    }catch(e){ console.warn('Cloud settings load failed',e); }
-  }
+  const paymentNumbers = {
+    bkash: '01711-000000',
+    nagad: '01911-000000'
+  };
 
   function openPaymentModal(price, name, days, income){
     pendingPackage = { price, name, days, income };
@@ -2680,22 +2676,23 @@ function authEmailFromMobile(mobile){ return String(mobile).replace(/\D/g,'') + 
     list.prepend(row);
   }
 
-  async function submitPayment(){
+  function submitPayment(){
     if(!pendingPackage || !selectedMethod) return;
+
     const transactionId = document.getElementById('transaction-id').value.trim();
     if(!transactionId) return;
-    const user=auth.currentUser;
-    if(!user){ showScreen('login-screen'); return; }
-    try{
-      const p=pendingPackage;
-      await db.collection('payments').add({
-        userId:user.uid, mobile:getProfile()?.mobile||'', packageName:p.name, price:p.price, days:p.days, income:p.income,
-        method:selectedMethod, transactionId, status:'pending', createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      });
-      addPendingPackageHistory(p, selectedMethod, transactionId);
-      closePaymentModal(); showScreen('package-history-screen');
-      pendingPackage=null; selectedMethod=null;
-    }catch(e){ alert('পেমেন্ট জমা দেওয়া যায়নি। আবার চেষ্টা করুন।'); console.error(e); }
+
+    // Submit the payment for verification, then take the user directly to history.
+    const submittedPackage = {...pendingPackage};
+    const submittedMethod = selectedMethod;
+
+    addPendingPackageHistory(submittedPackage, submittedMethod, transactionId);
+
+    closePaymentModal();
+    showScreen('package-history-screen');
+
+    pendingPackage = null;
+    selectedMethod = null;
   }
 
   function closePaymentModal(){
@@ -2806,23 +2803,28 @@ function authEmailFromMobile(mobile){ return String(mobile).replace(/\D/g,'') + 
     withdrawToastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
   }
 
-  async function submitWithdrawal(){
+  function submitWithdrawal(){
     const number = document.getElementById('withdraw-number').value.trim();
     const amount = Number(document.getElementById('withdraw-amount').value);
     clearWithdrawalMessages();
-    if(!number){ showWithdrawalMessage('withdraw-number','মোবাইল নাম্বার দিন।'); return; }
-    if(!/^01\d{9}$/.test(number)){ showWithdrawalMessage('withdraw-number','সঠিক ১১ সংখ্যার মোবাইল নাম্বার দিন।'); return; }
-    if(!amount || amount < 500){ showWithdrawalMessage('withdraw-amount','সর্বনিম্ন উত্তোলনের পরিমাণ ৳৫০০।'); return; }
-    if(amount > 25000){ showWithdrawalMessage('withdraw-amount','সর্বোচ্চ উত্তোলনের পরিমাণ ৳২৫,০০০।'); return; }
-    if(amount > mainBalance){ showWithdrawalMessage('withdraw-amount','আপনার ব্যালেন্স পর্যাপ্ত নয়।'); return; }
-    const user=auth.currentUser; if(!user){ showScreen('login-screen'); return; }
-    try{
-      await db.collection('withdrawals').add({userId:user.uid,mobile:getProfile()?.mobile||'',method:selectedWithdrawMethod,number,amount,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-      mainBalance -= amount;
-      await saveMainBalance();
-      addWithdrawalHistory(number, amount, selectedWithdrawMethod);
-      closeWithdrawModal(); showScreen('withdrawal-history-screen'); showWithdrawalToast();
-    }catch(e){ alert('উত্তোলনের অনুরোধ পাঠানো যায়নি।'); console.error(e); }
+
+    if(!number){
+      showWithdrawalMessage('withdraw-number','মোবাইল নাম্বার দিন।');
+      return;
+    }
+    if(!amount || amount < 500){
+      showWithdrawalMessage('withdraw-amount','সর্বনিম্ন উত্তোলনের পরিমাণ ৳৫০০।');
+      return;
+    }
+    if(amount > 25000){
+      showWithdrawalMessage('withdraw-amount','সর্বোচ্চ উত্তোলনের পরিমাণ ৳২৫,০০০।');
+      return;
+    }
+
+    addWithdrawalHistory(number, amount, selectedWithdrawMethod);
+    closeWithdrawModal();
+    showScreen('withdrawal-history-screen');
+    showWithdrawalToast();
   }
 
   document.addEventListener('click', function(e){
@@ -2855,20 +2857,7 @@ function closeChangePassword(){
   document.body.style.overflow='';
 }
 function closeChangePasswordOnBackdrop(e){if(e.target.id==='change-password-modal')closeChangePassword()}
-function changePassword(){
-  const m=document.getElementById('password-message');
-  const c=document.getElementById('current-password').value;
-  const n=document.getElementById('new-password').value;
-  const r=document.getElementById('confirm-new-password').value;
-  if(!c||!n||!r){m.textContent='সবগুলো ঘর পূরণ করুন।';m.className='profile-modal-message error';return;}
-  if(n.length<6){m.textContent='নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।';m.className='profile-modal-message error';return;}
-  if(n!==r){m.textContent='নতুন পাসওয়ার্ড দুটি একই হতে হবে।';m.className='profile-modal-message error';return;}
-  const user=auth.currentUser; if(!user){m.textContent='প্রথমে লগইন করুন।';m.className='profile-modal-message error';return;}
-  firebase.auth.EmailAuthProvider;
-  const credential=firebase.auth.EmailAuthProvider.credential(user.email,c);
-  user.reauthenticateWithCredential(credential).then(()=>user.updatePassword(n)).then(()=>{m.textContent='পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে।';m.className='profile-modal-message success';setTimeout(closeChangePassword,900);}).catch(()=>{m.textContent='বর্তমান পাসওয়ার্ড সঠিক নয় অথবা পরিবর্তন করা যায়নি।';m.className='profile-modal-message error';});
-}
-
+function changePassword(){const p=getProfile(),m=document.getElementById('password-message'),c=document.getElementById('current-password').value,n=document.getElementById('new-password').value,r=document.getElementById('confirm-new-password').value;if(!p){m.textContent='প্রথমে রেজিস্ট্রেশন করুন।';m.className='profile-modal-message error';return}if(!c||!n||!r){m.textContent='সবগুলো ঘর পূরণ করুন।';m.className='profile-modal-message error';return}if(c!==p.password){m.textContent='বর্তমান পাসওয়ার্ড সঠিক নয়।';m.className='profile-modal-message error';return}if(n.length<6){m.textContent='নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।';m.className='profile-modal-message error';return}if(n!==r){m.textContent='নতুন পাসওয়ার্ড দুটি একই হতে হবে।';m.className='profile-modal-message error';return}p.password=n;localStorage.setItem(PROFILE_KEY,JSON.stringify(p));m.textContent='পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে।';m.className='profile-modal-message success';setTimeout(closeChangePassword,900)}
 function profileLogout(){showScreen('login-screen')}
 updateProfileUI();
 </script>
@@ -2894,55 +2883,127 @@ document.addEventListener('click', function(e){
     setupInnerPageBackButtons();
   </script>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script id="mycash-firebase-connection">
+(function(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyCjVdu9yzLXQNO_HCfFmEXLMjD1EZKpBFM",
+    authDomain: "mycash-96.firebaseapp.com",
+    projectId: "mycash-96",
+    storageBucket: "mycash-96.firebasestorage.app",
+    messagingSenderId: "456949677588",
+    appId: "1:456949677588:web:bffcc5529b354b858c7101"
+  };
+  if (!window.firebase) return;
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+  window.myCashFirebase = {db, auth};
 
-<script id="new-home-user-sync">
-function updateNewHomeUser(){const p=getProfile&&getProfile();const n=p?(`${p.firstName||''} ${p.lastName||''}`).trim():'';const mobile=p?.mobile||'মোবাইল নম্বর সেট করা হয়নি';const a=document.getElementById('home-user-name'),b=document.getElementById('home-user-mobile'),c=document.getElementById('home-mobile-value');if(a)a.textContent=n||'আপনার নাম';if(b)b.textContent=mobile;if(c)c.textContent=mobile}
-document.addEventListener('DOMContentLoaded',updateNewHomeUser);
-const _oldUpdateProfileUI=typeof updateProfileUI==='function'?updateProfileUI:null;if(_oldUpdateProfileUI){updateProfileUI=function(){_oldUpdateProfileUI();updateNewHomeUser()}}
-</script>
+  function mobileEmail(mobile){ return String(mobile||'').replace(/\D/g,'') + '@mycash.local'; }
+  function friendlyError(err){
+    const map={
+      'auth/email-already-in-use':'এই মোবাইল নম্বর দিয়ে আগে থেকেই অ্যাকাউন্ট আছে।',
+      'auth/invalid-credential':'মোবাইল নম্বর বা পাসওয়ার্ড ভুল।',
+      'auth/user-not-found':'এই মোবাইল নম্বরের অ্যাকাউন্ট পাওয়া যায়নি।',
+      'auth/wrong-password':'পাসওয়ার্ড ভুল।',
+      'auth/weak-password':'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।',
+      'auth/too-many-requests':'অনেকবার চেষ্টা হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।'
+    };
+    return map[err && err.code] || 'Firebase সংযোগে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+  }
+  function setMessage(id,msg){ const el=document.getElementById(id); if(el){el.textContent=msg;el.className='profile-modal-message error';} }
 
+  window.handleRegistration = async function(){
+    const firstName=document.getElementById('register-first-name').value.trim();
+    const lastName=document.getElementById('register-last-name').value.trim();
+    const mobile=document.getElementById('register-mobile').value.trim();
+    const password=document.getElementById('register-password').value;
+    const repassword=document.getElementById('register-repassword').value;
+    clearFieldMessages();
+    if(!firstName){showFieldMessage('register-first-name','register-first-message','প্রথম নাম লিখুন।');return;}
+    if(!lastName){showFieldMessage('register-last-name','register-last-message','শেষ নাম লিখুন।');return;}
+    if(!mobile){showFieldMessage('register-mobile','register-mobile-message','মোবাইল নম্বর লিখুন।');return;}
+    if(!password){showFieldMessage('register-password','register-password-message','পাসওয়ার্ড লিখুন।');return;}
+    if(password.length<6){showFieldMessage('register-password','register-password-message','পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।');return;}
+    if(!repassword){showFieldMessage('register-repassword','register-repassword-message','পাসওয়ার্ড পুনরায় লিখুন।');return;}
+    if(password!==repassword){showFieldMessage('register-repassword','register-repassword-message','দুইটি পাসওয়ার্ড একই হতে হবে।');return;}
+    try{
+      const cred=await auth.createUserWithEmailAndPassword(mobileEmail(mobile),password);
+      const data={uid:cred.user.uid,firstName,lastName,mobile,balance:1240,todayAdIncome:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+      await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
+      localStorage.setItem(PROFILE_KEY,JSON.stringify({firstName,lastName,mobile}));
+      mainBalance=1240; todayAdIncome=0; updateProfileUI(); updateMainBalanceUI(); showScreen('home-screen');
+    }catch(err){showFieldMessage('register-mobile','register-mobile-message',friendlyError(err));}
+  };
 
-<script id="mycash-firebase-sync">
-async function loadUserTransactions(){
-  const user=auth.currentUser; if(!user) return;
-  try{
-    const ws=await db.collection('withdrawals').where('userId','==',user.uid).orderBy('createdAt','desc').limit(20).get();
-    const list=document.getElementById('withdrawal-history-list');
-    if(list){
-      list.querySelectorAll('.cloud-row').forEach(x=>x.remove());
-      ws.forEach(doc=>{const d=doc.data(); const row=document.createElement('div'); row.className='withdrawal-history-row cloud-row'; row.innerHTML=`<div class="withdrawal-history-top"><div class="withdrawal-history-icon">৳</div><div class="withdrawal-history-body"><div class="withdrawal-history-title">${d.method||''} — ${d.number||''}</div><div class="withdrawal-history-meta">${d.status==='approved'?'অনুমোদিত':d.status==='rejected'?'বাতিল':'অপেক্ষমাণ'}</div></div><div class="withdrawal-history-amount">৳${Number(d.amount||0).toLocaleString('bn-BD')}</div></div><div class="withdrawal-history-status">${d.status==='approved'?'সম্পন্ন':d.status==='rejected'?'বাতিল':'অপেক্ষমাণ'}</div>`; list.prepend(row);});
-    }
-    const ps=await db.collection('payments').where('userId','==',user.uid).orderBy('createdAt','desc').limit(20).get();
-    const plist=document.getElementById('package-history-list');
-    if(plist){
-      plist.querySelectorAll('.cloud-payment-row').forEach(x=>x.remove());
-      ps.forEach(doc=>{const d=doc.data(); const row=document.createElement('div'); row.className='history-row cloud-payment-row '+(d.status||'pending'); row.innerHTML=`<div class="history-row-icon">📦</div><div class="history-row-body"><div class="history-row-title">${d.packageName||''}</div><div class="history-row-meta">${d.method==='bkash'?'বিকাশ':'নগদ'} · TXN: ${d.transactionId||''}</div></div><div class="history-status">${d.status==='approved'?'অনুমোদিত':d.status==='rejected'?'বাতিল':'যাচাই করা হচ্ছে'}</div>`; plist.prepend(row);});
-    }
-  }catch(e){ console.warn('History load failed',e); }
-}
-async function sendContactPageMessage(){
-  const input=document.getElementById('contact-page-message-input'); const status=document.getElementById('contact-page-message-status'); const message=(input?.value||'').trim();
-  if(!message){ if(status){status.textContent='দয়া করে আপনার মেসেজ লিখুন।';status.className='contact-message-status error';} return; }
-  const user=auth.currentUser; if(!user){showScreen('login-screen');return;}
-  try{await db.collection('messages').add({userId:user.uid,mobile:getProfile()?.mobile||'',message,status:'unread',createdAt:firebase.firestore.FieldValue.serverTimestamp()}); if(status){status.textContent='মেসেজ সফলভাবে পাঠানো হয়েছে।';status.className='contact-message-status success';} if(input) input.value='';}catch(e){if(status)status.textContent='মেসেজ পাঠানো যায়নি।';}
-}
-</script>
+  window.handleLogin = async function(){
+    const mobile=document.getElementById('login-mobile').value.trim();
+    const password=document.getElementById('login-password').value.trim();
+    clearFieldMessages();
+    if(!mobile){showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর লিখুন।');return;}
+    if(!password){showFieldMessage('login-password','login-password-message','পাসওয়ার্ড লিখুন।');return;}
+    try{ await auth.signInWithEmailAndPassword(mobileEmail(mobile),password); }
+    catch(err){showFieldMessage('login-password','login-password-message',friendlyError(err));}
+  };
 
-<script id="mycash-firebase-auth-overrides">
-async function profileLogout(){ try{await auth.signOut();}catch(e){} localStorage.removeItem(PROFILE_KEY); showScreen('login-screen'); }
-async function changePassword(){
- const m=document.getElementById('password-message'), c=document.getElementById('current-password').value, n=document.getElementById('new-password').value, r=document.getElementById('confirm-new-password').value;
- if(!c||!n||!r){m.textContent='সবগুলো ঘর পূরণ করুন।';m.className='profile-modal-message error';return;}
- if(n.length<6){m.textContent='নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।';m.className='profile-modal-message error';return;}
- if(n!==r){m.textContent='নতুন পাসওয়ার্ড দুটি একই হতে হবে।';m.className='profile-modal-message error';return;}
- const user=auth.currentUser; if(!user){m.textContent='প্রথমে লগইন করুন।';m.className='profile-modal-message error';return;}
- try{
-   const credential=firebase.auth.EmailAuthProvider.credential(user.email,c);
-   await user.reauthenticateWithCredential(credential);
-   await user.updatePassword(n);
-   m.textContent='পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে।';m.className='profile-modal-message success';setTimeout(closeChangePassword,900);
- }catch(e){m.textContent='বর্তমান পাসওয়ার্ড সঠিক নয় অথবা পরিবর্তন করা যায়নি।';m.className='profile-modal-message error';}
-}
+  const oldSaveMainBalance=window.saveMainBalance;
+  window.saveMainBalance=function(){
+    localStorage.setItem(MAIN_BALANCE_KEY,String(mainBalance));
+    updateMainBalanceUI();
+    const u=auth.currentUser;
+    if(u) db.collection('users').doc(u.uid).set({balance:Number(mainBalance),todayAdIncome:Number(todayAdIncome||0)},{merge:true}).catch(()=>{});
+  };
+
+  const oldSubmitPayment=window.submitPayment;
+  window.submitPayment=async function(){
+    if(!pendingPackage||!selectedMethod)return;
+    const transactionId=document.getElementById('transaction-id').value.trim();
+    if(!transactionId)return;
+    const u=auth.currentUser;
+    if(!u){showScreen('login-screen');return;}
+    try{
+      await db.collection('payments').add({uid:u.uid,packageId:pendingPackage.id||null,packageName:pendingPackage.name||'',amount:Number(pendingPackage.price||0),method:selectedMethod,transactionId,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      const submittedPackage={...pendingPackage},submittedMethod=selectedMethod;
+      addPendingPackageHistory(submittedPackage,submittedMethod,transactionId);
+      closePaymentModal(); showScreen('package-history-screen'); pendingPackage=null; selectedMethod=null;
+    }catch(err){alert('পেমেন্ট রিকোয়েস্ট পাঠানো যায়নি। Firebase Rules/connection পরীক্ষা করুন।');}
+  };
+
+  const oldSubmitWithdrawal=window.submitWithdrawal;
+  window.submitWithdrawal=async function(){
+    const number=document.getElementById('withdraw-number').value.trim();
+    const amount=Number(document.getElementById('withdraw-amount').value);
+    clearWithdrawalMessages();
+    if(!number){showWithdrawalMessage('withdraw-number','মোবাইল নাম্বার দিন।');return;}
+    if(!amount||amount<500){showWithdrawalMessage('withdraw-amount','সর্বনিম্ন উত্তোলনের পরিমাণ ৳৫০০।');return;}
+    if(amount>25000){showWithdrawalMessage('withdraw-amount','সর্বোচ্চ উত্তোলনের পরিমাণ ৳২৫,০০০।');return;}
+    if(amount>Number(mainBalance||0)){showWithdrawalMessage('withdraw-amount','আপনার ব্যালেন্সের চেয়ে বেশি উত্তোলন করা যাবে না।');return;}
+    const u=auth.currentUser;if(!u){showScreen('login-screen');return;}
+    try{
+      await db.collection('withdrawals').add({uid:u.uid,number,amount,method:selectedWithdrawMethod,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      addWithdrawalHistory(number,amount,selectedWithdrawMethod); closeWithdrawModal(); showScreen('withdrawal-history-screen'); showWithdrawalToast();
+    }catch(err){alert('উত্তোলন রিকোয়েস্ট পাঠানো যায়নি। Firebase Rules/connection পরীক্ষা করুন।');}
+  };
+
+  auth.onAuthStateChanged(async function(user){
+    if(!user)return;
+    try{
+      const snap=await db.collection('users').doc(user.uid).get();
+      if(snap.exists){
+        const d=snap.data();
+        mainBalance=Number(d.balance||0); todayAdIncome=Number(d.todayAdIncome||0);
+        localStorage.setItem(PROFILE_KEY,JSON.stringify({firstName:d.firstName||'',lastName:d.lastName||'',mobile:d.mobile||''}));
+        updateProfileUI(); updateMainBalanceUI();
+      }
+      if(document.getElementById('login-screen')?.classList.contains('visible')) showScreen('home-screen');
+    }catch(e){}
+  });
+
+  window.profileLogout=function(){auth.signOut().then(function(){localStorage.removeItem(PROFILE_KEY);showScreen('login-screen');});};
+})();
 </script>
 
 </body>
