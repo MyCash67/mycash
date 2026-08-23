@@ -1,0 +1,2951 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Cash</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0F2E1D;
+    --paper:#F6F2E9;
+    --card:#FFFFFF;
+    --taka:#1F6E4A;
+    --taka-deep:#153F2C;
+    --taka-soft:#E7F0EA;
+    --gold:#D4A73A;
+    --coral:#E2664F;
+    --line: rgba(15,46,29,0.10);
+    --leaf:#3FA65C;
+    --tg:#28A7E8;
+    --yt:#E14538;
+    --fb:#3B5FA6;
+    --muted: rgba(15,46,29,0.55);
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  body{
+    background:#EDE7D8;
+    color:var(--ink);
+    font-family:'Hind Siliguri', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:28px 14px;
+  }
+
+  .display{ font-family:'Tiro Bangla', serif; font-weight:400; letter-spacing:-0.01em; }
+  .mono{ font-family:'JetBrains Mono', monospace; letter-spacing:-0.02em; }
+  a{ text-decoration:none; color:inherit; }
+  button{ font-family:inherit; border:none; cursor:pointer; background:none; }
+
+  .phone{
+    width:100%; max-width:412px;
+    background:var(--paper);
+    border-radius:34px;
+    box-shadow:0 40px 80px -30px rgba(15,46,29,0.35), 0 0 0 1px rgba(15,46,29,0.06);
+    overflow:hidden;
+    position:relative;
+    min-height:780px;
+  }
+
+  .status{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 22px 4px;
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink); opacity:0.6;
+  }
+
+  .screen{ display:none; animation:fade .25s ease; }
+  .screen.visible{ display:block; }
+  @keyframes fade{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
+
+  .topbar{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 20px 6px;
+  }
+  .greet{ display:flex; align-items:center; gap:12px; }
+  .avatar{
+    width:42px; height:42px; border-radius:14px;
+    background:var(--taka); color:var(--paper);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:16px;
+  }
+  .greet-text .hi{ font-size:12.5px; color:var(--muted); }
+  .greet-text .name{ font-size:16px; font-weight:600; }
+  .bell{
+    width:40px; height:40px; border-radius:12px; background:var(--card);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 1px 2px rgba(15,46,29,0.06);
+    position:relative;
+  }
+  .bell::after{
+    content:''; position:absolute; top:9px; right:10px;
+    width:7px; height:7px; border-radius:50%; background:var(--coral);
+    border:1.5px solid var(--card);
+  }
+
+  .topbar.subpage{ gap:14px; }
+
+  /* ---------- BACK BUTTON FOR INNER PAGES ---------- */
+  .page-back-btn{
+    border:0; background:var(--card); color:var(--ink);
+    min-width:70px; height:38px; padding:0 11px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center; gap:5px;
+    box-shadow:0 1px 2px rgba(15,46,29,0.06);
+    font-size:13px; font-weight:800; cursor:pointer; flex-shrink:0;
+  }
+  .page-back-btn .back-arrow{font-size:19px; line-height:1;}
+  .page-back-btn:active{transform:scale(.96)}
+  .inner-page-topbar{justify-content:flex-start !important; gap:12px;}
+  .inner-page-topbar .auth-actions{margin-left:auto;}
+  .back-btn{
+    width:38px; height:38px; border-radius:12px; background:var(--card);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 1px 2px rgba(15,46,29,0.06);
+    font-size:16px; flex-shrink:0;
+  }
+  .topbar h1{ font-size:18px; font-weight:600; }
+
+  .content{ padding:0 20px 30px; }
+  .income-content{ padding-bottom:90px; }
+  .income-summary{ margin-top:16px; background:var(--ink); color:var(--paper); border-radius:18px; padding:17px 18px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .income-summary-label{ font-size:11px; opacity:.72; margin-bottom:3px; }
+  .income-summary-value{ font-size:23px; font-weight:800; }
+  .income-summary-count{ font-size:11.5px; background:rgba(255,255,255,.10); padding:8px 10px; border-radius:10px; white-space:nowrap; }
+  .ad-list{ display:flex; flex-direction:column; gap:10px; margin-top:16px; }
+  .ad-card{ display:flex; align-items:center; gap:11px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; }
+  .ad-icon{ width:40px; height:40px; flex-shrink:0; border-radius:12px; background:var(--taka-soft); color:var(--taka-deep); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:900; }
+  .ad-info{ flex:1; min-width:0; }
+  .ad-title{ font-size:14px; font-weight:800; margin-bottom:3px; }
+  .ad-reward{ color:var(--muted); font-size:10.5px; }
+  .ad-watch-btn{ border:0; background:var(--ink); color:var(--paper); border-radius:10px; padding:10px 11px; font-size:11px; font-weight:800; white-space:nowrap; cursor:pointer; }
+  .ad-watch-btn:disabled{ opacity:.78; cursor:not-allowed; }
+  .ad-watch-btn.done{ background:var(--taka-soft); color:var(--taka-deep); }
+  .ad-watch-btn.claim{ background:#D4A73A; color:#fff; }
+  .ad-watch-btn.cooldown{ background:#e7eee9; color:var(--taka-deep); min-width:86px; }
+  .ad-timer{ margin-top:3px; color:var(--muted); font-size:10px; }
+
+
+  .balance-card, .status-card{
+    margin-top:16px;
+    background:var(--ink);
+    color:var(--paper);
+    border-radius:22px;
+    padding:24px 22px 20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .balance-card::before, .status-card::before{
+    content:'';
+    position:absolute; right:-40px; top:-40px;
+    width:160px; height:160px; border-radius:50%;
+    background:radial-gradient(circle, rgba(212,167,58,0.25), transparent 70%);
+  }
+  .balance-card::after, .status-card::after{
+    content:'৳';
+    position:absolute; right:-6px; bottom:-30px;
+    font-family:'Tiro Bangla',serif; font-size:140px; line-height:1;
+    color:rgba(246,242,233,0.05);
+  }
+  .bc-top{ display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1;}
+  .bc-label{ font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.6; margin-bottom:8px; }
+  .bc-amount{ font-family:'JetBrains Mono',monospace; font-size:36px; font-weight:700; }
+  .bc-badge{
+    background:var(--gold); color:var(--taka-deep);
+    font-size:11px; font-weight:700; padding:5px 10px; border-radius:100px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .bc-delta{
+    margin-top:6px; font-size:12.5px; color:#8FD4B0;
+    font-family:'JetBrains Mono',monospace; position:relative; z-index:1;
+  }
+  .bc-actions{ display:flex; gap:10px; margin-top:20px; position:relative; z-index:1; }
+  .bc-btn{
+    flex:1; text-align:center; padding:11px 0; border-radius:100px;
+    font-size:14px; font-weight:600;
+  }
+  .bc-btn.primary{ background:var(--paper); color:var(--taka-deep); transition:background .18s ease; }
+  .bc-btn.primary:hover{ background:var(--gold); }
+  .bc-btn.ghost{ background:rgba(246,242,233,0.12); color:var(--paper); border:1px solid rgba(246,242,233,0.25); }
+  .bc-btn.ghost:hover{ background:rgba(246,242,233,0.2); }
+
+  .quick-grid{
+    display:grid; grid-template-columns:repeat(2,1fr); gap:10px;
+    margin-top:16px;
+  }
+  .quick-card{
+    background:var(--card); border-radius:18px; padding:20px 10px 18px;
+    text-align:center;
+    box-shadow:0 1px 2px rgba(15,46,29,0.05);
+    transition:transform .16s ease, box-shadow .16s ease;
+    display:block; width:100%;
+  }
+  .quick-card:active{ transform:scale(0.96); }
+  .quick-card:hover{ box-shadow:0 10px 20px -8px rgba(15,46,29,0.18); transform:translateY(-2px); }
+  .quick-icon{
+    width:52px; height:52px; border-radius:14px; margin:0 auto 10px;
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+  }
+  .quick-card.plants .quick-icon{ background:rgba(63,166,92,0.14); }
+  .quick-card.refer .quick-icon{ background:rgba(212,167,58,0.16); }
+  .quick-title{ font-size:14px; font-weight:600; line-height:1.3; }
+  .quick-sub{ font-size:10.8px; color:var(--muted); margin-top:2px; font-family:'JetBrains Mono',monospace; }
+
+  .sec-head{ display:flex; justify-content:space-between; align-items:baseline; margin:28px 0 4px; }
+  .sec-head h2{ font-size:17px; font-weight:600; }
+  .sec-head .see-all{ font-size:12.5px; color:var(--taka); font-weight:600; }
+  .sec-sub{ font-size:12.5px; color:var(--muted); margin-bottom:14px; }
+
+  .task-list{ display:flex; flex-direction:column; gap:10px; }
+  .task-row{
+    background:var(--card); border-radius:16px; padding:13px 14px;
+    display:flex; align-items:center; gap:12px;
+    box-shadow:0 1px 2px rgba(15,46,29,0.05);
+  }
+  .task-icon{
+    width:44px; height:44px; border-radius:13px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .task-icon.tg{ background:rgba(40,167,232,0.14); }
+  .task-icon.yt{ background:rgba(225,69,56,0.13); }
+  .task-icon.fb{ background:rgba(59,95,166,0.13); }
+  .task-icon.chk{ background:rgba(63,166,92,0.14); }
+
+  .task-body{ flex:1; min-width:0; }
+  .task-title{ font-size:14px; font-weight:600; }
+  .task-reward{
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--taka);
+    font-weight:600; margin-top:2px;
+  }
+  .task-btn{
+    padding:9px 16px; border-radius:100px; font-size:12.8px; font-weight:700;
+    flex-shrink:0; transition:transform .15s ease, filter .15s ease;
+  }
+  .task-btn.tg{ background:var(--tg); color:#fff; }
+  .task-btn.yt{ background:var(--yt); color:#fff; }
+  .task-btn.fb{ background:var(--fb); color:#fff; }
+  .task-btn:hover{ transform:translateY(-1px); filter:brightness(1.06); }
+  .task-btn:active{ transform:scale(0.95); }
+
+  .task-done{
+    background:var(--taka-soft); color:var(--taka-deep); font-size:11.5px; font-weight:700;
+    padding:6px 12px; border-radius:100px; font-family:'JetBrains Mono',monospace;
+  }
+
+  .status-card{ text-align:center; }
+  .status-icon{
+    width:50px; height:50px; border-radius:50%;
+    margin:0 auto 10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px;
+    position:relative; z-index:1;
+  }
+  .status-card.inactive .status-icon{
+    background:rgba(226,102,79,0.18);
+    border:1.5px dashed rgba(226,102,79,0.5);
+  }
+  .status-card.inactive .status-label{ color:#F0A897; }
+  .status-card.active .status-icon{
+    background:rgba(143,212,176,0.18);
+    border:1.5px solid rgba(143,212,176,0.5);
+  }
+  .status-card.active .status-label{ color:#8FD4B0; }
+  .status-label{
+    font-family:'JetBrains Mono',monospace; font-size:11.5px; text-transform:uppercase;
+    letter-spacing:0.08em; margin-bottom:8px; position:relative; z-index:1;
+  }
+  .status-title{ font-size:18px; font-weight:600; margin-bottom:4px; position:relative; z-index:1; }
+  .status-sub{
+    font-size:12px; opacity:0.65; line-height:1.45; max-width:260px; margin:0 auto;
+    position:relative; z-index:1;
+  }
+  .status-detail{
+    margin-top:12px; padding-top:12px; border-top:1px dashed rgba(246,242,233,0.2);
+    display:flex; justify-content:space-between; text-align:left;
+    position:relative; z-index:1;
+  }
+  .sd-item .sd-label{ font-size:10.5px; opacity:0.55; font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;}
+  .sd-item .sd-val{ font-size:15px; font-weight:600; font-family:'JetBrains Mono',monospace; }
+  .sd-item.right{ text-align:right; }
+  .status-btn{
+    margin-top:12px; display:inline-block; padding:10px 24px; border-radius:100px;
+    font-size:14px; font-weight:700; position:relative; z-index:1;
+  }
+  .status-card.inactive .status-btn{ background:var(--gold); color:var(--taka-deep); }
+  .status-card.active .status-btn{ background:rgba(246,242,233,0.12); color:var(--paper); border:1px solid rgba(246,242,233,0.3); }
+
+  .pkg-list{ display:flex; flex-direction:column; gap:12px; }
+  .pkg-card{
+    background:var(--card); border-radius:18px; padding:18px;
+    box-shadow:0 1px 2px rgba(15,46,29,0.05);
+    border:1.5px solid transparent;
+    position:relative;
+    transition:transform .16s ease, box-shadow .16s ease;
+  }
+  .pkg-card:hover{ transform:translateY(-2px); box-shadow:0 12px 24px -10px rgba(15,46,29,0.18); }
+  .pkg-card.popular{ border-color:var(--gold); }
+  .pkg-popular-tag{
+    position:absolute; top:-10px; right:16px;
+    background:var(--gold); color:var(--taka-deep);
+    font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:100px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .pkg-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+  .pkg-name{ font-size:16px; font-weight:700; }
+  .pkg-price{ font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:700; color:var(--taka); }
+  .pkg-price span{ font-size:11px; font-weight:500; color:var(--muted); }
+  .pkg-perks{ list-style:none; display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+  .pkg-perks li{
+    font-size:14.5px; font-weight:600; color:var(--ink); line-height:1.4;
+    display:flex; align-items:center; gap:8px;
+  }
+  .pkg-perks li::before{
+    content:'✓'; color:var(--taka); font-weight:700;
+    width:18px; height:18px; border-radius:50%; background:var(--taka-soft);
+    display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;
+  }
+  .perk-val{
+    font-family:'JetBrains Mono', monospace; font-weight:700; color:var(--taka-deep);
+    letter-spacing:-0.02em;
+  }
+  .pkg-btn{
+    width:100%; padding:11px 0; border-radius:100px; font-size:13.5px; font-weight:700;
+    background:var(--taka-soft); color:var(--taka-deep);
+    transition:filter .16s ease;
+  }
+  .pkg-card.popular .pkg-btn{ background:var(--ink); color:var(--paper); }
+  .pkg-btn:hover{ filter:brightness(0.96); }
+  .pkg-btn:active{ transform:scale(0.97); }
+
+
+  /* ---------- WITHDRAWAL MODAL ---------- */
+  .withdraw-toast{position:fixed;left:50%;top:50%;bottom:auto;transform:translate(-50%,calc(-50% + 20px));background:#0D3B29;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;z-index:9999;white-space:nowrap;}
+  .withdraw-toast.show{opacity:1;transform:translate(-50%,-50%);}
+
+  .withdraw-backdrop{
+    position:fixed; inset:0; z-index:99999;
+    background:rgba(15,46,29,0.45);
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .withdraw-backdrop.visible{display:flex;}
+  .withdraw-sheet{
+    width:100%; max-width:412px;
+    background:var(--paper);
+    border-radius:26px 26px 0 0;
+    padding:14px 22px 28px;
+    box-shadow:0 -20px 40px rgba(15,46,29,0.2);
+    animation:sheetUp .28s ease;
+    position:relative;
+    max-height:92vh;
+    overflow:auto;
+  }
+  .withdraw-handle{
+    width:38px; height:4px; border-radius:100px; background:var(--line);
+    margin:2px auto 16px;
+  }
+  .withdraw-close{
+    position:absolute; top:10px; right:10px;
+    width:32px; height:32px; border:0; border-radius:50%;
+    background:#C94B4B; color:#fff; font-size:22px; line-height:1;
+  }
+  .withdraw-title{font-size:18px;font-weight:700;margin-bottom:4px;}
+  .withdraw-sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;}
+  .withdraw-balance{
+    background:var(--ink); color:var(--paper);
+    border-radius:16px; padding:14px 16px; margin-bottom:14px;
+  }
+  .withdraw-balance-label{font-size:11px;opacity:.65;font-family:'JetBrains Mono',monospace;}
+  .withdraw-balance-value{font-size:24px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:3px;}
+  .withdraw-limits{
+    display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;
+  }
+  .withdraw-limit{
+    background:var(--card);border-radius:12px;padding:10px 7px;text-align:center;
+    box-shadow:0 1px 2px rgba(15,46,29,.05);
+  }
+  .withdraw-limit-label{font-size:10px;color:var(--muted);}
+  .withdraw-limit-value{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;margin-top:3px;}
+  .withdraw-label{display:block;font-size:12.5px;font-weight:700;margin:0 0 7px;}
+  .withdraw-input{
+    width:100%;height:48px;border:1.5px solid var(--line);border-radius:13px;
+    background:var(--card);color:var(--ink);padding:0 14px;outline:none;
+    font-family:'JetBrains Mono',monospace;font-size:14px;margin-bottom:12px;
+  }
+  .withdraw-input:focus{border-color:var(--taka);box-shadow:0 0 0 3px rgba(31,110,74,.08);}
+
+  .withdraw-input.withdraw-input-error{
+    border-color:#BC3E3E;
+    box-shadow:0 0 0 3px rgba(188,62,62,.08);
+  }
+  .withdrawal-field-message{
+    display:none;
+    align-items:center;
+    gap:7px;
+    margin:-8px 0 10px;
+    padding:8px 10px;
+    border-radius:10px;
+    background:rgba(188,62,62,.08);
+    color:#A33A3A;
+    font-size:11px;
+    line-height:1.35;
+    font-weight:600;
+  }
+  .withdrawal-field-message.show{display:flex;}
+  .withdraw-methods{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .withdraw-method{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    height:48px;border:1.5px solid var(--line);border-radius:13px;
+    background:var(--card);font-size:14px;font-weight:700;
+  }
+  .withdraw-method.selected{border-color:var(--taka);background:var(--taka-soft);}
+  .withdraw-method .method-logo{
+    color:#fff;padding:5px 8px;border-radius:7px;font-family:'JetBrains Mono',monospace;
+    font-size:10px;font-weight:700;
+  }
+  .withdraw-method .bkash-logo{background:#E2136E;}
+  .withdraw-method .nagad-logo{background:#EA7125;}
+  .withdraw-submit{
+    width:100%;height:48px;border-radius:13px;background:var(--ink);color:var(--paper);
+    font-size:14px;font-weight:700;margin-top:2px;
+  }
+  .withdraw-submit:disabled{opacity:.45;cursor:not-allowed;}
+  .withdraw-note{text-align:center;font-size:10.5px;color:var(--muted);margin-top:9px;}
+
+  /* ---------- PAYMENT MODAL ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; z-index:1000;
+    background:rgba(15,46,29,0.45);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    padding:0;
+  }
+  .modal-backdrop.visible{ display:flex; }
+
+  .payment-sheet{
+    width:100%; max-width:412px;
+    background:var(--paper);
+    border-radius:26px 26px 0 0;
+    padding:12px 22px 26px;
+    animation:sheetUp .28s ease;
+    box-shadow:0 -20px 40px rgba(15,46,29,0.2);
+  }
+  @keyframes sheetUp{ from{ transform:translateY(30px); opacity:0.6;} to{ transform:translateY(0); opacity:1;} }
+
+  .sheet-handle{
+    width:38px; height:4px; border-radius:100px; background:var(--line);
+    margin:4px auto 16px;
+  }
+
+  .sheet-header{ margin-bottom:18px; }
+  .sheet-title{ font-size:17px; font-weight:700; margin-bottom:4px; }
+  .sheet-sub{ font-size:13px; color:var(--muted); }
+  .sheet-sub span{ font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--taka-deep); }
+
+  .pm-options{ display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+  .pm-option{
+    display:flex; align-items:center; gap:12px;
+    background:var(--card); border:1.5px solid var(--line);
+    border-radius:16px; padding:14px 16px;
+    width:100%; text-align:left;
+    transition:border-color .16s ease, background .16s ease;
+  }
+  .pm-option.selected{ border-color:var(--taka); background:var(--taka-soft); }
+
+  .pm-logo{
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px;
+    color:#fff; padding:8px 10px; border-radius:9px; flex-shrink:0;
+    min-width:64px; text-align:center;
+  }
+  .pm-logo.bkash{ background:#E2136E; }
+  .pm-logo.nagad{ background:#EA7125; }
+
+  .pm-name{ flex:1; font-size:15px; font-weight:600; }
+
+  .pm-check{
+    width:20px; height:20px; border-radius:50%;
+    border:1.5px solid var(--line); color:transparent;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; flex-shrink:0;
+    transition:all .16s ease;
+  }
+  .pm-option.selected .pm-check{
+    background:var(--taka); border-color:var(--taka); color:#fff;
+  }
+
+  .pm-number-box{
+    background:var(--taka-soft); border-radius:14px; padding:12px 16px;
+    margin-bottom:16px;
+  }
+  .pm-number-label{ font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px; }
+  .pm-number{ font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:700; color:var(--taka-deep); }
+
+  .pm-confirm{
+    width:100%; padding:14px 0; border-radius:100px;
+    background:var(--ink); color:var(--paper);
+    font-size:15px; font-weight:700; margin-bottom:10px;
+    transition:opacity .16s ease, background .16s ease;
+  }
+  .pm-confirm:disabled{ opacity:0.4; cursor:not-allowed; }
+  .pm-confirm:not(:disabled):hover{ background:var(--taka-deep); }
+
+  .pm-cancel{
+    width:100%; padding:12px 0; text-align:center;
+    font-size:13.5px; font-weight:600; color:var(--muted);
+  }
+  .pm-cancel:hover{ color:var(--ink); }
+
+  .bottom-nav{
+    position:absolute; left:0; right:0; bottom:0;
+    background:var(--card);
+    border-top:1px solid var(--line);
+    display:flex; justify-content:space-around; align-items:center;
+    padding:12px 8px 16px;
+  }
+  .nav-item{
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    font-size:10.5px; color:var(--muted); font-weight:600;
+    background:none; border:none;
+  }
+  .nav-item.active{ color:var(--taka); }
+  .nav-dot{ width:22px; height:22px; display:flex; align-items:center; justify-content:center; }
+
+
+  .send-instruction{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:14px 16px;
+    margin-bottom:12px;
+  }
+  .send-instruction-title{
+    font-size:14px;
+    font-weight:700;
+    line-height:1.45;
+    margin-bottom:4px;
+  }
+  .send-instruction-sub{
+    font-size:12.5px;
+    color:var(--muted);
+    line-height:1.5;
+  }
+  .send-instruction-sub strong{ color:var(--taka-deep); }
+  .number-copy-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .copy-btn{
+    flex-shrink:0;
+    padding:8px 13px;
+    border-radius:10px;
+    background:var(--ink);
+    color:var(--paper);
+    font-size:12px;
+    font-weight:700;
+  }
+  .copy-btn:active{ transform:scale(0.96); }
+  .copy-feedback{
+    min-height:16px;
+    margin-top:4px;
+    font-size:11px;
+    color:var(--taka);
+    font-weight:600;
+  }
+  .transaction-label{
+    display:block;
+    font-size:12.5px;
+    font-weight:700;
+    margin:2px 0 7px;
+  }
+  .transaction-input{
+    width:100%;
+    height:48px;
+    border:1.5px solid var(--line);
+    border-radius:14px;
+    background:var(--card);
+    color:var(--ink);
+    padding:0 14px;
+    outline:none;
+    font-family:'JetBrains Mono',monospace;
+    font-size:14px;
+    margin-bottom:12px;
+  }
+  .transaction-input:focus{
+    border-color:var(--taka);
+    box-shadow:0 0 0 3px rgba(31,110,74,0.08);
+  }
+  .transaction-input::placeholder{
+    color:rgba(15,46,29,0.35);
+    font-family:'Hind Siliguri',sans-serif;
+  }
+  .submit-payment-btn{ margin-bottom:10px; }
+
+
+  .package-history-card{
+    margin:16px auto 0;
+    background:var(--card);
+    border-radius:18px;
+    padding:14px 18px;
+    box-shadow:0 1px 2px rgba(15,46,29,0.05);
+    display:flex;
+    align-items:center;
+    gap:12px;
+    cursor:pointer;
+    transition:transform .16s ease, box-shadow .16s ease;
+  }
+  .package-history-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 10px 20px -8px rgba(15,46,29,0.18);
+  }
+  .package-history-icon{
+    width:44px;
+    height:44px;
+    border-radius:13px;
+    background:var(--taka-soft);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:21px;
+    flex-shrink:0;
+  }
+  .package-history-body{ flex:1; min-width:0; }
+  .package-history-title{ font-size:14px; font-weight:700; }
+  .package-history-sub{
+    font-size:11.5px;
+    color:var(--muted);
+    margin-top:2px;
+  }
+  .package-history-arrow{
+    color:var(--taka);
+    font-size:20px;
+    font-weight:700;
+  }
+  .history-list{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-top:16px;
+  }
+  .history-row{
+    background:var(--card);
+    border-radius:16px;
+    padding:13px 14px;
+    box-shadow:0 1px 2px rgba(15,46,29,0.05);
+    display:flex;
+    align-items:center;
+    gap:11px;
+  }
+  .history-row-icon{
+    width:40px;
+    height:40px;
+    border-radius:12px;
+    background:var(--taka-soft);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  .history-row-body{ flex:1; min-width:0; }
+  .history-row-title{ font-size:13.5px; font-weight:700; }
+  .history-row-meta{
+    font-size:10.5px;
+    color:var(--muted);
+    margin-top:2px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .history-row-amount{
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+    font-weight:700;
+    color:var(--taka);
+  }
+  .history-empty{
+    background:var(--card);
+    border-radius:16px;
+    padding:24px 16px;
+    text-align:center;
+    color:var(--muted);
+    font-size:13px;
+    margin-top:16px;
+  }
+
+
+  .history-status{
+    flex-shrink:0;
+    padding:6px 9px;
+    border-radius:100px;
+    background:rgba(212,167,58,0.16);
+    color:#8A6815;
+    font-size:10.5px;
+    font-weight:700;
+    white-space:nowrap;
+  }
+  .history-row.pending{
+    border:1.5px solid rgba(212,167,58,0.35);
+  }
+
+  .withdrawal-history-list{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+  .withdrawal-history-row{background:var(--card);border-radius:16px;padding:14px;box-shadow:0 1px 2px rgba(15,46,29,0.05);}
+  .withdrawal-history-top{display:flex;align-items:center;gap:10px;}
+  .withdrawal-history-icon{width:40px;height:40px;border-radius:12px;background:var(--taka-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;}
+  .withdrawal-history-body{flex:1;min-width:0;}
+  .withdrawal-history-title{font-size:13.5px;font-weight:700;}
+  .withdrawal-history-meta{font-size:10.5px;color:var(--muted);margin-top:2px;font-family:'JetBrains Mono',monospace;}
+  .withdrawal-history-amount{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--taka);white-space:nowrap;}
+  .withdrawal-history-status{display:inline-block;margin-top:10px;padding:5px 9px;border-radius:100px;background:rgba(212,167,58,0.16);color:#8A6815;font-size:10.5px;font-weight:700;}
+
+
+  #active-packages-list{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .status-card.active{
+    margin-top:12px;
+  }
+
+
+  .refer-hero{
+    margin-top:12px;
+    background:var(--ink);
+    color:var(--paper);
+    border-radius:20px;
+    padding:22px 20px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .refer-hero::before{
+    content:'';
+    position:absolute;
+    width:150px;
+    height:150px;
+    border-radius:50%;
+    right:-55px;
+    top:-70px;
+    background:radial-gradient(circle, rgba(212,167,58,0.28), transparent 70%);
+  }
+  .refer-hero-icon{
+    width:48px;
+    height:48px;
+    margin:0 auto 10px;
+    border-radius:14px;
+    background:rgba(212,167,58,0.18);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    position:relative;
+    z-index:1;
+  }
+  .refer-hero-title{
+    font-size:20px;
+    font-weight:700;
+    position:relative;
+    z-index:1;
+  }
+  .refer-hero-sub{
+    font-size:13px;
+    opacity:.72;
+    margin-top:4px;
+    position:relative;
+    z-index:1;
+  }
+  .refer-stats{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-top:12px;
+  }
+  .refer-stat{
+    background:var(--card);
+    border-radius:17px;
+    padding:16px 12px;
+    text-align:center;
+    box-shadow:0 1px 2px rgba(15,46,29,0.05);
+  }
+  .refer-stat-icon{
+    font-size:20px;
+    margin-bottom:5px;
+  }
+  .refer-stat-label{
+    font-size:11px;
+    color:var(--muted);
+  }
+  .refer-stat-value{
+    font-family:'JetBrains Mono',monospace;
+    font-size:21px;
+    font-weight:700;
+    color:var(--taka);
+    margin-top:3px;
+  }
+  .refer-link-card{
+    margin-top:12px;
+    background:var(--card);
+    border-radius:18px;
+    padding:16px;
+    box-shadow:0 1px 2px rgba(15,46,29,0.05);
+  }
+  .refer-link-title{
+    font-size:14px;
+    font-weight:700;
+    margin-bottom:9px;
+  }
+  .refer-link-row{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .refer-link-input{
+    flex:1;
+    min-width:0;
+    height:44px;
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    background:var(--paper);
+    color:var(--ink);
+    padding:0 11px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    outline:none;
+  }
+  .refer-copy-btn,
+  .refer-share-btn{
+    height:44px;
+    border-radius:12px;
+    padding:0 13px;
+    font-size:12px;
+    font-weight:700;
+    flex-shrink:0;
+  }
+  .refer-copy-btn{
+    background:var(--taka);
+    color:#fff;
+  }
+  .refer-share-btn{
+    margin-top:9px;
+    width:100%;
+    background:var(--ink);
+    color:var(--paper);
+  }
+  .refer-copy-feedback{
+    min-height:16px;
+    font-size:11px;
+    color:var(--taka);
+    font-weight:600;
+    margin-top:5px;
+  }
+
+
+  .auth-actions{
+    display:flex;
+    align-items:center;
+    gap:7px;
+  }
+  .auth-btn{
+    padding:8px 12px;
+    border-radius:10px;
+    font-size:11.5px;
+    font-weight:700;
+    line-height:1;
+    white-space:nowrap;
+  }
+  .auth-btn.login{
+    background:var(--card);
+    color:var(--taka-deep);
+    border:1px solid var(--line);
+  }
+  .auth-btn.register{
+    background:var(--ink);
+    color:var(--paper);
+  }
+  .auth-btn:active{ transform:scale(.96); }
+
+
+  .brand-logo{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-weight:800;
+    font-size:18px;
+    color:var(--ink);
+    letter-spacing:-.3px;
+  }
+  .brand-mark{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+    background:var(--ink);
+    color:var(--paper);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:17px;
+    font-weight:800;
+  }
+  .auth-btn{
+    min-width:82px;
+    height:40px;
+    padding:0 14px;
+    border-radius:11px;
+    font-size:12.5px;
+    font-weight:700;
+    line-height:1;
+    white-space:nowrap;
+    background:var(--ink);
+    color:var(--paper);
+    border:0;
+  }
+  .auth-btn.login,
+  .auth-btn.register{
+    background:var(--ink);
+    color:var(--paper);
+  }
+  .auth-actions{ gap:8px; }
+
+
+  .auth-page-card{
+    margin-top:16px;
+    background:var(--card);
+    border-radius:20px;
+    padding:22px 18px;
+    box-shadow:0 1px 3px rgba(15,46,29,0.06);
+  }
+  .auth-page-logo{
+    width:52px;
+    height:52px;
+    border-radius:15px;
+    background:var(--ink);
+    color:var(--paper);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:0 auto 10px;
+    font-size:24px;
+    font-weight:800;
+  }
+  .auth-page-title{
+    text-align:center;
+    font-size:20px;
+    font-weight:700;
+    margin-bottom:5px;
+  }
+  .auth-page-sub{
+    text-align:center;
+    color:var(--muted);
+    font-size:12px;
+    margin-bottom:20px;
+  }
+  .auth-field-label{
+    display:block;
+    font-size:12.5px;
+    font-weight:700;
+    margin:0 0 7px;
+  }
+  .auth-input{
+    width:100%;
+    height:48px;
+    border:1.5px solid var(--line);
+    border-radius:13px;
+    background:var(--paper);
+    color:var(--ink);
+    padding:0 14px;
+    outline:none;
+    font-size:14px;
+    margin-bottom:14px;
+  }
+  .auth-input:focus{
+    border-color:var(--taka);
+    box-shadow:0 0 0 3px rgba(31,110,74,.08);
+  }
+  .auth-login-submit{
+    width:100%;
+    height:48px;
+    border-radius:13px;
+    background:var(--ink);
+    color:var(--paper);
+    font-size:14px;
+    font-weight:700;
+    margin-top:2px;
+  }
+  .auth-register-bottom{
+    width:100%;
+    height:45px;
+    border-radius:13px;
+    background:var(--taka-soft);
+    color:var(--taka-deep);
+    font-size:13px;
+    font-weight:700;
+    margin-top:10px;
+  }
+
+
+  .register-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .register-grid .auth-input{
+    margin-bottom:14px;
+  }
+  @media(max-width:380px){
+    .register-grid{ grid-template-columns:1fr; gap:0; }
+  }
+  .field-message{
+    display:none;
+    align-items:center;
+    gap:7px;
+    margin:-8px 0 10px;
+    padding:8px 10px;
+    border-radius:10px;
+    background:rgba(188,62,62,.08);
+    color:#A33A3A;
+    font-size:11px;
+    line-height:1.35;
+    font-weight:600;
+  }
+  .field-message.show{display:flex;}
+  .field-message-icon{
+    width:20px;
+    height:20px;
+    border-radius:7px;
+    background:rgba(188,62,62,.12);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    font-size:11px;
+  }
+  .auth-input.input-error{
+    border-color:#C55A5A;
+    box-shadow:0 0 0 3px rgba(197,90,90,.08);
+  }
+
+
+  .bottom-nav{
+    position:fixed; left:0; right:0; bottom:0; z-index:9000;
+    height:68px; padding:7px 10px calc(7px + env(safe-area-inset-bottom));
+    background:rgba(247,245,239,.96); border-top:1px solid var(--line);
+    box-shadow:0 -8px 24px rgba(15,46,29,.08);
+    display:flex; align-items:center; justify-content:space-around;
+    backdrop-filter:blur(12px);
+  }
+  .bottom-nav-item{
+    border:0; background:transparent; color:var(--muted);
+    min-width:68px; height:52px; border-radius:13px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; font-size:10.5px; font-weight:700; cursor:pointer;
+  }
+  .bottom-nav-item .nav-icon{font-size:20px;line-height:20px}
+  .bottom-nav-item.active{color:var(--taka-deep);background:var(--taka-soft)}
+  body{padding-bottom:78px}
+  .screen{min-height:calc(100vh - 78px)}
+
+
+  .bottom-nav-item{
+    font-size:11.5px;
+    font-weight:800;
+    letter-spacing:.05px;
+  }
+  .bottom-nav-item .nav-icon{
+    font-size:21px;
+    line-height:21px;
+    font-weight:800;
+  }
+  .bottom-nav-item.active{
+    font-weight:900;
+  }
+
+  .payment-sheet{
+    position:relative;
+  }
+  .modal-close{
+    position:absolute;
+    top:10px;
+    right:10px;
+    width:32px;
+    height:32px;
+    border:0;
+    border-radius:50%;
+    background:#C94B4B;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+    z-index:20;
+  }
+  .modal-close:active{transform:scale(.94)}
+  /* ---------- FIXED APP TOP BAR ---------- */
+  /* My Cash / Login / Registration stays fixed on the screen while content scrolls.
+     Login and Registration screens intentionally keep their own normal header. */
+  .screen:not(#login-screen):not(#register-screen) > .topbar{
+    position:fixed;
+    top:0;
+    left:50%;
+    transform:translateX(-50%);
+    width:min(100%, 412px);
+    z-index:5000;
+    background:var(--paper);
+    box-shadow:0 1px 0 rgba(15,46,29,0.10);
+  }
+
+  /* Keep page content below the fixed top bar. */
+  .screen:not(#login-screen):not(#register-screen) > .topbar + .content{
+    padding-top:58px;
+  }
+
+
+  /* ---------- SINGLE APP CONTAINER: ALL SCREENS STAY INSIDE .phone ---------- */
+  .phone > .screen {
+    width:100%;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+  .phone > .screen.visible {
+    display:block;
+  }
+  .phone .content {
+    width:100%;
+    box-sizing:border-box;
+  }
+  .phone .income-content {
+    width:100%;
+    box-sizing:border-box;
+    padding-bottom:90px;
+  }
+
+
+.profile-card{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e7eee9;border-radius:18px;padding:18px;margin-top:18px;box-shadow:0 8px 24px rgba(24,72,45,.06)}.profile-avatar{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e9f6ed;font-size:28px}.profile-name{font-size:20px;font-weight:800;color:#173b28}.profile-mobile{font-size:14px;color:#718078;margin-top:4px}.profile-info-card{background:#fff;border:1px solid #e7eee9;border-radius:18px;padding:4px 16px;margin-top:14px}.profile-info-row{display:flex;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid #edf1ee;font-size:14px}.profile-info-row:last-child{border-bottom:0}.profile-info-row span{color:#718078}.profile-info-row strong{color:#173b28;text-align:right;word-break:break-word}.profile-actions{display:grid;gap:10px;margin-top:16px}.profile-action-btn{border:0;border-radius:14px;padding:14px 16px;background:#eaf6ee;color:#176b3b;font-weight:800;font-size:15px;cursor:pointer}.profile-logout{background:#fff1f1;color:#bd3030}.profile-modal-backdrop{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.48);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:20000;
+    padding:0;
+    box-sizing:border-box;
+}
+.profile-modal-backdrop.show{display:flex}
+.profile-modal{
+    width:min(520px,100%);
+    max-height:calc(100dvh - 16px);
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    box-sizing:border-box;
+    background:#fff;
+    border-radius:24px 24px 0 0;
+    padding:24px 20px calc(30px + env(safe-area-inset-bottom));
+    position:relative;
+    margin:0;
+}
+.profile-modal-close{
+    position:absolute;
+    right:14px;
+    top:10px;
+    border:0;
+    background:#f1f4f2;
+    width:36px;
+    height:36px;
+    border-radius:50%;
+    font-size:24px;
+    z-index:2;
+}
+.profile-modal-title{font-size:21px;font-weight:800;color:#173b28}
+.profile-modal-sub{font-size:13px;color:#718078;margin:5px 0 18px}
+.profile-modal .auth-input{margin-bottom:12px}
+.profile-modal-message{text-align:center;font-size:13px;min-height:20px;margin:8px 0}
+.profile-modal-message.error{color:#c93636}
+.profile-modal-message.success{color:#168044}
+.profile-modal .auth-login-submit{
+    width:100%;
+    margin-top:8px;
+}
+@media (min-width:700px){
+    .profile-modal-backdrop{
+        align-items:center;
+        padding:24px;
+    }
+    .profile-modal{
+        max-height:calc(100dvh - 48px);
+        border-radius:24px;
+    }
+}
+
+/* ---------- CONTACT MESSAGE MODAL ---------- */
+.contact-modal-backdrop{
+  position:fixed; inset:0; z-index:21000;
+  background:rgba(0,0,0,.48);
+  display:none; align-items:flex-end; justify-content:center;
+  padding:0;
+}
+.contact-modal-backdrop.show{display:flex}
+.contact-modal{
+  width:min(520px,100%);
+  background:var(--paper);
+  border-radius:24px 24px 0 0;
+  padding:18px 20px calc(28px + env(safe-area-inset-bottom));
+  position:relative;
+  box-shadow:0 -20px 40px rgba(15,46,29,.2);
+}
+.contact-modal-handle{
+  width:38px;height:4px;border-radius:100px;background:var(--line);
+  margin:0 auto 16px;
+}
+.contact-modal-close{
+  position:absolute;right:12px;top:10px;width:34px;height:34px;
+  border:0;border-radius:50%;background:#C94B4B;color:#fff;
+  font-size:22px;line-height:1;cursor:pointer;
+}
+.contact-modal-title{font-size:20px;font-weight:800;color:var(--ink);padding-right:42px}
+.contact-direct-card{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 8px 24px rgba(15,46,29,.06)}
+.contact-direct-card .contact-message-input{display:block;margin-bottom:12px;min-height:150px}
+.contact-modal-sub{font-size:12.5px;color:var(--muted);margin:4px 0 16px}
+.contact-message-input{
+  width:100%;min-height:125px;resize:vertical;
+  border:1.5px solid var(--line);border-radius:14px;
+  background:var(--card);color:var(--ink);padding:13px 14px;
+  outline:none;font-family:'Hind Siliguri',sans-serif;font-size:14px;
+  line-height:1.5;
+}
+.contact-message-input:focus{
+  border-color:var(--taka);
+  box-shadow:0 0 0 3px rgba(31,110,74,.08);
+}
+.contact-send-btn{
+  width:100%;height:48px;border-radius:13px;
+  background:var(--ink);color:var(--paper);
+  font-size:14px;font-weight:800;margin-top:12px;
+}
+.contact-message-status{
+  min-height:20px;text-align:center;font-size:12px;font-weight:700;
+  margin-top:8px;color:var(--taka);
+}
+@media (min-width:700px){
+  .contact-modal-backdrop{align-items:center;padding:24px}
+  .contact-modal{border-radius:24px;max-height:calc(100dvh - 48px)}
+}
+
+</style>
+
+
+
+
+<style id="new-home-page-styles">
+.home-new{padding-bottom:95px}
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.home-tile{background:var(--card);border:1px solid var(--line);border-radius:18px;min-height:150px;padding:14px;box-shadow:0 5px 16px rgba(15,46,29,.055);display:flex;flex-direction:column;position:relative;overflow:hidden}
+.home-tile-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.home-tile-icon{width:38px;height:38px;border-radius:12px;background:var(--taka-soft);display:grid;place-items:center;font-size:19px;flex-shrink:0}
+.home-tile-title{font-size:13px;font-weight:900;color:var(--ink);line-height:1.2}
+.home-tile-sub{font-size:10px;color:var(--muted);margin-top:3px}
+.home-user-name{font-size:15px;font-weight:900;color:var(--ink);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-user-mobile{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-user-balance{margin-top:auto;background:var(--ink);color:var(--paper);border-radius:12px;padding:9px 10px}
+.home-user-balance span{display:block;font-size:9px;opacity:.7}.home-user-balance strong{display:block;font-size:15px;margin-top:2px}
+.home-number-value{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;color:var(--taka-deep);word-break:break-word}
+.home-tile-action{margin-top:auto;width:100%;height:34px;border:0;border-radius:10px;background:var(--taka-deep);color:#fff;font-size:10.5px;font-weight:800}
+.home-history-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}.home-history-row:last-of-type{margin-bottom:0}.home-history-mini{width:30px;height:30px;border-radius:9px;background:#eef7ef;color:var(--taka-deep);display:grid;place-items:center;font-weight:900;font-size:13px}.home-history-copy{min-width:0;flex:1}.home-history-copy strong{display:block;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.home-history-copy span{display:block;font-size:9px;color:var(--muted);margin-top:1px}.home-history-amount{font-size:10px;font-weight:900;white-space:nowrap}
+.home-social-list{display:flex;flex-direction:column;gap:7px}.social-task-row{display:flex;align-items:center;gap:7px}.social-icon{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:13px;flex-shrink:0}.social-icon.tg{background:#28a7e8}.social-icon.yt{background:#e14538}.social-icon.fb{background:#3b5fa6}.social-task-row>div{min-width:0;flex:1}.social-task-row strong{display:block;font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.social-task-row small{display:block;color:#3fa65c;font-weight:800;font-size:8.5px;margin-top:1px}.social-task-row button{border:0;border-radius:8px;padding:6px 7px;background:#f0f6f1;color:var(--taka-deep);font-size:8px;font-weight:800;white-space:nowrap}
+.home-inbox-strip{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:11px 13px;display:flex;align-items:center;gap:9px}.home-inbox-icon{width:34px;height:34px;border-radius:10px;background:#fff3df;display:grid;place-items:center;font-size:17px}.home-inbox-copy{flex:1}.home-inbox-copy strong{font-size:12px}.home-inbox-copy span{display:block;font-size:9.5px;color:var(--muted);margin-top:2px}.home-inbox-badge{font-size:8px;font-weight:900;color:#fff;background:#d34a3d;border-radius:20px;padding:4px 6px}.home-inbox-arrow{font-size:20px;color:var(--muted)}
+</style>
+
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCjVduy7zLXQNO_HCfFmEXLMjD1EZKpBFM",
+  authDomain: "mycash-96.firebaseapp.com",
+  projectId: "mycash-96",
+  storageBucket: "mycash-96.firebasestorage.app",
+  messagingSenderId: "456949677588",
+  appId: "1:456949677588:web:bffcc5529b354b858c7101"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const MYCASH_EMAIL_DOMAIN = '@mycash.local';
+const ADMIN_EMAIL = 'admin@mycash.com';
+const adminEmailKey = ADMIN_EMAIL.toLowerCase();
+function authEmailFromMobile(mobile){ return String(mobile).replace(/\D/g,'') + MYCASH_EMAIL_DOMAIN; }
+</script>
+
+</head>
+<body>
+
+<div class="phone">
+
+  <!-- ============================================================ -->
+  <!-- SCREEN 1: HOME -->
+  <!-- ============================================================ -->
+  <div class="screen visible" id="home-screen">
+    <div class="topbar">
+      <div class="brand-logo"><div class="brand-mark">৳</div><span>My Cash</span></div>
+      <div class="auth-actions">
+        <button class="auth-btn login" onclick="showScreen('login-screen')">লগইন</button>
+        <button class="auth-btn register" onclick="showScreen('register-screen')">রেজিস্ট্রেশন</button>
+      </div>
+    </div>
+
+    <div class="content home-new">
+      <div class="home-grid">
+        <div class="home-tile">
+          <div class="home-tile-head"><div class="home-tile-icon">👤</div><div><div class="home-tile-title">User Box</div><div class="home-tile-sub">আপনার অ্যাকাউন্ট</div></div></div>
+          <div class="home-user-name" id="home-user-name">আপনার নাম</div>
+          <div class="home-user-mobile" id="home-user-mobile">মোবাইল নম্বর সেট করা হয়নি</div>
+          <div class="home-user-balance"><span>ব্যালেন্স</span><strong>৳১,২৪০</strong></div>
+        </div>
+
+        <div class="home-tile">
+          <div class="home-tile-head"><div class="home-tile-icon">📱</div><div><div class="home-tile-title">Mobile Number</div><div class="home-tile-sub">রেজিস্টার্ড নম্বর</div></div></div>
+          <div class="home-number-value" id="home-mobile-value">মোবাইল নম্বর সেট করা হয়নি</div>
+          <button class="home-tile-action" type="button" onclick="showScreen('profile-screen')">দেখুন</button>
+        </div>
+
+        <div class="home-tile">
+          <div class="home-tile-head"><div class="home-tile-icon">৳</div><div><div class="home-tile-title">Withdraw History</div><div class="home-tile-sub">সাম্প্রতিক উত্তোলন</div></div></div>
+          <div class="home-history-row"><div class="home-history-mini">৳</div><div class="home-history-copy"><strong>উত্তোলনের তথ্য</strong><span>হিস্টোরি দেখুন</span></div><div class="home-history-amount">—</div></div>
+          <button class="home-tile-action" type="button" onclick="showScreen('withdrawal-history-screen')">সব দেখুন</button>
+        </div>
+
+        <div class="home-tile">
+          <div class="home-tile-head"><div class="home-tile-icon">📲</div><div><div class="home-tile-title">Social Task</div><div class="home-tile-sub">টাস্ক করে আয়</div></div></div>
+          <div class="home-social-list">
+            <div class="social-task-row"><span class="social-icon tg">✈</span><div><strong>Telegram</strong><small>+৳১০</small></div><button>Join</button></div>
+            <div class="social-task-row"><span class="social-icon yt">▶</span><div><strong>YouTube</strong><small>+৳১৫</small></div><button>Subscribe</button></div>
+            <div class="social-task-row"><span class="social-icon fb">f</span><div><strong>Facebook</strong><small>+৳১০</small></div><button>Follow</button></div>
+          </div>
+        </div>
+      </div>
+
+      <button class="home-inbox-strip" type="button" onclick="showScreen('contact-screen')">
+        <div class="home-inbox-icon">📥</div><div class="home-inbox-copy"><strong>Inbox</strong><span>আপনার নতুন মেসেজ ও আপডেট</span></div><span class="home-inbox-badge">নতুন</span><span class="home-inbox-arrow">›</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN: REGISTRATION -->
+  <!-- ============================================================ -->
+  <div class="screen" id="register-screen">
+
+    <div class="topbar subpage">
+      <h1>রেজিস্ট্রেশন</h1>
+    </div>
+
+    <div class="content">
+      <div class="auth-page-card">
+
+        <div class="auth-page-logo">৳</div>
+        <div class="auth-page-title">My Cash-এ রেজিস্ট্রেশন করুন</div>
+        <div class="auth-page-sub">নতুন অ্যাকাউন্ট তৈরি করতে তথ্য দিন</div>
+
+        <div class="register-grid">
+          <div>
+            <label class="auth-field-label" for="register-first-name">প্রথম নাম</label>
+            <input
+              class="auth-input"
+              id="register-first-name"
+              type="text"
+              autocomplete="given-name"
+              placeholder="প্রথম নাম"
+            />
+        <div class="field-message" id="register-first-message">
+          <span class="field-message-icon">!</span>
+          <span></span>
+        </div>
+          </div>
+
+          <div>
+            <label class="auth-field-label" for="register-last-name">শেষ নাম</label>
+            <input
+              class="auth-input"
+              id="register-last-name"
+              type="text"
+              autocomplete="family-name"
+              placeholder="শেষ নাম"
+            />
+        <div class="field-message" id="register-last-message">
+          <span class="field-message-icon">!</span>
+          <span></span>
+        </div>
+          </div>
+        </div>
+
+        <label class="auth-field-label" for="register-mobile">মোবাইল নম্বর</label>
+        <input
+          class="auth-input"
+          id="register-mobile"
+          type="tel"
+          inputmode="numeric"
+          autocomplete="tel"
+          placeholder="মোবাইল নম্বর লিখুন"
+        />
+        <div class="field-message" id="register-mobile-message">
+          <span class="field-message-icon">!</span>
+          <span></span>
+        </div>
+
+        <label class="auth-field-label" for="register-password">পাসওয়ার্ড</label>
+        <input
+          class="auth-input"
+          id="register-password"
+          type="password"
+          autocomplete="new-password"
+          placeholder="পাসওয়ার্ড লিখুন"
+        />
+        <div class="field-message" id="register-password-message">
+          <span class="field-message-icon">!</span>
+          <span></span>
+        </div>
+
+        <label class="auth-field-label" for="register-repassword">পাসওয়ার্ড পুনরায় লিখুন</label>
+        <input
+          class="auth-input"
+          id="register-repassword"
+          type="password"
+          autocomplete="new-password"
+          placeholder="পাসওয়ার্ড আবার লিখুন"
+        />
+        <div class="field-message" id="register-repassword-message">
+          <span class="field-message-icon">!</span>
+          <span></span>
+        </div>
+
+        <button class="auth-login-submit" onclick="handleRegistration()">রেজিস্ট্রেশন</button>
+        <button class="auth-register-bottom" onclick="showScreen('login-screen')">
+          লগইন করুন
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN: LOGIN -->
+  <!-- ============================================================ -->
+  <div class="screen" id="login-screen">
+
+    <div class="topbar subpage">
+      <h1>লগইন</h1>
+    </div>
+
+    <div class="content">
+      <div class="auth-page-card">
+
+        <div class="auth-page-logo">৳</div>
+        <div class="auth-page-title">My Cash-এ লগইন করুন</div>
+        <div class="auth-page-sub">আপনার অ্যাকাউন্টে প্রবেশ করতে তথ্য দিন</div>
+
+        <label class="auth-field-label" for="login-mobile">মোবাইল নম্বর</label>
+        <input
+          class="auth-input"
+          id="login-mobile"
+          type="tel"
+          inputmode="numeric"
+          autocomplete="tel"
+          placeholder="মোবাইল নম্বর লিখুন"
+        />
+        <div class="field-message" id="login-mobile-message">
+          <span class="field-message-icon">!</span>
+          <span></span>
+        </div>
+
+        <label class="auth-field-label" for="login-password">পাসওয়ার্ড</label>
+        <input
+          class="auth-input"
+          id="login-password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="পাসওয়ার্ড লিখুন"
+        />
+        <div class="field-message" id="login-password-message">
+          <span class="field-message-icon">!</span>
+          <span></span>
+        </div>
+
+        <button class="auth-login-submit" onclick="handleLogin()">লগইন</button>
+        <button class="auth-register-bottom" onclick="showScreen('register-screen')">
+          রেজিস্ট্রেশন করুন
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN: REFER -->
+  <!-- ============================================================ -->
+  <div class="screen" id="refer-screen">
+
+    <div class="topbar">
+      <div class="brand-logo">
+        <div class="brand-mark">৳</div>
+        <span>My Cash</span>
+      </div>
+      <div class="auth-actions">
+        <button class="auth-btn login" onclick="showScreen('login-screen')">লগইন</button>
+        <button class="auth-btn register" onclick="showScreen('register-screen')">রেজিস্ট্রেশন</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="refer-hero">
+        <div class="refer-hero-icon">🎁</div>
+        <div class="refer-hero-title">প্রতি রেফারে ৫০ টাকা আয় করুন</div>
+        <div class="refer-hero-sub">বেশি বেশি রেফার করে বেশি বেশি আয় করুন।</div>
+      </div>
+
+      <div class="refer-stats">
+        <div class="refer-stat">
+          <div class="refer-stat-icon">👥</div>
+          <div class="refer-stat-label">মোট রেফার</div>
+          <div class="refer-stat-value">০</div>
+        </div>
+        <div class="refer-stat">
+          <div class="refer-stat-icon">৳</div>
+          <div class="refer-stat-label">মোট রেফারকৃত আয়</div>
+          <div class="refer-stat-value">৳০</div>
+        </div>
+      </div>
+
+      <div class="refer-link-card">
+        <div class="refer-link-title">আপনার রেফার লিংক</div>
+
+        <div class="refer-link-row">
+          <input
+            class="refer-link-input"
+            id="refer-link"
+            type="text"
+            value="https://mycash.app/ref/RAFI50"
+            readonly
+          />
+          <button class="refer-copy-btn" onclick="copyReferLink()">কপি</button>
+        </div>
+
+        <div class="refer-copy-feedback" id="refer-copy-feedback"></div>
+
+        <button class="refer-share-btn" onclick="shareReferLink()">↗ শেয়ার করুন</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN 2: PACKAGE -->
+  <!-- ============================================================ -->
+  <div class="screen" id="package-screen">
+
+    <div class="topbar">
+      <div class="brand-logo">
+        <div class="brand-mark">৳</div>
+        <span>My Cash</span>
+      </div>
+      <div class="auth-actions">
+        <button class="auth-btn login" onclick="showScreen('login-screen')">লগইন</button>
+        <button class="auth-btn register" onclick="showScreen('register-screen')">রেজিস্ট্রেশন</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- PACKAGE HISTORY BOX -->
+      <button class="package-history-card" onclick="showScreen('package-history-screen')">
+        <div class="package-history-icon">🧾</div>
+        <div class="package-history-body">
+          <div class="package-history-title">প্যাকেজ ইতিহাস</div>
+          <div class="package-history-sub">আপনার আগের সব প্যাকেজ ও পেমেন্ট দেখুন</div>
+        </div>
+        <div class="package-history-arrow">›</div>
+      </button>
+
+      <!-- shown when NO package is active (default) -->
+      <div class="status-card inactive" id="status-inactive">
+        <div class="status-icon">📦</div>
+        <div class="status-label">প্যাকেজ স্ট্যাটাস</div>
+        <div class="status-title">কোনো প্যাকেজ একটিভ করা নেই</div>
+        <div class="status-sub">এখনো কোনো প্যাকেজ কেনা হয়নি। আয় বাড়াতে নিচ থেকে একটি প্যাকেজ বেছে নিন।</div>
+        <button class="status-btn" onclick="document.getElementById('packages').scrollIntoView({behavior:'smooth'})">প্যাকেজ কিনুন</button>
+      </div>
+
+      <!-- active packages: multiple package status boxes can appear here -->
+      <div id="active-packages-list"></div>
+
+      <div class="sec-head" id="packages"><h2>প্যাকেজ বেছে নিন</h2></div>
+      <div class="sec-sub">প্যাকেজ একটিভ করলে প্রতিদিন নির্দিষ্ট পরিমাণ টাকা আপনার ব্যালেন্সে জমা হবে</div>
+
+      <div class="pkg-list">
+
+        <div class="pkg-card">
+          <div class="pkg-top">
+            <div class="pkg-name">প্যাকেজ ১</div>
+            <div class="pkg-price">৳১০০</div>
+          </div>
+          <ul class="pkg-perks">
+            <li>দৈনিক আয় <span class="perk-val">৳৫</span></li>
+            <li>মেয়াদ <span class="perk-val">৩০ দিন</span></li>
+            <li>মোট রিটার্ন <span class="perk-val">৳১৫০</span></li>
+          </ul>
+          <button class="pkg-btn" onclick="openPaymentModal('৳১০০','৳১০০ প্যাকেজ একটিভ','৩০ দিন বাকি','৳৫')">প্যাকেজ কিনুন</button>
+        </div>
+
+        <div class="pkg-card">
+          <div class="pkg-top">
+            <div class="pkg-name">প্যাকেজ ২</div>
+            <div class="pkg-price">৳২০০</div>
+          </div>
+          <ul class="pkg-perks">
+            <li>দৈনিক আয় <span class="perk-val">৳১০</span></li>
+            <li>মেয়াদ <span class="perk-val">৩০ দিন</span></li>
+            <li>মোট রিটার্ন <span class="perk-val">৳৩০০</span></li>
+          </ul>
+          <button class="pkg-btn" onclick="openPaymentModal('৳২০০','৳২০০ প্যাকেজ একটিভ','৩০ দিন বাকি','৳১০')">প্যাকেজ কিনুন</button>
+        </div>
+
+        <div class="pkg-card">
+          <div class="pkg-top">
+            <div class="pkg-name">প্যাকেজ ৩</div>
+            <div class="pkg-price">৳৫০০</div>
+          </div>
+          <ul class="pkg-perks">
+            <li>দৈনিক আয় <span class="perk-val">৳২৫</span></li>
+            <li>মেয়াদ <span class="perk-val">৩০ দিন</span></li>
+            <li>মোট রিটার্ন <span class="perk-val">৳৭৫০</span></li>
+          </ul>
+          <button class="pkg-btn" onclick="openPaymentModal('৳৫০০','৳৫০০ প্যাকেজ একটিভ','৩০ দিন বাকি','৳২৫')">প্যাকেজ কিনুন</button>
+        </div>
+
+        <div class="pkg-card">
+          <div class="pkg-top">
+            <div class="pkg-name">প্যাকেজ ৪</div>
+            <div class="pkg-price">৳৭০০</div>
+          </div>
+          <ul class="pkg-perks">
+            <li>দৈনিক আয় <span class="perk-val">৳৩৫</span></li>
+            <li>মেয়াদ <span class="perk-val">৩০ দিন</span></li>
+            <li>মোট রিটার্ন <span class="perk-val">৳১,০৫০</span></li>
+          </ul>
+          <button class="pkg-btn" onclick="openPaymentModal('৳৭০০','৳৭০০ প্যাকেজ একটিভ','৩০ দিন বাকি','৳৩৫')">প্যাকেজ কিনুন</button>
+        </div>
+
+        <div class="pkg-card popular">
+          <span class="pkg-popular-tag">জনপ্রিয়</span>
+          <div class="pkg-top">
+            <div class="pkg-name">প্যাকেজ ৫</div>
+            <div class="pkg-price">৳১,০০০</div>
+          </div>
+          <ul class="pkg-perks">
+            <li>দৈনিক আয় <span class="perk-val">৳৫০</span></li>
+            <li>মেয়াদ <span class="perk-val">৩০ দিন</span></li>
+            <li>মোট রিটার্ন <span class="perk-val">৳১,৫০০</span></li>
+          </ul>
+          <button class="pkg-btn" onclick="openPaymentModal('৳১,০০০','৳১,০০০ প্যাকেজ একটিভ','৩০ দিন বাকি','৳৫০')">প্যাকেজ কিনুন</button>
+        </div>
+
+        <div class="pkg-card">
+          <div class="pkg-top">
+            <div class="pkg-name">প্যাকেজ ৬</div>
+            <div class="pkg-price">৳১,৫০০</div>
+          </div>
+          <ul class="pkg-perks">
+            <li>দৈনিক আয় <span class="perk-val">৳৭৫</span></li>
+            <li>মেয়াদ <span class="perk-val">৩০ দিন</span></li>
+            <li>মোট রিটার্ন <span class="perk-val">৳২,২৫০</span></li>
+          </ul>
+          <button class="pkg-btn" onclick="openPaymentModal('৳১,৫০০','৳১,৫০০ প্যাকেজ একটিভ','৩০ দিন বাকি','৳৭৫')">প্যাকেজ কিনুন</button>
+        </div>
+
+        <div class="pkg-card">
+          <div class="pkg-top">
+            <div class="pkg-name">প্যাকেজ ৭</div>
+            <div class="pkg-price">৳২,০০০</div>
+          </div>
+          <ul class="pkg-perks">
+            <li>দৈনিক আয় <span class="perk-val">৳১০০</span></li>
+            <li>মেয়াদ <span class="perk-val">৩০ দিন</span></li>
+            <li>মোট রিটার্ন <span class="perk-val">৳৩,০০০</span></li>
+          </ul>
+          <button class="pkg-btn" onclick="openPaymentModal('৳২,০০০','৳২,০০০ প্যাকেজ একটিভ','৩০ দিন বাকি','৳১০০')">প্যাকেজ কিনুন</button>
+        </div>
+
+        <div class="pkg-card">
+          <div class="pkg-top">
+            <div class="pkg-name">প্যাকেজ ৮</div>
+            <div class="pkg-price">৳৩,০০০</div>
+          </div>
+          <ul class="pkg-perks">
+            <li>দৈনিক আয় <span class="perk-val">৳১৫০</span></li>
+            <li>মেয়াদ <span class="perk-val">৩০ দিন</span></li>
+            <li>মোট রিটার্ন <span class="perk-val">৳৪,৫০০</span></li>
+          </ul>
+          <button class="pkg-btn" onclick="openPaymentModal('৳৩,০০০','৳৩,০০০ প্যাকেজ একটিভ','৩০ দিন বাকি','৳১৫০')">প্যাকেজ কিনুন</button>
+        </div>
+
+        <div class="pkg-card">
+          <div class="pkg-top">
+            <div class="pkg-name">প্যাকেজ ৯</div>
+            <div class="pkg-price">৳৫,০০০</div>
+          </div>
+          <ul class="pkg-perks">
+            <li>দৈনিক আয় <span class="perk-val">৳২৫০</span></li>
+            <li>মেয়াদ <span class="perk-val">৩০ দিন</span></li>
+            <li>মোট রিটার্ন <span class="perk-val">৳৭,৫০০</span></li>
+          </ul>
+          <button class="pkg-btn" onclick="openPaymentModal('৳৫,০০০','৳৫,০০০ প্যাকেজ একটিভ','৩০ দিন বাকি','৳২৫০')">প্যাকেজ কিনুন</button>
+        </div>
+
+        <div class="pkg-card">
+          <div class="pkg-top">
+            <div class="pkg-name">প্যাকেজ ১০</div>
+            <div class="pkg-price">৳১০,০০০</div>
+          </div>
+          <ul class="pkg-perks">
+            <li>দৈনিক আয় <span class="perk-val">৳৫০০</span></li>
+            <li>মেয়াদ <span class="perk-val">৩০ দিন</span></li>
+            <li>মোট রিটার্ন <span class="perk-val">৳১৫,০০০</span></li>
+          </ul>
+          <button class="pkg-btn" onclick="openPaymentModal('৳১০,০০০','৳১০,০০০ প্যাকেজ একটিভ','৩০ দিন বাকি','৳৫০০')">প্যাকেজ কিনুন</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================================ -->
+  <!-- SCREEN: PACKAGE HISTORY -->
+  <!-- ============================================================ -->
+  <div class="screen" id="package-history-screen">
+
+    <div class="topbar">
+      <div class="brand-logo">
+        <div class="brand-mark">৳</div>
+        <span>My Cash</span>
+      </div>
+      <div class="auth-actions">
+        <button class="auth-btn login" onclick="showScreen('login-screen')">লগইন</button>
+        <button class="auth-btn register" onclick="showScreen('register-screen')">রেজিস্ট্রেশন</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="sec-head">
+        <h2>আপনার প্যাকেজ</h2>
+      </div>
+      <div class="sec-sub">আগের প্যাকেজ কেনা ও পেমেন্টের তথ্য</div>
+
+      <div class="history-list" id="package-history-list">
+        <div class="history-empty" id="history-empty">
+          এখনো কোনো প্যাকেজ কেনা হয়নি।
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============================================================ -->
+
+  <!-- WITHDRAWAL MODAL -->
+    <!-- ============================================================ -->
+  <!-- SCREEN: WITHDRAWAL HISTORY -->
+  <!-- ============================================================ -->
+  <div class="screen" id="withdrawal-history-screen">
+    <div class="topbar">
+      <div class="brand-logo">
+        <div class="brand-mark">৳</div>
+        <span>My Cash</span>
+      </div>
+      <div class="auth-actions">
+        <button class="auth-btn login" onclick="showScreen('login-screen')">লগইন</button>
+        <button class="auth-btn register" onclick="showScreen('register-screen')">রেজিস্ট্রেশন</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="sec-head"><h2>আপনার উত্তোলন</h2></div>
+      <div class="sec-sub">আপনার করা সব উত্তোলনের অনুরোধ এখানে দেখা যাবে।</div>
+      <div class="withdrawal-history-list" id="withdrawal-history-list">
+        <div class="history-empty" id="withdrawal-history-empty">
+          এখনো কোনো উত্তোলনের অনুরোধ করা হয়নি।
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="profile-modal-backdrop" id="change-password-modal" onclick="closeChangePasswordOnBackdrop(event)"><div class="profile-modal" onclick="event.stopPropagation()"><button type="button" class="profile-modal-close" onclick="closeChangePassword()">×</button><div class="profile-modal-title">পাসওয়ার্ড পরিবর্তন</div><div class="profile-modal-sub">নিরাপত্তার জন্য আপনার বর্তমান পাসওয়ার্ড দিন।</div><label class="auth-field-label">বর্তমান পাসওয়ার্ড</label><input class="auth-input" id="current-password" type="password" placeholder="বর্তমান পাসওয়ার্ড"><label class="auth-field-label">নতুন পাসওয়ার্ড</label><input class="auth-input" id="new-password" type="password" placeholder="নতুন পাসওয়ার্ড"><label class="auth-field-label">নতুন পাসওয়ার্ড আবার লিখুন</label><input class="auth-input" id="confirm-new-password" type="password" placeholder="নতুন পাসওয়ার্ড আবার লিখুন"><div class="profile-modal-message" id="password-message"></div><button type="button" class="auth-login-submit" onclick="changePassword()">পাসওয়ার্ড পরিবর্তন করুন</button></div></div>
+
+<div class="withdraw-toast" id="withdraw-toast">২৪ ঘন্টার মধ্যে পেমেন্ট সম্পন্ন হবে</div>
+
+<div class="withdraw-backdrop" id="withdraw-modal" onclick="closeWithdrawModalOnBackdrop(event)">
+    <div class="withdraw-sheet" onclick="event.stopPropagation()">
+      <div class="withdraw-handle"></div>
+      <button type="button" class="withdraw-close" onclick="closeWithdrawModal()" aria-label="বন্ধ করুন">×</button>
+
+      <div class="withdraw-title">টাকা উত্তোলন</div>
+      <div class="withdraw-sub">আপনার ব্যালেন্স থেকে টাকা উত্তোলনের অনুরোধ করুন</div>
+
+      <div class="withdraw-balance">
+        <div class="withdraw-balance-label">মোট ব্যালেন্স</div>
+        <div class="withdraw-balance-value">৳ ১,২৪০</div>
+      </div>
+
+      <div class="withdraw-limits">
+        <div class="withdraw-limit"><div class="withdraw-limit-label">সর্বনিম্ন</div><div class="withdraw-limit-value">৳৫০০</div></div>
+        <div class="withdraw-limit"><div class="withdraw-limit-label">সর্বোচ্চ</div><div class="withdraw-limit-value">৳২৫,০০০</div></div>
+        <div class="withdraw-limit"><div class="withdraw-limit-label">দৈনিক সীমা</div><div class="withdraw-limit-value">৩ বার</div></div>
+      </div>
+
+      <label class="withdraw-label" for="withdraw-number">মোবাইল নাম্বার</label>
+      <input class="withdraw-input" id="withdraw-number" type="tel" inputmode="numeric" placeholder="মোবাইল নাম্বার লিখুন">
+      <div class="withdrawal-field-message" id="withdraw-number-message">
+        <span class="field-message-icon">!</span>
+        <span></span>
+      </div>
+
+      <label class="withdraw-label">পেমেন্ট মাধ্যম</label>
+      <div class="withdraw-methods">
+        <button type="button" class="withdraw-method selected" data-method="বিকাশ" onclick="selectWithdrawMethod(this)">
+          <span class="method-logo bkash-logo">bKash</span> বিকাশ
+        </button>
+        <button type="button" class="withdraw-method" data-method="নগদ" onclick="selectWithdrawMethod(this)">
+          <span class="method-logo nagad-logo">NAGAD</span> নগদ
+        </button>
+      </div>
+
+      <label class="withdraw-label" for="withdraw-amount">উত্তোলনের পরিমাণ</label>
+      <input class="withdraw-input" id="withdraw-amount" type="number" inputmode="numeric" min="500" max="25000" placeholder="৳৫০০ - ৳২৫,০০০">
+      <div class="withdrawal-field-message" id="withdraw-amount-message">
+        <span class="field-message-icon">!</span>
+        <span></span>
+      </div>
+
+      <button type="button" class="withdraw-submit" onclick="submitWithdrawal()">উত্তোলন করুন</button>
+      <div class="withdraw-note">সর্বনিম্ন ৳৫০০ • সর্বোচ্চ ৳২৫,০০০ • দিনে সর্বোচ্চ ৩ বার</div>
+    </div>
+  </div>
+
+  <!-- PAYMENT METHOD MODAL -->
+  <div class="modal-backdrop" id="payment-modal" onclick="closePaymentModalOnBackdrop(event)">
+    <div class="payment-sheet">
+      <button class="modal-close" aria-label="বন্ধ করুন" onclick="closePaymentModal()">×</button>
+      <div class="sheet-handle"></div>
+
+      <!-- STEP 1: PAYMENT METHOD -->
+      <div id="payment-step-method">
+        <div class="sheet-header">
+          <div class="sheet-title">পেমেন্ট মেথড বেছে নিন</div>
+          <div class="sheet-sub">প্যাকেজ: <span id="pm-pkg-price">৳১০০</span></div>
+        </div>
+
+        <div class="pm-options">
+          <button class="pm-option" id="pm-bkash" onclick="selectMethod('bkash')">
+            <span class="pm-logo bkash">bKash</span>
+            <span class="pm-name">বিকাশ</span>
+            <span class="pm-check">✓</span>
+          </button>
+          <button class="pm-option" id="pm-nagad" onclick="selectMethod('nagad')">
+            <span class="pm-logo nagad">Nagad</span>
+            <span class="pm-name">নগদ</span>
+            <span class="pm-check">✓</span>
+          </button>
+        </div>
+
+        <button class="pm-confirm" id="pm-confirm" onclick="goToPaymentInstructions()" disabled>
+          এগিয়ে যান
+        </button>
+        <button class="pm-cancel" onclick="closePaymentModal()">বাতিল করুন</button>
+      </div>
+
+      <!-- STEP 2: PAYMENT INSTRUCTIONS -->
+      <div id="payment-step-instructions" style="display:none;">
+        <div class="sheet-header">
+          <div class="sheet-title">পেমেন্ট সম্পন্ন করুন</div>
+          <div class="sheet-sub">
+            <span id="pm-method-name">বিকাশ</span> দিয়ে
+            <span id="pm-send-amount">৳১০০</span> Send Money করুন
+          </div>
+        </div>
+
+        <div class="send-instruction">
+          <div class="send-instruction-title">ডায়াল অথবা অ্যাপ থেকে টাকা Send Money করুন</div>
+          <div class="send-instruction-sub">
+            নিচের নম্বরে ঠিক <strong id="pm-instruction-amount">৳১০০</strong> Send Money করুন।
+          </div>
+        </div>
+
+        <div class="pm-number-box">
+          <div class="pm-number-label">সেন্ড মানি নম্বর</div>
+          <div class="number-copy-row">
+            <div class="pm-number" id="pm-number">01XXXXXXXXX</div>
+            <button class="copy-btn" id="copy-number-btn" onclick="copyPaymentNumber()">কপি</button>
+          </div>
+          <div class="copy-feedback" id="copy-feedback"></div>
+        </div>
+
+        <label class="transaction-label" for="transaction-id">লেনদেন আইডি</label>
+        <input
+          class="transaction-input"
+          id="transaction-id"
+          type="text"
+          inputmode="text"
+          autocomplete="off"
+          placeholder="লেনদেন আইডি লিখুন"
+          maxlength="80"
+        />
+
+        <button class="pm-confirm submit-payment-btn" id="pm-submit" onclick="submitPayment()" disabled>
+          সাবমিট
+        </button>
+        <button class="pm-cancel" onclick="backToPaymentMethod()">← পেমেন্ট মেথড পরিবর্তন করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="income-screen">
+    <div class="topbar">
+      <div class="brand-logo">
+        <div class="brand-mark">৳</div>
+        <span>My Cash</span>
+      </div>
+      <div class="auth-actions">
+        <button class="auth-btn login" onclick="showScreen('login-screen')">লগইন</button>
+        <button class="auth-btn register" onclick="showScreen('register-screen')">রেজিস্ট্রেশন</button>
+      </div>
+    </div>
+    <div class="content income-content">
+      <div class="sec-head"><h2>এড দেখে আয় করুন</h2></div>
+      <div class="sec-sub">নিচের এডগুলো দেখুন এবং প্রতিটি এড সম্পূর্ণ করলে রিওয়ার্ড পান।</div>
+
+      <div class="income-summary">
+        <div><div class="income-summary-label">আজকের আয়</div><div class="income-summary-value">৳০</div></div>
+        <div class="income-summary-count">০/১০ এড দেখা হয়েছে</div>
+      </div>
+
+      <div class="ad-list" id="ad-list">
+        <div class="ad-card" data-ad="1">
+          <div class="ad-icon">▶</div>
+          <div class="ad-info">
+            <div class="ad-title">এড #1</div>
+            <div class="ad-reward">এড দেখুন • +৳5 রিওয়ার্ড</div>
+          </div>
+          <button class="ad-watch-btn" onclick="watchAd(1, 5)">এড দেখুন</button>
+        </div>
+        <div class="ad-card" data-ad="2">
+          <div class="ad-icon">▶</div>
+          <div class="ad-info">
+            <div class="ad-title">এড #2</div>
+            <div class="ad-reward">এড দেখুন • +৳5 রিওয়ার্ড</div>
+          </div>
+          <button class="ad-watch-btn" onclick="watchAd(2, 5)">এড দেখুন</button>
+        </div>
+        <div class="ad-card" data-ad="3">
+          <div class="ad-icon">▶</div>
+          <div class="ad-info">
+            <div class="ad-title">এড #3</div>
+            <div class="ad-reward">এড দেখুন • +৳5 রিওয়ার্ড</div>
+          </div>
+          <button class="ad-watch-btn" onclick="watchAd(3, 5)">এড দেখুন</button>
+        </div>
+        <div class="ad-card" data-ad="4">
+          <div class="ad-icon">▶</div>
+          <div class="ad-info">
+            <div class="ad-title">এড #4</div>
+            <div class="ad-reward">এড দেখুন • +৳5 রিওয়ার্ড</div>
+          </div>
+          <button class="ad-watch-btn" onclick="watchAd(4, 5)">এড দেখুন</button>
+        </div>
+        <div class="ad-card" data-ad="5">
+          <div class="ad-icon">▶</div>
+          <div class="ad-info">
+            <div class="ad-title">এড #5</div>
+            <div class="ad-reward">এড দেখুন • +৳5 রিওয়ার্ড</div>
+          </div>
+          <button class="ad-watch-btn" onclick="watchAd(5, 5)">এড দেখুন</button>
+        </div>
+        <div class="ad-card" data-ad="6">
+          <div class="ad-icon">▶</div>
+          <div class="ad-info">
+            <div class="ad-title">এড #6</div>
+            <div class="ad-reward">এড দেখুন • +৳10 রিওয়ার্ড</div>
+          </div>
+          <button class="ad-watch-btn" onclick="watchAd(6, 10)">এড দেখুন</button>
+        </div>
+        <div class="ad-card" data-ad="7">
+          <div class="ad-icon">▶</div>
+          <div class="ad-info">
+            <div class="ad-title">এড #7</div>
+            <div class="ad-reward">এড দেখুন • +৳10 রিওয়ার্ড</div>
+          </div>
+          <button class="ad-watch-btn" onclick="watchAd(7, 10)">এড দেখুন</button>
+        </div>
+        <div class="ad-card" data-ad="8">
+          <div class="ad-icon">▶</div>
+          <div class="ad-info">
+            <div class="ad-title">এড #8</div>
+            <div class="ad-reward">এড দেখুন • +৳10 রিওয়ার্ড</div>
+          </div>
+          <button class="ad-watch-btn" onclick="watchAd(8, 10)">এড দেখুন</button>
+        </div>
+        <div class="ad-card" data-ad="9">
+          <div class="ad-icon">▶</div>
+          <div class="ad-info">
+            <div class="ad-title">এড #9</div>
+            <div class="ad-reward">এড দেখুন • +৳10 রিওয়ার্ড</div>
+          </div>
+          <button class="ad-watch-btn" onclick="watchAd(9, 10)">এড দেখুন</button>
+        </div>
+        <div class="ad-card" data-ad="10">
+          <div class="ad-icon">▶</div>
+          <div class="ad-info">
+            <div class="ad-title">এড #10</div>
+            <div class="ad-reward">এড দেখুন • +৳10 রিওয়ার্ড</div>
+          </div>
+          <button class="ad-watch-btn" onclick="watchAd(10, 10)">এড দেখুন</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="screen" id="contact-screen">
+    <div class="topbar">
+      <div class="brand-logo">
+        <div class="brand-mark">৳</div>
+        <span>My Cash</span>
+      </div>
+      <div class="auth-actions">
+        <button class="auth-btn login" onclick="showScreen('login-screen')">লগইন</button>
+        <button class="auth-btn register" onclick="showScreen('register-screen')">রেজিস্ট্রেশন</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="sec-head"><h2>যোগাযোগ করুন</h2></div>
+      <div class="sec-sub">আপনার মেসেজ লিখুন। আমরা যত দ্রুত সম্ভব উত্তর দেওয়ার চেষ্টা করবো।</div>
+      <div class="contact-direct-card">
+        <textarea class="contact-message-input" id="contact-page-message-input" placeholder="আপনার মেসেজ লিখুন..."></textarea>
+        <button type="button" class="contact-send-btn" onclick="sendContactPageMessage()">মেসেজ পাঠান</button>
+        <div class="contact-message-status" id="contact-page-message-status"></div>
+      </div>
+    </div>
+  </div>
+  <div class="screen" id="profile-screen">
+    <div class="topbar">
+      <div class="brand-logo"><div class="brand-mark">৳</div><span>My Cash</span></div>
+      <div class="auth-actions"><button class="auth-btn login" onclick="showScreen('login-screen')">লগইন</button><button class="auth-btn register" onclick="showScreen('register-screen')">রেজিস্ট্রেশন</button></div>
+    </div>
+    <div class="content">
+      <div class="sec-head"><h2>আমার প্রোফাইল</h2></div>
+      <div class="sec-sub">আপনার অ্যাকাউন্টের তথ্য দেখুন ও প্রয়োজন হলে আপডেট করুন।</div>
+      <div class="profile-card"><div class="profile-avatar">👤</div><div><div class="profile-name" id="profile-name">আপনার নাম</div><div class="profile-mobile" id="profile-mobile">মোবাইল নম্বর সেট করা হয়নি</div></div></div>
+      <div class="profile-info-card">
+        <div class="profile-info-row"><span>পূর্ণ নাম</span><strong id="profile-full-name">—</strong></div>
+        <div class="profile-info-row"><span>মোবাইল নম্বর</span><strong id="profile-phone">—</strong></div>
+        <div class="profile-info-row"><span>পাসওয়ার্ড</span><strong>••••••••</strong></div>
+      </div>
+      <div class="profile-actions">
+        <button type="button" class="profile-action-btn" onclick="openChangePassword()">🔒 পাসওয়ার্ড পরিবর্তন করুন</button>
+        <button type="button" class="profile-action-btn profile-logout" onclick="profileLogout()">↪ লগআউট</button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- CONTACT MESSAGE MODAL -->
+  <div class="contact-modal-backdrop" id="contact-message-modal" onclick="closeContactModalOnBackdrop(event)">
+    <div class="contact-modal" onclick="event.stopPropagation()">
+      <div class="contact-modal-handle"></div>
+      <button type="button" class="contact-modal-close" onclick="closeContactModal()" aria-label="বন্ধ করুন">×</button>
+      <div class="contact-modal-title">আমাদের সাথে যোগাযোগ করুন</div>
+      <div class="contact-modal-sub">আপনার মেসেজ লিখুন। আমরা যত দ্রুত সম্ভব উত্তর দেওয়ার চেষ্টা করবো।</div>
+      <textarea class="contact-message-input" id="contact-message-input" placeholder="আপনার মেসেজ লিখুন..."></textarea>
+      <button type="button" class="contact-send-btn" onclick="sendContactMessage()">মেসেজ পাঠান</button>
+      <div class="contact-message-status" id="contact-message-status"></div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bottom-nav-item active" data-nav="home" onclick="navigateBottom('home')"><span class="nav-icon">⌂</span><span>হোম</span></button>
+    <button class="bottom-nav-item" data-nav="income" onclick="navigateBottom('income')"><span class="nav-icon">৳</span><span>আয়</span></button>
+    <button class="bottom-nav-item" data-nav="contact" onclick="navigateBottom('contact')"><span class="nav-icon">☎</span><span>যোগাযোগ</span></button>
+    <button class="bottom-nav-item" data-nav="profile" onclick="navigateBottom('profile')"><span class="nav-icon">♙</span><span>প্রোফাইল</span></button>
+  </nav>
+
+</div>
+
+<script>
+  // ---------- INNER PAGE BACK NAVIGATION ----------
+  let screenHistory = [];
+  let currentScreenId = 'home-screen';
+
+  function setupInnerPageBackButtons(){
+    document.querySelectorAll('.screen > .topbar').forEach(topbar => {
+      const screen = topbar.parentElement;
+      if(!screen || ['home-screen','login-screen','register-screen'].includes(screen.id)) return;
+      topbar.classList.add('inner-page-topbar');
+      if(topbar.querySelector('.page-back-btn')) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'page-back-btn';
+      btn.innerHTML = '<span class="back-arrow">←</span><span>ব্যাক</span>';
+      btn.setAttribute('aria-label','ব্যাক');
+      btn.onclick = goBack;
+      topbar.insertBefore(btn, topbar.firstChild);
+    });
+  }
+
+  function goBack(){
+    const previous = screenHistory.pop() || 'home-screen';
+    showScreen(previous, true);
+  }
+
+  function showScreen(id, fromBack=false){
+    if(id === currentScreenId) return;
+    if(!fromBack && currentScreenId) screenHistory.push(currentScreenId);
+    currentScreenId = id;
+    
+  // Close password sheet whenever user navigates to another screen.
+  const passwordModal = document.getElementById('password-modal');
+  if (passwordModal) passwordModal.style.display = 'none';
+// Close transient overlays whenever navigation changes screen.
+    if (typeof closeChangePassword === 'function') closeChangePassword();
+    if (typeof closeWithdrawModal === 'function') closeWithdrawModal();
+    if (typeof closePaymentModal === 'function') closePaymentModal();
+    if (typeof closeContactModal === 'function') closeContactModal();
+    document.body.style.overflow = '';
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+    const target = document.getElementById(id);
+    if (target) target.classList.add('visible');
+    updateBottomNav(id);
+  }
+
+  function activatePackage(name, days, income){
+    const list = document.getElementById('active-packages-list');
+
+    const card = document.createElement('div');
+    card.className = 'status-card active';
+    card.innerHTML = `
+      <div class="status-icon">✅</div>
+      <div class="status-label">প্যাকেজ স্ট্যাটাস</div>
+      <div class="status-title">${name}</div>
+      <div class="status-sub">আপনার প্যাকেজ চালু আছে, প্রতিদিনের রিওয়ার্ড জমা হচ্ছে।</div>
+      <div class="status-detail">
+        <div class="sd-item">
+          <div class="sd-label">মেয়াদ শেষ</div>
+          <div class="sd-val">${days}</div>
+        </div>
+        <div class="sd-item right">
+          <div class="sd-label">দৈনিক আয়</div>
+          <div class="sd-val">${income}</div>
+        </div>
+      </div>
+      <button class="status-btn" onclick="document.getElementById('packages').scrollIntoView({behavior:'smooth'})">আপগ্রেড করুন</button>
+    `;
+
+    list.appendChild(card);
+    document.getElementById('status-inactive').style.display = 'none';
+    card.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+
+  const AD_STATE_KEY = 'mycash_ad_states_v21';
+  const AD_INCOME_KEY = 'mycash_ad_income_v21';
+  const MAIN_BALANCE_KEY = 'mycash_main_balance_v22';
+  const AD_COOLDOWN = 24 * 60 * 60 * 1000;
+  const AD_WATCH_SECONDS = 15;
+  let adStates = {};
+  let todayAdIncome = Number(localStorage.getItem(AD_INCOME_KEY) || 0);
+  let mainBalance = Number(localStorage.getItem(MAIN_BALANCE_KEY) || 1240);
+  let countdownIntervals = {};
+
+  function formatMoneyBn(amount){
+    return Number(amount || 0).toLocaleString('bn-BD');
+  }
+
+  function updateMainBalanceUI(){
+    document.querySelectorAll('.bc-amount').forEach(el => el.textContent = `৳ ${formatMoneyBn(mainBalance)}`);
+    document.querySelectorAll('.withdraw-balance-value').forEach(el => el.textContent = `৳ ${formatMoneyBn(mainBalance)}`);
+  }
+
+  async function saveMainBalance(){
+    localStorage.setItem(MAIN_BALANCE_KEY, String(mainBalance));
+    updateMainBalanceUI();
+  }
+
+  try { adStates = JSON.parse(localStorage.getItem(AD_STATE_KEY) || '{}'); } catch(e) { adStates = {}; }
+
+  function saveAdStates(){ localStorage.setItem(AD_STATE_KEY, JSON.stringify(adStates)); }
+
+  function formatRemaining(ms){
+    const total = Math.max(0, Math.ceil(ms/1000));
+    const h = Math.floor(total/3600);
+    const m = Math.floor((total%3600)/60);
+    const sec = total%60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function updateIncomeSummary(){
+    const completed = Object.values(adStates).filter(x => x && x.claimed).length;
+    const count=document.querySelector('.income-summary-count');
+    const value=document.querySelector('.income-summary-value');
+    if(count) count.textContent=`${completed}/১০ এড দেখা হয়েছে`;
+    if(value) value.textContent=`৳${todayAdIncome}`;
+  }
+
+  function setAdTimerText(card, text){
+    let timer=card.querySelector('.ad-timer');
+    if(!timer){
+      timer=document.createElement('div');
+      timer.className='ad-timer';
+      card.querySelector('.ad-info')?.appendChild(timer);
+    }
+    timer.textContent=text;
+  }
+
+  function finishAdWatch(adNumber, reward){
+    const card=document.querySelector(`.ad-card[data-ad="${adNumber}"]`);
+    const btn=card?.querySelector('.ad-watch-btn');
+    if(!card || !btn) return;
+    const state=adStates[adNumber];
+    if(!state || state.claimed) return;
+    state.ready=true;
+    saveAdStates();
+    btn.disabled=false;
+    btn.classList.add('claim');
+    btn.textContent=`৳${reward} ক্লেইম`;
+    setAdTimerText(card,'১৫ সেকেন্ড সম্পূর্ণ হয়েছে — এখন ক্লেইম করুন');
+  }
+
+  function startWatchCountdown(adNumber, reward){
+    const card=document.querySelector(`.ad-card[data-ad="${adNumber}"]`);
+    const btn=card?.querySelector('.ad-watch-btn');
+    if(!card || !btn) return;
+    if(countdownIntervals[adNumber]) clearInterval(countdownIntervals[adNumber]);
+    let remaining=AD_WATCH_SECONDS;
+    btn.disabled=true;
+    btn.classList.remove('claim');
+    btn.textContent=`${remaining} সেকেন্ড`;
+    setAdTimerText(card,'এড দেখা চলছে...');
+    countdownIntervals[adNumber]=setInterval(()=>{
+      remaining--;
+      if(remaining<=0){
+        clearInterval(countdownIntervals[adNumber]);
+        delete countdownIntervals[adNumber];
+        finishAdWatch(adNumber,reward);
+      }else{
+        btn.textContent=`${remaining} সেকেন্ড`;
+      }
+    },1000);
+  }
+
+  async function claimAd(adNumber, reward){
+    const state=adStates[adNumber];
+    const card=document.querySelector(`.ad-card[data-ad="${adNumber}"]`);
+    const btn=card?.querySelector('.ad-watch-btn');
+    if(!state || !state.ready || state.claimed || !btn) return;
+    state.claimed=true;
+    state.cooldownUntil=Date.now()+AD_COOLDOWN;
+    todayAdIncome += reward;
+    localStorage.setItem(AD_INCOME_KEY, String(todayAdIncome));
+    mainBalance += reward;
+    await saveMainBalance();
+    saveAdStates();
+    btn.disabled=true;
+    btn.classList.remove('claim');
+    btn.classList.add('done');
+    btn.textContent='✓ ক্লেইম হয়েছে';
+    setAdTimerText(card,'২৪ ঘণ্টা পরে আবার এই এড দেখা যাবে');
+    updateIncomeSummary();
+    startCooldownCountdown(adNumber);
+  }
+
+  function startCooldownCountdown(adNumber){
+    const card=document.querySelector(`.ad-card[data-ad="${adNumber}"]`);
+    const btn=card?.querySelector('.ad-watch-btn');
+    if(!card || !btn) return;
+    if(countdownIntervals[adNumber]) clearInterval(countdownIntervals[adNumber]);
+    const update=()=>{
+      const state=adStates[adNumber];
+      const left=(state?.cooldownUntil||0)-Date.now();
+      if(left<=0){
+        clearInterval(countdownIntervals[adNumber]);
+        delete countdownIntervals[adNumber];
+        delete adStates[adNumber];
+        saveAdStates();
+        btn.disabled=false;
+        btn.className='ad-watch-btn';
+        btn.textContent='এড দেখুন';
+        setAdTimerText(card,'২৪ ঘণ্টা পূর্ণ — আবার এড দেখুন');
+        return;
+      }
+      btn.disabled=true;
+      btn.className='ad-watch-btn cooldown';
+      btn.textContent=formatRemaining(left);
+      setAdTimerText(card,'আবার দেখতে বাকি');
+    };
+    update();
+    countdownIntervals[adNumber]=setInterval(update,1000);
+  }
+
+  function watchAd(adNumber, reward){
+    const card=document.querySelector(`.ad-card[data-ad="${adNumber}"]`);
+    const btn=card?.querySelector('.ad-watch-btn');
+    if(!card || !btn) return;
+    const state=adStates[adNumber];
+    // ১৫ সেকেন্ড শেষ হলে একই বাটনেই ক্লেইম করা যাবে।
+    if(state?.ready && !state.claimed){
+      claimAd(adNumber,reward);
+      return;
+    }
+    if(state?.cooldownUntil && state.cooldownUntil>Date.now()) return;
+    adStates[adNumber]={ startedAt:Date.now(), ready:false, claimed:false, cooldownUntil:0 };
+    saveAdStates();
+    startWatchCountdown(adNumber,reward);
+  }
+
+  function restoreAdStates(){
+    for(let i=1;i<=10;i++){
+      const card=document.querySelector(`.ad-card[data-ad="${i}"]`);
+      const btn=card?.querySelector('.ad-watch-btn');
+      if(!card || !btn) continue;
+      const reward=i<=5?5:10;
+      const state=adStates[i];
+      if(!state) continue;
+      const age=Date.now()-(state.startedAt||0);
+      if(state.cooldownUntil && state.cooldownUntil<=Date.now()){
+        delete adStates[i];
+        btn.disabled=false;
+        btn.className='ad-watch-btn';
+        btn.textContent='এড দেখুন';
+        continue;
+      }
+      if(state.ready && !state.claimed){
+        finishAdWatch(i,reward);
+      }else if(state.claimed){
+        btn.disabled=true;
+        btn.className='ad-watch-btn done';
+        btn.textContent='✓ ক্লেইম হয়েছে';
+        setAdTimerText(card,'২৪ ঘণ্টা পরে আবার এই এড দেখা যাবে');
+        startCooldownCountdown(i);
+      }else if(age < AD_WATCH_SECONDS*1000){
+        startWatchCountdown(i,reward);
+      }else{
+        finishAdWatch(i,reward);
+      }
+    }
+    saveAdStates();
+    updateIncomeSummary();
+  }
+
+  document.addEventListener('DOMContentLoaded', restoreAdStates);
+
+  function navigateBottom(target){
+    const map={home:'home-screen',income:'income-screen',contact:'contact-screen',profile:'profile-screen'};
+    if(map[target]) showScreen(map[target]);
+  }
+
+  function sendContactPageMessage(){
+    const input=document.getElementById('contact-page-message-input');
+    const status=document.getElementById('contact-page-message-status');
+    const message=(input?.value||'').trim();
+    if(!message){
+      if(status){status.textContent='দয়া করে আপনার মেসেজ লিখুন।';status.className='contact-message-status error';}
+      input?.focus();
+      return;
+    }
+    if(status){status.textContent='মেসেজ সফলভাবে পাঠানো হয়েছে।';status.className='contact-message-status success';}
+    if(input) input.value='';
+  }
+
+  function openContactModal(){
+    const modal=document.getElementById('contact-message-modal');
+    const input=document.getElementById('contact-message-input');
+    const status=document.getElementById('contact-message-status');
+    if(!modal) return;
+    if(input) input.value='';
+    if(status) status.textContent='';
+    modal.classList.add('show');
+    document.body.style.overflow='hidden';
+    setTimeout(()=>{ if(input) input.focus(); },80);
+  }
+
+  function closeContactModal(){
+    const modal=document.getElementById('contact-message-modal');
+    if(modal) modal.classList.remove('show');
+    document.body.style.overflow='';
+  }
+
+  function closeContactModalOnBackdrop(e){
+    if(e.target.id==='contact-message-modal') closeContactModal();
+  }
+
+  function sendContactMessage(){
+    const input=document.getElementById('contact-message-input');
+    const status=document.getElementById('contact-message-status');
+    const message=input ? input.value.trim() : '';
+    if(!message){
+      if(status) status.textContent='দয়া করে আপনার মেসেজ লিখুন।';
+      if(input) input.focus();
+      return;
+    }
+    if(status) status.textContent='মেসেজ পাঠানো হয়েছে ✓';
+    setTimeout(closeContactModal,900);
+  }
+  function updateBottomNav(screenId){
+    const nav=document.getElementById('bottom-nav');
+    if(!nav)return;
+    const hidden=['login-screen','register-screen'];
+    nav.style.display=hidden.includes(screenId)?'none':'flex';
+    const active=screenId==='income-screen'?'income':screenId==='contact-screen'?'contact':screenId==='profile-screen'?'profile':'home';
+    document.querySelectorAll('.bottom-nav-item').forEach(x=>x.classList.toggle('active',x.dataset.nav===active));
+  }
+
+  // ---------- FIELD MESSAGES ----------
+  let fieldMessageTimer = null;
+
+  function showFieldMessage(inputId, messageId, message){
+    clearTimeout(fieldMessageTimer);
+
+    document.querySelectorAll('.field-message.show').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('.auth-input.input-error').forEach(el => el.classList.remove('input-error'));
+
+    const input = document.getElementById(inputId);
+    const box = document.getElementById(messageId);
+
+    if(!input || !box) return;
+
+    box.querySelector('span:last-child').textContent = message;
+    box.classList.add('show');
+    input.classList.add('input-error');
+    input.focus();
+
+    fieldMessageTimer = setTimeout(() => {
+      box.classList.remove('show');
+      input.classList.remove('input-error');
+    }, 1800);
+  }
+
+  function clearFieldMessages(){
+    clearTimeout(fieldMessageTimer);
+    document.querySelectorAll('.field-message.show').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('.auth-input.input-error').forEach(el => el.classList.remove('input-error'));
+  }
+
+
+
+  // ---------- FIREBASE AUTH + PROFILE ----------
+  async function handleRegistration(){
+    const firstName = document.getElementById('register-first-name').value.trim();
+    const lastName = document.getElementById('register-last-name').value.trim();
+    const mobile = document.getElementById('register-mobile').value.trim();
+    const password = document.getElementById('register-password').value;
+    const repassword = document.getElementById('register-repassword').value;
+    clearFieldMessages();
+    if(!firstName){ showFieldMessage('register-first-name','register-first-message','প্রথম নাম লিখুন।'); return; }
+    if(!lastName){ showFieldMessage('register-last-name','register-last-message','শেষ নাম লিখুন।'); return; }
+    if(!mobile){ showFieldMessage('register-mobile','register-mobile-message','মোবাইল নম্বর লিখুন।'); return; }
+    if(!/^01\d{9}$/.test(mobile)){ showFieldMessage('register-mobile','register-mobile-message','সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন।'); return; }
+    if(!password){ showFieldMessage('register-password','register-password-message','পাসওয়ার্ড লিখুন।'); return; }
+    if(password.length < 6){ showFieldMessage('register-password','register-password-message','পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।'); return; }
+    if(!repassword){ showFieldMessage('register-repassword','register-repassword-message','পাসওয়ার্ড পুনরায় লিখুন।'); return; }
+    if(password !== repassword){ showFieldMessage('register-repassword','register-repassword-message','দুইটি পাসওয়ার্ড একই হতে হবে।'); return; }
+    try{
+      const cred = await auth.createUserWithEmailAndPassword(authEmailFromMobile(mobile), password);
+      const profile = {firstName,lastName,mobile,role:'user',balance:1240,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+      await db.collection('users').doc(cred.user.uid).set(profile, {merge:true});
+      localStorage.setItem(PROFILE_KEY, JSON.stringify({...profile,password:undefined}));
+      mainBalance = 1240; todayAdIncome = 0;
+      updateProfileUI(); updateNewHomeUser(); updateMainBalanceUI();
+      await loadCloudSettings();
+      showScreen('home-screen');
+    }catch(e){
+      const msg = e.code === 'auth/email-already-in-use' ? 'এই মোবাইল নম্বর দিয়ে আগে থেকেই অ্যাকাউন্ট আছে।' : (e.message || 'রেজিস্ট্রেশন করা যায়নি।');
+      showFieldMessage('register-mobile','register-mobile-message',msg);
+    }
+  }
+
+  async function handleLogin(){
+    const mobile = document.getElementById('login-mobile').value.trim();
+    const password = document.getElementById('login-password').value.trim();
+    clearFieldMessages();
+    if(!mobile){ showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর লিখুন।'); return; }
+    if(!password){ showFieldMessage('login-password','login-password-message','পাসওয়ার্ড লিখুন।'); return; }
+    try{
+      await auth.signInWithEmailAndPassword(authEmailFromMobile(mobile), password);
+    }catch(e){
+      showFieldMessage('login-password','login-password-message','মোবাইল নম্বর অথবা পাসওয়ার্ড সঠিক নয়।');
+    }
+  }
+
+  async function loadCloudUser(){
+    const user=auth.currentUser; if(!user) return;
+    const snap=await db.collection('users').doc(user.uid).get();
+    if(!snap.exists) return;
+    const d=snap.data();
+    mainBalance=Number(d.balance||0);
+    const profile={firstName:d.firstName||'',lastName:d.lastName||'',mobile:d.mobile||'',role:d.role||'user'};
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    updateProfileUI(); updateNewHomeUser(); updateMainBalanceUI();
+    if(typeof loadUserTransactions==='function') await loadUserTransactions();
+  }
+
+  auth.onAuthStateChanged(async user=>{
+    if(user){
+      await loadCloudUser().catch(console.error);
+      await loadCloudSettings().catch(console.error);
+      const current=document.querySelector('.screen.visible')?.id;
+      if(current==='login-screen'||current==='register-screen') showScreen('home-screen');
+    }else{
+      mainBalance=0;
+      updateMainBalanceUI();
+    }
+  });
+
+  // ---------- REFER ----------
+  function copyReferLink(){
+    const input = document.getElementById('refer-link');
+    const feedback = document.getElementById('refer-copy-feedback');
+
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(input.value).then(() => {
+        feedback.textContent = 'রেফার লিংক কপি হয়েছে ✓';
+      }).catch(() => fallbackCopyReferLink(input, feedback));
+    }else{
+      fallbackCopyReferLink(input, feedback);
+    }
+  }
+
+  function fallbackCopyReferLink(input, feedback){
+    input.select();
+    try{
+      document.execCommand('copy');
+      feedback.textContent = 'রেফার লিংক কপি হয়েছে ✓';
+    }catch(e){
+      feedback.textContent = 'লিংকটি কপি করা যায়নি';
+    }
+    window.getSelection()?.removeAllRanges();
+  }
+
+  async function shareReferLink(){
+    const link = document.getElementById('refer-link').value;
+    const shareData = {
+      title: 'My Cash',
+      text: 'My Cash-এ যোগ দিন এবং রেফার করে আয় করুন!',
+      url: link
+    };
+
+    if(navigator.share){
+      try{
+        await navigator.share(shareData);
+      }catch(e){}
+    }else{
+      copyReferLink();
+    }
+  }
+
+  // ---------- PAYMENT MODAL ----------
+  let pendingPackage = null;
+  let selectedMethod = null;
+
+  let paymentNumbers = { bkash: '01711-000000', nagad: '01911-000000' };
+  let cloudSettings = { social:{youtube:'',telegram:'',facebook:''}, ads:{}, paymentNumbers:{...paymentNumbers} };
+  async function loadCloudSettings(){
+    try{
+      const snap=await db.collection('settings').doc('public').get();
+      if(snap.exists){
+        cloudSettings={...cloudSettings,...snap.data()};
+        paymentNumbers={...paymentNumbers,...(cloudSettings.paymentNumbers||{})};
+        const social=cloudSettings.social||{};
+        window.MYCASH_SOCIAL=social;
+        window.MYCASH_ADS=cloudSettings.ads||{};
+        // Refresh visible payment/social/ads content without changing layout.
+        const byId=(id,val)=>{const el=document.getElementById(id); if(el && typeof val==='string') el.value=val;};
+        byId('youtubeLink',social.youtube||''); byId('telegramLink',social.telegram||''); byId('facebookLink',social.facebook||'');
+        for(let i=1;i<=10;i++) byId('ads'+i+'Link',(cloudSettings.ads||{})['ads'+i]||'');
+      }
+    }catch(e){ console.warn('Cloud settings load failed',e); }
+  }
+
+  function openPaymentModal(price, name, days, income){
+    pendingPackage = { price, name, days, income };
+    selectedMethod = null;
+
+    document.getElementById('pm-pkg-price').textContent = price;
+    document.getElementById('pm-bkash').classList.remove('selected');
+    document.getElementById('pm-nagad').classList.remove('selected');
+    document.getElementById('pm-confirm').disabled = true;
+
+    document.getElementById('payment-step-method').style.display = 'block';
+    document.getElementById('payment-step-instructions').style.display = 'none';
+
+    document.getElementById('transaction-id').value = '';
+    document.getElementById('pm-submit').disabled = true;
+    document.getElementById('copy-feedback').textContent = '';
+
+    document.getElementById('payment-modal').classList.add('visible');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function selectMethod(method){
+    selectedMethod = method;
+    document.getElementById('pm-bkash').classList.toggle('selected', method === 'bkash');
+    document.getElementById('pm-nagad').classList.toggle('selected', method === 'nagad');
+    document.getElementById('pm-confirm').disabled = false;
+  }
+
+  function goToPaymentInstructions(){
+    if(!pendingPackage || !selectedMethod) return;
+
+    const methodName = selectedMethod === 'bkash' ? 'বিকাশ' : 'নগদ';
+    const number = paymentNumbers[selectedMethod];
+
+    document.getElementById('pm-method-name').textContent = methodName;
+    document.getElementById('pm-send-amount').textContent = pendingPackage.price;
+    document.getElementById('pm-instruction-amount').textContent = pendingPackage.price;
+    document.getElementById('pm-number').textContent = number;
+    document.getElementById('copy-feedback').textContent = '';
+    document.getElementById('transaction-id').value = '';
+    document.getElementById('pm-submit').disabled = true;
+
+    document.getElementById('payment-step-method').style.display = 'none';
+    document.getElementById('payment-step-instructions').style.display = 'block';
+
+    setTimeout(() => document.getElementById('transaction-id').focus(), 100);
+  }
+
+  function backToPaymentMethod(){
+    document.getElementById('payment-step-instructions').style.display = 'none';
+    document.getElementById('payment-step-method').style.display = 'block';
+  }
+
+  function copyPaymentNumber(){
+    const number = document.getElementById('pm-number').textContent;
+    const feedback = document.getElementById('copy-feedback');
+
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(number).then(() => {
+        feedback.textContent = 'নম্বর কপি হয়েছে ✓';
+      }).catch(() => fallbackCopyNumber(number, feedback));
+    }else{
+      fallbackCopyNumber(number, feedback);
+    }
+  }
+
+  function fallbackCopyNumber(number, feedback){
+    const temp = document.createElement('textarea');
+    temp.value = number;
+    temp.style.position = 'fixed';
+    temp.style.opacity = '0';
+    document.body.appendChild(temp);
+    temp.select();
+
+    try{
+      document.execCommand('copy');
+      feedback.textContent = 'নম্বর কপি হয়েছে ✓';
+    }catch(e){
+      feedback.textContent = 'নম্বরটি কপি করা যায়নি';
+    }
+
+    document.body.removeChild(temp);
+  }
+
+  function addPendingPackageHistory(pkg, method, transactionId){
+    const list = document.getElementById('package-history-list');
+    const empty = document.getElementById('history-empty');
+    if(empty) empty.remove();
+
+    const methodName = method === 'bkash' ? 'বিকাশ' : 'নগদ';
+    const row = document.createElement('div');
+    row.className = 'history-row pending';
+
+    row.innerHTML = `
+      <div class="history-row-icon">📦</div>
+      <div class="history-row-body">
+        <div class="history-row-title">${pkg.name}</div>
+        <div class="history-row-meta">${methodName} · TXN: ${transactionId}</div>
+      </div>
+      <div class="history-status">যাচাই করা হচ্ছে</div>
+    `;
+
+    list.prepend(row);
+  }
+
+  async function submitPayment(){
+    if(!pendingPackage || !selectedMethod) return;
+    const transactionId = document.getElementById('transaction-id').value.trim();
+    if(!transactionId) return;
+    const user=auth.currentUser;
+    if(!user){ showScreen('login-screen'); return; }
+    try{
+      const p=pendingPackage;
+      await db.collection('payments').add({
+        userId:user.uid, mobile:getProfile()?.mobile||'', packageName:p.name, price:p.price, days:p.days, income:p.income,
+        method:selectedMethod, transactionId, status:'pending', createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      addPendingPackageHistory(p, selectedMethod, transactionId);
+      closePaymentModal(); showScreen('package-history-screen');
+      pendingPackage=null; selectedMethod=null;
+    }catch(e){ alert('পেমেন্ট জমা দেওয়া যায়নি। আবার চেষ্টা করুন।'); console.error(e); }
+  }
+
+  function closePaymentModal(){
+    document.getElementById('payment-modal').classList.remove('visible');
+    document.body.style.overflow = '';
+  }
+
+  function closePaymentModalOnBackdrop(e){
+    if(e.target.id === 'payment-modal') closePaymentModal();
+  }
+
+  document.getElementById('transaction-id').addEventListener('input', function(){
+    document.getElementById('pm-submit').disabled = this.value.trim().length === 0;
+  });
+
+  updateBottomNav('home-screen');
+  updateMainBalanceUI();
+
+  let selectedWithdrawMethod = 'বিকাশ';
+  let withdrawalMessageTimer = null;
+
+  function openWithdrawModal(){
+    const modal = document.getElementById('withdraw-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    modal.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeWithdrawModal(){
+    const modal = document.getElementById('withdraw-modal');
+    if (!modal) return;
+    modal.classList.remove('visible');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  function closeWithdrawModalOnBackdrop(event){
+    if (event.target === event.currentTarget) closeWithdrawModal();
+  }
+
+  function selectWithdrawMethod(btn){
+    document.querySelectorAll('.withdraw-method').forEach(el => el.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedWithdrawMethod = btn.dataset.method;
+  }
+
+  function addWithdrawalHistory(number, amount, method){
+    const list = document.getElementById('withdrawal-history-list');
+    const empty = document.getElementById('withdrawal-history-empty');
+    if(!list) return;
+    if(empty) empty.remove();
+
+    const now = new Date();
+    const date = now.toLocaleDateString('bn-BD');
+    const time = now.toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'});
+
+    const row = document.createElement('div');
+    row.className = 'withdrawal-history-row';
+    row.innerHTML = `
+      <div class="withdrawal-history-top">
+        <div class="withdrawal-history-icon">৳</div>
+        <div class="withdrawal-history-body">
+          <div class="withdrawal-history-title">${method} — ${number}</div>
+          <div class="withdrawal-history-meta">${date} • ${time}</div>
+        </div>
+        <div class="withdrawal-history-amount">৳${amount.toLocaleString('bn-BD')}</div>
+      </div>
+      <div class="withdrawal-history-status">অপেক্ষমাণ</div>
+    `;
+    list.prepend(row);
+  }
+
+  function showWithdrawalMessage(inputId, message){
+    clearTimeout(withdrawalMessageTimer);
+
+    document.querySelectorAll('.withdrawal-field-message.show').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('.withdraw-input.withdraw-input-error').forEach(el => el.classList.remove('withdraw-input-error'));
+
+    const input = document.getElementById(inputId);
+    const box = document.getElementById(inputId + '-message');
+
+    if(!input || !box) return;
+
+    box.querySelector('span:last-child').textContent = message;
+    box.classList.add('show');
+    input.classList.add('withdraw-input-error');
+    input.focus();
+
+    withdrawalMessageTimer = setTimeout(() => {
+      box.classList.remove('show');
+      input.classList.remove('withdraw-input-error');
+    }, 1800);
+  }
+
+  function clearWithdrawalMessages(){
+    clearTimeout(withdrawalMessageTimer);
+    document.querySelectorAll('.withdrawal-field-message.show').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('.withdraw-input.withdraw-input-error').forEach(el => el.classList.remove('withdraw-input-error'));
+  }
+
+  let withdrawToastTimer = null;
+  function showWithdrawalToast(){
+    const toast = document.getElementById('withdraw-toast');
+    if(!toast) return;
+    clearTimeout(withdrawToastTimer);
+    toast.classList.add('show');
+    withdrawToastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  async function submitWithdrawal(){
+    const number = document.getElementById('withdraw-number').value.trim();
+    const amount = Number(document.getElementById('withdraw-amount').value);
+    clearWithdrawalMessages();
+    if(!number){ showWithdrawalMessage('withdraw-number','মোবাইল নাম্বার দিন।'); return; }
+    if(!/^01\d{9}$/.test(number)){ showWithdrawalMessage('withdraw-number','সঠিক ১১ সংখ্যার মোবাইল নাম্বার দিন।'); return; }
+    if(!amount || amount < 500){ showWithdrawalMessage('withdraw-amount','সর্বনিম্ন উত্তোলনের পরিমাণ ৳৫০০।'); return; }
+    if(amount > 25000){ showWithdrawalMessage('withdraw-amount','সর্বোচ্চ উত্তোলনের পরিমাণ ৳২৫,০০০।'); return; }
+    if(amount > mainBalance){ showWithdrawalMessage('withdraw-amount','আপনার ব্যালেন্স পর্যাপ্ত নয়।'); return; }
+    const user=auth.currentUser; if(!user){ showScreen('login-screen'); return; }
+    try{
+      await db.collection('withdrawals').add({userId:user.uid,mobile:getProfile()?.mobile||'',method:selectedWithdrawMethod,number,amount,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      mainBalance -= amount;
+      await saveMainBalance();
+      addWithdrawalHistory(number, amount, selectedWithdrawMethod);
+      closeWithdrawModal(); showScreen('withdrawal-history-screen'); showWithdrawalToast();
+    }catch(e){ alert('উত্তোলনের অনুরোধ পাঠানো যায়নি।'); console.error(e); }
+  }
+
+  document.addEventListener('click', function(e){
+    const modal = document.getElementById('withdraw-modal');
+    if(e.target === modal) closeWithdrawModal();
+  });
+
+
+const PROFILE_KEY='mycash_profile_v1';
+function getProfile(){try{return JSON.parse(localStorage.getItem(PROFILE_KEY)||'null')}catch(e){return null}}
+function updateProfileUI(){const p=getProfile();const n=p?(`${p.firstName||''} ${p.lastName||''}`).trim():'';document.getElementById('profile-name').textContent=n||'আপনার নাম';document.getElementById('profile-mobile').textContent=p?.mobile||'মোবাইল নম্বর সেট করা হয়নি';document.getElementById('profile-full-name').textContent=n||'—';document.getElementById('profile-phone').textContent=p?.mobile||'—'}
+function openChangePassword(){
+  ['current-password','new-password','confirm-new-password'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
+  const m=document.getElementById('password-message');
+  if(m){m.textContent='';m.className='profile-modal-message';}
+  const modal=document.getElementById('change-password-modal');
+  if(modal){
+    modal.classList.add('show');
+    document.body.style.overflow='hidden';
+    const sheet=modal.querySelector('.profile-modal');
+    if(sheet) sheet.scrollTop=0;
+  }
+}
+function closeChangePassword(){
+  const modal=document.getElementById('change-password-modal');
+  if(modal) modal.classList.remove('show');
+  document.body.style.overflow='';
+}
+function closeChangePasswordOnBackdrop(e){if(e.target.id==='change-password-modal')closeChangePassword()}
+function changePassword(){
+  const m=document.getElementById('password-message');
+  const c=document.getElementById('current-password').value;
+  const n=document.getElementById('new-password').value;
+  const r=document.getElementById('confirm-new-password').value;
+  if(!c||!n||!r){m.textContent='সবগুলো ঘর পূরণ করুন।';m.className='profile-modal-message error';return;}
+  if(n.length<6){m.textContent='নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।';m.className='profile-modal-message error';return;}
+  if(n!==r){m.textContent='নতুন পাসওয়ার্ড দুটি একই হতে হবে।';m.className='profile-modal-message error';return;}
+  const user=auth.currentUser; if(!user){m.textContent='প্রথমে লগইন করুন।';m.className='profile-modal-message error';return;}
+  firebase.auth.EmailAuthProvider;
+  const credential=firebase.auth.EmailAuthProvider.credential(user.email,c);
+  user.reauthenticateWithCredential(credential).then(()=>user.updatePassword(n)).then(()=>{m.textContent='পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে।';m.className='profile-modal-message success';setTimeout(closeChangePassword,900);}).catch(()=>{m.textContent='বর্তমান পাসওয়ার্ড সঠিক নয় অথবা পরিবর্তন করা যায়নি।';m.className='profile-modal-message error';});
+}
+
+function profileLogout(){showScreen('login-screen')}
+updateProfileUI();
+</script>
+
+
+
+
+
+  </div>
+
+
+
+<script id="password-modal-nav-fix">
+document.addEventListener('click', function(e){
+  const nav = e.target.closest('#bottom-nav, .bottom-nav');
+  if (nav && typeof closeChangePassword === 'function') {
+    closeChangePassword();
+  }
+});
+</script>
+
+  <script id="inner-page-back-nav">
+    setupInnerPageBackButtons();
+  </script>
+
+
+<script id="new-home-user-sync">
+function updateNewHomeUser(){const p=getProfile&&getProfile();const n=p?(`${p.firstName||''} ${p.lastName||''}`).trim():'';const mobile=p?.mobile||'মোবাইল নম্বর সেট করা হয়নি';const a=document.getElementById('home-user-name'),b=document.getElementById('home-user-mobile'),c=document.getElementById('home-mobile-value');if(a)a.textContent=n||'আপনার নাম';if(b)b.textContent=mobile;if(c)c.textContent=mobile}
+document.addEventListener('DOMContentLoaded',updateNewHomeUser);
+const _oldUpdateProfileUI=typeof updateProfileUI==='function'?updateProfileUI:null;if(_oldUpdateProfileUI){updateProfileUI=function(){_oldUpdateProfileUI();updateNewHomeUser()}}
+</script>
+
+
+<script id="mycash-firebase-sync">
+async function loadUserTransactions(){
+  const user=auth.currentUser; if(!user) return;
+  try{
+    const ws=await db.collection('withdrawals').where('userId','==',user.uid).orderBy('createdAt','desc').limit(20).get();
+    const list=document.getElementById('withdrawal-history-list');
+    if(list){
+      list.querySelectorAll('.cloud-row').forEach(x=>x.remove());
+      ws.forEach(doc=>{const d=doc.data(); const row=document.createElement('div'); row.className='withdrawal-history-row cloud-row'; row.innerHTML=`<div class="withdrawal-history-top"><div class="withdrawal-history-icon">৳</div><div class="withdrawal-history-body"><div class="withdrawal-history-title">${d.method||''} — ${d.number||''}</div><div class="withdrawal-history-meta">${d.status==='approved'?'অনুমোদিত':d.status==='rejected'?'বাতিল':'অপেক্ষমাণ'}</div></div><div class="withdrawal-history-amount">৳${Number(d.amount||0).toLocaleString('bn-BD')}</div></div><div class="withdrawal-history-status">${d.status==='approved'?'সম্পন্ন':d.status==='rejected'?'বাতিল':'অপেক্ষমাণ'}</div>`; list.prepend(row);});
+    }
+    const ps=await db.collection('payments').where('userId','==',user.uid).orderBy('createdAt','desc').limit(20).get();
+    const plist=document.getElementById('package-history-list');
+    if(plist){
+      plist.querySelectorAll('.cloud-payment-row').forEach(x=>x.remove());
+      ps.forEach(doc=>{const d=doc.data(); const row=document.createElement('div'); row.className='history-row cloud-payment-row '+(d.status||'pending'); row.innerHTML=`<div class="history-row-icon">📦</div><div class="history-row-body"><div class="history-row-title">${d.packageName||''}</div><div class="history-row-meta">${d.method==='bkash'?'বিকাশ':'নগদ'} · TXN: ${d.transactionId||''}</div></div><div class="history-status">${d.status==='approved'?'অনুমোদিত':d.status==='rejected'?'বাতিল':'যাচাই করা হচ্ছে'}</div>`; plist.prepend(row);});
+    }
+  }catch(e){ console.warn('History load failed',e); }
+}
+async function sendContactPageMessage(){
+  const input=document.getElementById('contact-page-message-input'); const status=document.getElementById('contact-page-message-status'); const message=(input?.value||'').trim();
+  if(!message){ if(status){status.textContent='দয়া করে আপনার মেসেজ লিখুন।';status.className='contact-message-status error';} return; }
+  const user=auth.currentUser; if(!user){showScreen('login-screen');return;}
+  try{await db.collection('messages').add({userId:user.uid,mobile:getProfile()?.mobile||'',message,status:'unread',createdAt:firebase.firestore.FieldValue.serverTimestamp()}); if(status){status.textContent='মেসেজ সফলভাবে পাঠানো হয়েছে।';status.className='contact-message-status success';} if(input) input.value='';}catch(e){if(status)status.textContent='মেসেজ পাঠানো যায়নি।';}
+}
+</script>
+
+<script id="mycash-firebase-auth-overrides">
+async function profileLogout(){ try{await auth.signOut();}catch(e){} localStorage.removeItem(PROFILE_KEY); showScreen('login-screen'); }
+async function changePassword(){
+ const m=document.getElementById('password-message'), c=document.getElementById('current-password').value, n=document.getElementById('new-password').value, r=document.getElementById('confirm-new-password').value;
+ if(!c||!n||!r){m.textContent='সবগুলো ঘর পূরণ করুন।';m.className='profile-modal-message error';return;}
+ if(n.length<6){m.textContent='নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।';m.className='profile-modal-message error';return;}
+ if(n!==r){m.textContent='নতুন পাসওয়ার্ড দুটি একই হতে হবে।';m.className='profile-modal-message error';return;}
+ const user=auth.currentUser; if(!user){m.textContent='প্রথমে লগইন করুন।';m.className='profile-modal-message error';return;}
+ try{
+   const credential=firebase.auth.EmailAuthProvider.credential(user.email,c);
+   await user.reauthenticateWithCredential(credential);
+   await user.updatePassword(n);
+   m.textContent='পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে।';m.className='profile-modal-message success';setTimeout(closeChangePassword,900);
+ }catch(e){m.textContent='বর্তমান পাসওয়ার্ড সঠিক নয় অথবা পরিবর্তন করা যায়নি।';m.className='profile-modal-message error';}
+}
+</script>
+
+</body>
+</html>
+
+<style id="auth-back-arrow-removal">#login-screen .back-btn,#register-screen .back-btn{display:none!important}</style>
