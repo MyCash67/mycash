@@ -2201,10 +2201,20 @@
   }
 
 
-  const AD_STATE_KEY = 'mycash_ad_states_v21';
-  const AD_INCOME_KEY = 'mycash_ad_income_v21';
-  const AD_INCOME_DATE_KEY = 'mycash_ad_income_date_v22';
-  const MAIN_BALANCE_KEY = 'mycash_main_balance_v22';
+  const AD_STATE_KEY_BASE = 'mycash_ad_states_v23';
+  const AD_INCOME_KEY_BASE = 'mycash_ad_income_v23';
+  const AD_INCOME_DATE_KEY_BASE = 'mycash_ad_income_date_v23';
+  const MAIN_BALANCE_KEY_BASE = 'mycash_main_balance_v23';
+  function accountKey(base, uid){ return `${base}:${uid || 'guest'}`; }
+  function currentAccountUid(){ return window.myCashFirebase?.auth?.currentUser?.uid || null; }
+  function scopedKey(base){ return accountKey(base, currentAccountUid()); }
+  function loadAccountState(){
+    const uid=currentAccountUid();
+    if(!uid){ adStates={}; todayAdIncome=0; mainBalance=0; return; }
+    try { adStates=JSON.parse(localStorage.getItem(accountKey(AD_STATE_KEY_BASE,uid)) || '{}'); } catch(e){ adStates={}; }
+    todayAdIncome=Number(localStorage.getItem(accountKey(AD_INCOME_KEY_BASE,uid)) || 0);
+    mainBalance=Number(localStorage.getItem(accountKey(MAIN_BALANCE_KEY_BASE,uid)) || 0);
+  }
   const AD_COOLDOWN = 24 * 60 * 60 * 1000;
 
   function getBangladeshDateKey(){
@@ -2213,20 +2223,21 @@
 
   function resetDailyIncomeIfNeeded(){
     const todayKey=getBangladeshDateKey();
-    const savedKey=localStorage.getItem(AD_INCOME_DATE_KEY);
+    const savedKey=localStorage.getItem(scopedKey(AD_INCOME_DATE_KEY_BASE));
     if(savedKey!==todayKey){
-      localStorage.setItem(AD_INCOME_DATE_KEY,todayKey);
-      localStorage.setItem(AD_INCOME_KEY,'0');
+      localStorage.setItem(scopedKey(AD_INCOME_DATE_KEY_BASE),todayKey);
+      localStorage.setItem(scopedKey(AD_INCOME_KEY_BASE),'0');
       todayAdIncome=0;
       updateMainBalanceUI();
     }
   }
   const AD_WATCH_SECONDS = 15;
-  let adStates = {};
-  let todayAdIncome = Number(localStorage.getItem(AD_INCOME_KEY) || 0);
-  resetDailyIncomeIfNeeded();
-  let mainBalance = Number(localStorage.getItem(MAIN_BALANCE_KEY) || 0);
+  let todayAdIncome = 0;
+  let mainBalance = 0;
   let countdownIntervals = {};
+  let adStates = {};
+  loadAccountState();
+  resetDailyIncomeIfNeeded();
 
   function formatMoneyBn(amount){
     return Number(amount || 0).toLocaleString('bn-BD');
@@ -2239,13 +2250,13 @@
   }
 
   function saveMainBalance(){
-    localStorage.setItem(MAIN_BALANCE_KEY, String(mainBalance));
+    if(currentAccountUid()) localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()), String(mainBalance));
     updateMainBalanceUI();
   }
 
-  try { adStates = JSON.parse(localStorage.getItem(AD_STATE_KEY) || '{}'); } catch(e) { adStates = {}; }
+  try { adStates = JSON.parse(localStorage.getItem(scopedKey(AD_STATE_KEY_BASE)) || '{}'); } catch(e) { adStates = {}; }
 
-  function saveAdStates(){ localStorage.setItem(AD_STATE_KEY, JSON.stringify(adStates)); }
+  function saveAdStates(){ if(currentAccountUid()) localStorage.setItem(accountKey(AD_STATE_KEY_BASE,currentAccountUid()), JSON.stringify(adStates)); }
 
   function formatRemaining(ms){
     const total = Math.max(0, Math.ceil(ms/1000));
@@ -2331,8 +2342,8 @@
     state.cooldownUntil=Date.now()+AD_COOLDOWN;
     todayAdIncome=Number(todayAdIncome||0)+amount;
     mainBalance=Number(mainBalance||0)+amount;
-    localStorage.setItem(AD_INCOME_KEY,String(todayAdIncome));
-    localStorage.setItem(AD_INCOME_DATE_KEY,todayKey);
+    if(currentAccountUid()) localStorage.setItem(accountKey(AD_INCOME_KEY_BASE,currentAccountUid()),String(todayAdIncome));
+    localStorage.setItem(scopedKey(AD_INCOME_DATE_KEY_BASE),todayKey);
     saveAdStates();
     updateMainBalanceUI();
     updateIncomeSummary();
@@ -3030,7 +3041,7 @@ body.logged-out .income-summary{display:none !important;}
       const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
       await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
       localStorage.setItem(PROFILE_KEY,JSON.stringify({firstName,lastName,mobile}));
-      mainBalance=0; todayAdIncome=0; localStorage.setItem(MAIN_BALANCE_KEY,String(mainBalance)); updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
+      mainBalance=0; todayAdIncome=0; if(currentAccountUid()) localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance)); updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
       await wait(250);
       authFlowPending=false;
       setAuthLoading(false);
@@ -3061,7 +3072,7 @@ body.logged-out .income-summary{display:none !important;}
 
   const oldSaveMainBalance=window.saveMainBalance;
   window.saveMainBalance=function(){
-    localStorage.setItem(MAIN_BALANCE_KEY,String(mainBalance));
+    if(currentAccountUid()) localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance));
     updateMainBalanceUI();
     const u=auth.currentUser;
     if(u) db.collection('users').doc(u.uid).set({balance:Number(mainBalance),todayAdIncome:Number(todayAdIncome||0)},{merge:true}).catch(()=>{});
@@ -3119,10 +3130,10 @@ body.logged-out .income-summary{display:none !important;}
     updateLoggedInHeader(user, user ? getProfile() : null);
     if(!user){
       localStorage.removeItem(PROFILE_KEY);
-      localStorage.removeItem(MAIN_BALANCE_KEY);
+      if(currentAccountUid()) localStorage.removeItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()));
       mainBalance=0;
       todayAdIncome=0;
-      localStorage.setItem(AD_INCOME_KEY,'0');
+      localStorage.setItem(scopedKey(AD_INCOME_KEY_BASE),'0');
       updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary();
       if(!document.getElementById('home-screen')?.classList.contains('visible')) showScreen('home-screen');
       if(authFlowPending){
@@ -3132,6 +3143,8 @@ body.logged-out .income-summary{display:none !important;}
       return;
     }
     try{
+      // Switch all local UI state to this Firebase account. Never reuse another account's ad claims.
+      loadAccountState();
       const todayKey=getBangladeshDateKey();
       const ref=db.collection('users').doc(user.uid);
       const snap=await ref.get();
@@ -3149,11 +3162,13 @@ body.logged-out .income-summary{display:none !important;}
       if(storedIncomeDate!==todayKey){
         await ref.set({todayAdIncome:0,todayAdIncomeDate:todayKey},{merge:true});
       }
-      localStorage.setItem(MAIN_BALANCE_KEY,String(mainBalance));
-      localStorage.setItem(AD_INCOME_KEY,String(todayAdIncome));
-      localStorage.setItem(AD_INCOME_DATE_KEY,todayKey);
+      if(currentAccountUid()) localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance));
+      if(currentAccountUid()) localStorage.setItem(accountKey(AD_INCOME_KEY_BASE,currentAccountUid()),String(todayAdIncome));
+      localStorage.setItem(scopedKey(AD_INCOME_DATE_KEY_BASE),todayKey);
       const profileData={firstName:d.firstName||'',lastName:d.lastName||'',mobile:d.mobile||''};
       localStorage.setItem(PROFILE_KEY,JSON.stringify(profileData));
+      try { adStates=JSON.parse(localStorage.getItem(accountKey(AD_STATE_KEY_BASE,user.uid)) || '{}'); } catch(e){ adStates={}; }
+      restoreAdStates();
       // Always repaint the visible UI after Firebase data is loaded.
       updateProfileUI();
       updateMainBalanceUI();
@@ -3236,9 +3251,9 @@ body.logged-out .income-summary{display:none !important;}
   }, true);
 
   setInterval(function(){
-    const before=localStorage.getItem(AD_INCOME_DATE_KEY);
+    const before=localStorage.getItem(scopedKey(AD_INCOME_DATE_KEY_BASE));
     resetDailyIncomeIfNeeded();
-    if(before!==localStorage.getItem(AD_INCOME_DATE_KEY)){
+    if(before!==localStorage.getItem(scopedKey(AD_INCOME_DATE_KEY_BASE))){
       todayAdIncome=0;
       updateIncomeSummary();
       const u=auth.currentUser;
@@ -3253,7 +3268,7 @@ body.logged-out .income-summary{display:none !important;}
       const started=Date.now();
       await auth.signOut();
       localStorage.removeItem(PROFILE_KEY);
-      localStorage.removeItem(MAIN_BALANCE_KEY);
+      if(currentAccountUid()) localStorage.removeItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()));
       mainBalance=0;
       resetDailyIncomeIfNeeded();
       updateLoggedInHeader(null); updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary();
