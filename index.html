@@ -3072,8 +3072,15 @@ body.logged-out .income-summary{display:none !important;}
       authFlowPending=true;
       setAuthLoading(true,'অ্যাকাউন্ট তৈরি হচ্ছে...');
       const cred=await auth.createUserWithEmailAndPassword(mobileEmail(mobile),password);
-      const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),createdAt:firebase.firestore.FieldValue.serverTimestamp()};
-      await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
+      try{
+        const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+        await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
+      }catch(profileErr){
+        // Never leave a half-created account: if the profile save fails,
+        // remove the just-created Auth user so the person can cleanly retry.
+        try{ await cred.user.delete(); }catch(cleanupErr){}
+        throw profileErr;
+      }
       localStorage.setItem(PROFILE_KEY,JSON.stringify({firstName,lastName,mobile}));
       mainBalance=0; todayAdIncome=0; if(currentAccountUid()) localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance)); updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
       await wait(250);
