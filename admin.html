@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Premium Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,Arial,sans-serif}
+body{min-height:100vh;background:linear-gradient(135deg,#f7f9fc,#eef2f7);color:#172033}
+.header{background:rgba(255,255,255,.92);backdrop-filter:blur(14px);padding:22px 20px;text-align:center;box-shadow:0 8px 30px rgba(20,35,60,.07);position:relative;border-bottom:1px solid rgba(255,255,255,.8)}
+.header h2{font-size:24px;font-weight:800;letter-spacing:.2px}
+.back{display:none;position:absolute;left:15px;top:16px;width:42px;height:42px;border:0;border-radius:14px;background:#f1f4f8;font-size:28px;cursor:pointer;color:#172033}
+.container{width:92%;max-width:520px;margin:30px auto}
+.menu-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:17px}
+.menu-box{position:relative;overflow:hidden;background:linear-gradient(145deg,#fff,#f7f9fc);min-height:145px;border:1px solid rgba(255,255,255,.95);border-radius:22px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;cursor:pointer;box-shadow:0 12px 30px rgba(26,42,68,.10),inset 0 1px 0 #fff;transition:.25s}
+.menu-box:before{content:"";position:absolute;width:80px;height:80px;background:rgba(80,120,255,.08);border-radius:50%;top:-35px;right:-25px}
+.menu-box:hover{transform:translateY(-5px);box-shadow:0 18px 38px rgba(26,42,68,.15)}
+.icon{width:58px;height:58px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:30px;margin-bottom:12px;background:linear-gradient(145deg,#edf2ff,#fff);box-shadow:0 7px 18px rgba(40,65,100,.10)}
+.menu-box h3{font-size:16px;font-weight:750}.full-box{grid-column:span 2}
+
+#mobilePage,#socialPage{display:none}
+.section-title{text-align:center;margin-bottom:20px}
+.section-title p{color:#7b8495;font-size:14px;margin-top:5px}
+.methods{display:grid;grid-template-columns:1fr 1fr;gap:17px}
+.method{position:relative;overflow:hidden;background:#fff;border:2px solid transparent;border-radius:22px;min-height:145px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 12px 30px rgba(26,42,68,.10);font-size:22px;font-weight:850;transition:.25s}
+.method:after{content:"";position:absolute;width:90px;height:90px;border-radius:50%;top:-45px;right:-25px;background:rgba(255,255,255,.28)}
+.method.active{transform:translateY(-4px);box-shadow:0 18px 38px rgba(26,42,68,.16)}
+.bkash{color:#d70b66;background:linear-gradient(145deg,#fff,#fff0f6)}
+.nagad{color:#ee7515;background:linear-gradient(145deg,#fff,#fff4ea)}
+.bkash.active{border-color:#d70b66}.nagad.active{border-color:#ee7515}
+.form{display:none;background:rgba(255,255,255,.96);margin-top:20px;padding:23px;border-radius:22px;box-shadow:0 12px 30px rgba(26,42,68,.10);border:1px solid #fff}
+.form.show{display:block}
+.form h3{margin-bottom:13px;font-size:18px}
+.form small{display:block;color:#8992a2;margin-bottom:12px}
+input{width:100%;padding:15px 16px;border:1px solid #e1e6ee;background:#f8fafc;border-radius:13px;font-size:16px;outline:none;transition:.2s}
+input:focus{border-color:#7d8cff;background:#fff;box-shadow:0 0 0 4px rgba(95,113,255,.10)}
+.save{width:100%;margin-top:15px;padding:15px;border:0;border-radius:13px;background:linear-gradient(135deg,#20283a,#45516a);color:#fff;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 9px 20px rgba(35,46,68,.20)}
+.status{text-align:center;margin-top:12px;font-size:14px;min-height:18px}
+@media(max-width:400px){.menu-box,.method{min-height:125px}.icon{width:52px;height:52px;font-size:27px}.menu-box h3{font-size:14px}}
+
+.social-list{display:flex;flex-direction:column;gap:15px}.social-card{background:#fff;padding:17px;border-radius:20px;display:flex;align-items:center;gap:14px;box-shadow:0 12px 30px rgba(26,42,68,.09);border:1px solid #fff}.social-icon{width:55px;height:55px;border-radius:17px;display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:900;flex-shrink:0}.youtube-card .social-icon{background:#fff0f0;color:#ff0000}.telegram-card .social-icon{background:#eaf7ff;color:#229ed9}.facebook-card .social-icon{background:#edf3ff;color:#1877f2}.social-info{flex:1}.social-info h3{font-size:17px;margin-bottom:4px}.social-info p{font-size:12px;color:#8992a2;margin-bottom:8px}.social-info input{padding:11px 12px;font-size:14px}
+
+#adsPage{display:none}
+.ads-list{display:flex;flex-direction:column;gap:15px}
+.ads-list .social-card{background:#fff;padding:17px;border-radius:20px;display:flex;align-items:center;gap:14px;box-shadow:0 12px 30px rgba(26,42,68,.09);border:1px solid #fff}
+.ads-list .social-icon{width:55px;height:55px;border-radius:17px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;flex-shrink:0;background:#edf2ff;color:#45516a}
+.ads-list .social-info{flex:1}
+.ads-list .social-info h3{font-size:17px;margin-bottom:4px}
+.ads-list .social-info p{font-size:12px;color:#8992a2;margin-bottom:8px}
+.ads-list .social-info input{padding:11px 12px;font-size:14px}
+</style>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig={apiKey:"AIzaSyCjVduy7zLXQNO_HCfFmEXLMjD1EZKpBFM",authDomain:"mycash-96.firebaseapp.com",projectId:"mycash-96",storageBucket:"mycash-96.firebasestorage.app",messagingSenderId:"456949677588",appId:"1:456949677588:web:bffcc5529b354b858c7101"};
+firebase.initializeApp(firebaseConfig); const db=firebase.firestore(); const auth=firebase.auth(); const ADMIN_EMAIL='admin@mycash.com';
+</script>
+
+</head>
+<body>
+
+<div class="header">
+<button class="back" id="backBtn" onclick="showHome()">‹</button>
+<h2 id="pageTitle">Premium Home</h2>
+</div>
+
+
+<div id="adminAuth" style="position:fixed;inset:0;background:linear-gradient(135deg,#f7f9fc,#eef2f7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px">
+<div style="width:100%;max-width:420px;background:#fff;border-radius:24px;padding:25px;box-shadow:0 20px 50px rgba(26,42,68,.14)"><h2 style="margin-bottom:8px">Admin Login</h2><p style="color:#7b8495;font-size:13px;margin-bottom:18px">শুধু Admin account দিয়ে প্রবেশ করুন</p><input id="adminEmail" value="admin@mycash.com" type="email" placeholder="Admin email"><input id="adminPassword" type="password" placeholder="Password" style="margin-top:10px"><button class="save" onclick="adminLogin()">Login</button><div class="status" id="adminAuthStatus"></div></div></div>
+<div id="dataPage" style="display:none"></div>
+
+<div class="container">
+<div id="homePage">
+<div class="menu-grid">
+<button class="menu-box" onclick="showUsersPage()"><div class="icon">👤</div><h3>User</h3></button>
+<button class="menu-box" onclick="showWithdrawalsPage()"><div class="icon">💰</div><h3>Withdraw History</h3></button>
+<button class="menu-box" onclick="showMobilePage()"><div class="icon">📱</div><h3>Mobile Number</h3></button>
+<button class="menu-box" onclick="showSocialPage()"><div class="icon">📋</div><h3>Social Task</h3></button>
+<button class="menu-box" onclick="showMessagesPage()"><div class="icon">📩</div><h3>Inbox</h3></button>
+<button class="menu-box" onclick="showAdsPage()"><div class="icon">📢</div><h3>Ads</h3></button>
+</div><button class="save" style="margin-top:17px" onclick="adminLogout()">Logout</button>
+</div>
+
+<div id="mobilePage">
+<div class="section-title">
+<h3>Payment Number</h3>
+<p>Select your payment method</p>
+</div>
+<div class="methods">
+<button class="method bkash" id="bkashBtn" onclick="selectMethod('bkash')">bKash</button>
+<button class="method nagad" id="nagadBtn" onclick="selectMethod('nagad')">Nagad</button>
+</div>
+<div class="form" id="numberForm">
+<h3 id="formTitle">Mobile Number</h3>
+<small>Enter your 11-digit mobile number</small>
+<input id="numberInput" type="tel" inputmode="numeric" maxlength="11" placeholder="01XXXXXXXXX">
+<button class="save" onclick="saveNumber()">Save Number</button>
+<div class="status" id="status"></div>
+</div>
+</div>
+
+<div id="socialPage"><div class="section-title"><h3>Social Task</h3><p>Add your social media links</p></div><div class="social-list"><div class="social-card youtube-card"><div class="social-icon">▶</div><div class="social-info"><h3>YouTube</h3><p>Enter YouTube link</p><input id="youtubeLink" type="url" placeholder="https://youtube.com/..."></div></div><div class="social-card telegram-card"><div class="social-icon">✈</div><div class="social-info"><h3>Telegram</h3><p>Enter Telegram link</p><input id="telegramLink" type="url" placeholder="https://t.me/..."></div></div><div class="social-card facebook-card"><div class="social-icon">f</div><div class="social-info"><h3>Facebook</h3><p>Enter Facebook link</p><input id="facebookLink" type="url" placeholder="https://facebook.com/..."></div></div><button class="save" onclick="saveSocialLinks()">Save Links</button><div class="status" id="socialStatus"></div></div></div>
+</div>
+
+<div id="adsPage">
+<div class="section-title">
+<h3>Ads Links</h3>
+<p>Add up to 10 advertisement links</p>
+</div>
+<div class="ads-list">
+<div class="social-card"><div class="social-icon">A1</div><div class="social-info"><h3>Ads 1</h3><p>Enter Ads 1 link</p><input id="ads1Link" type="url" placeholder="https://example.com/..."></div></div><div class="social-card"><div class="social-icon">A2</div><div class="social-info"><h3>Ads 2</h3><p>Enter Ads 2 link</p><input id="ads2Link" type="url" placeholder="https://example.com/..."></div></div><div class="social-card"><div class="social-icon">A3</div><div class="social-info"><h3>Ads 3</h3><p>Enter Ads 3 link</p><input id="ads3Link" type="url" placeholder="https://example.com/..."></div></div><div class="social-card"><div class="social-icon">A4</div><div class="social-info"><h3>Ads 4</h3><p>Enter Ads 4 link</p><input id="ads4Link" type="url" placeholder="https://example.com/..."></div></div><div class="social-card"><div class="social-icon">A5</div><div class="social-info"><h3>Ads 5</h3><p>Enter Ads 5 link</p><input id="ads5Link" type="url" placeholder="https://example.com/..."></div></div><div class="social-card"><div class="social-icon">A6</div><div class="social-info"><h3>Ads 6</h3><p>Enter Ads 6 link</p><input id="ads6Link" type="url" placeholder="https://example.com/..."></div></div><div class="social-card"><div class="social-icon">A7</div><div class="social-info"><h3>Ads 7</h3><p>Enter Ads 7 link</p><input id="ads7Link" type="url" placeholder="https://example.com/..."></div></div><div class="social-card"><div class="social-icon">A8</div><div class="social-info"><h3>Ads 8</h3><p>Enter Ads 8 link</p><input id="ads8Link" type="url" placeholder="https://example.com/..."></div></div><div class="social-card"><div class="social-icon">A9</div><div class="social-info"><h3>Ads 9</h3><p>Enter Ads 9 link</p><input id="ads9Link" type="url" placeholder="https://example.com/..."></div></div><div class="social-card"><div class="social-icon">A10</div><div class="social-info"><h3>Ads 10</h3><p>Enter Ads 10 link</p><input id="ads10Link" type="url" placeholder="https://example.com/..."></div></div>
+<button class="save" onclick="saveAdsLinks()">Save Ads</button>
+<div class="status" id="adsStatus"></div>
+</div>
+</div>
+
+
+<script>
+let selectedMethod='';
+function showMobilePage(){hidePages();document.getElementById('mobilePage').style.display='block';showBack('Mobile Number');}
+function showSocialPage(){hidePages();document.getElementById('socialPage').style.display='block';showBack('Social Task');loadSettings();}
+function showAdsPage(){hidePages();document.getElementById('adsPage').style.display='block';showBack('Ads');loadSettings();}
+function showHome(){hidePages();document.getElementById('homePage').style.display='block';document.getElementById('backBtn').style.display='none';document.getElementById('pageTitle').textContent='Premium Home';}
+function hidePages(){['mobilePage','socialPage','adsPage'].forEach(id=>document.getElementById(id).style.display='none');}
+function showBack(title){document.getElementById('backBtn').style.display='block';document.getElementById('pageTitle').textContent=title;}
+function selectMethod(type){selectedMethod=type;document.getElementById('numberForm').classList.add('show');document.getElementById('bkashBtn').classList.toggle('active',type==='bkash');document.getElementById('nagadBtn').classList.toggle('active',type==='nagad');document.getElementById('formTitle').textContent=type==='bkash'?'bKash Number':'Nagad Number';loadSettings();}
+async function saveNumber(){const number=document.getElementById('numberInput').value.trim(),status=document.getElementById('status');if(!/^01\d{9}$/.test(number)){status.textContent='Please enter a valid 11-digit mobile number.';status.style.color='#d93025';return;}try{await db.collection('settings').doc('public').set({paymentNumbers:{[selectedMethod]:number}},{merge:true});status.textContent='Number saved to Firebase ✓';status.style.color='#16834b';}catch(e){status.textContent='Save failed';status.style.color='#d93025';}}
+async function saveSocialLinks(){try{await db.collection('settings').doc('public').set({social:{youtube:document.getElementById('youtubeLink').value.trim(),telegram:document.getElementById('telegramLink').value.trim(),facebook:document.getElementById('facebookLink').value.trim()}},{merge:true});const s=document.getElementById('socialStatus');s.textContent='Social links saved to Firebase ✓';s.style.color='#16834b';}catch(e){document.getElementById('socialStatus').textContent='Save failed';}}
+async function saveAdsLinks(){const ads={};for(let i=1;i<=10;i++)ads['ads'+i]=document.getElementById('ads'+i+'Link').value.trim();try{await db.collection('settings').doc('public').set({ads},{merge:true});const s=document.getElementById('adsStatus');s.textContent='Ads saved to Firebase ✓';s.style.color='#16834b';}catch(e){document.getElementById('adsStatus').textContent='Save failed';}}
+async function loadSettings(){try{const s=(await db.collection('settings').doc('public').get()).data()||{};const p=s.paymentNumbers||{};document.getElementById('numberInput').value=selectedMethod?(p[selectedMethod]||''):'';const social=s.social||{};['youtube','telegram','facebook'].forEach(k=>{const el=document.getElementById(k+'Link');if(el)el.value=social[k]||''});const ads=s.ads||{};for(let i=1;i<=10;i++){const el=document.getElementById('ads'+i+'Link');if(el)el.value=ads['ads'+i]||''}}catch(e){console.warn(e)}}
+async function adminLogin(){const email=document.getElementById('adminEmail').value.trim().toLowerCase(),pass=document.getElementById('adminPassword').value;const st=document.getElementById('adminAuthStatus');if(email!==ADMIN_EMAIL){st.textContent='Admin email must be admin@mycash.com';return;}try{await auth.signInWithEmailAndPassword(email,pass);}catch(e){st.textContent='Login failed. Firebase Authentication-এ admin@mycash.com user তৈরি আছে কিনা দেখুন.';}}
+async function adminLogout(){await auth.signOut();}
+auth.onAuthStateChanged(async user=>{const gate=document.getElementById('adminAuth');if(user && user.email.toLowerCase()===ADMIN_EMAIL){gate.style.display='none';await loadSettings();}else{gate.style.display='flex';}});
+function requireAdmin(){const u=auth.currentUser;if(!u||u.email.toLowerCase()!==ADMIN_EMAIL){alert('Admin login required');return false}return true}
+async function showUsersPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Users');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Users</h3><div id="usersList">Loading...</div></div>';const snap=await db.collection('users').orderBy('createdAt','desc').get();let html='';snap.forEach(d=>{const u=d.data();html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>${u.firstName||''} ${u.lastName||''}</b><div style="font-size:12px;color:#7b8495">${u.mobile||''}</div><input id="bal-${d.id}" type="number" value="${Number(u.balance||0)}" style="margin-top:8px"><button class="save" onclick="updateUserBalance('${d.id}')">Update Balance</button></div>`});document.getElementById('usersList').innerHTML=html||'No users';}
+async function updateUserBalance(uid){if(!requireAdmin())return;const amount=Number(document.getElementById('bal-'+uid).value);await db.collection('users').doc(uid).update({balance:amount});alert('Balance updated ✓');}
+async function showWithdrawalsPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Withdraw History');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Withdraw Requests</h3><div id="withdrawList">Loading...</div></div>';const snap=await db.collection('withdrawals').orderBy('createdAt','desc').get();let html='';snap.forEach(d=>{const x=d.data();html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>৳${x.amount||0} — ${x.method||''}</b><div style="font-size:12px">${x.number||''} | ${x.mobile||''}</div><div style="font-size:12px;color:#7b8495">Status: ${x.status||'pending'}</div>${x.status==='pending'?`<button class="save" onclick="setWithdrawalStatus('${d.id}','approved')">Approve</button><button class="save" style="margin-top:8px" onclick="setWithdrawalStatus('${d.id}','rejected')">Reject</button>`:''}</div>`});document.getElementById('withdrawList').innerHTML=html||'No requests';}
+async function setWithdrawalStatus(id,status){
+ if(!requireAdmin())return;
+ const wref=db.collection('withdrawals').doc(id);
+ const ws=await wref.get(); if(!ws.exists)return; const w=ws.data();
+ if(w.status!=='pending')return;
+ if(status==='approved'){
+   const uref=db.collection('users').doc(w.userId);
+   await db.runTransaction(async tx=>{const us=await tx.get(uref);if(!us.exists)throw new Error('User not found');const current=Number(us.data().balance||0);const amount=Number(w.amount||0);if(current<amount)throw new Error('Insufficient balance');tx.update(uref,{balance:current-amount});tx.update(wref,{status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});});
+ }else{await wref.update({status:'rejected',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});}
+ showWithdrawalsPage();
+}
+async function showMessagesPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Inbox');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Inbox</h3><div id="msgList">Loading...</div></div>';const snap=await db.collection('messages').orderBy('createdAt','desc').get();let html='';snap.forEach(d=>{const x=d.data();html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>${x.mobile||'User'}</b><p style="margin-top:6px">${x.message||''}</p></div>`});document.getElementById('msgList').innerHTML=html||'No messages';}
+</script>
+</body>
+</html>
