@@ -3119,12 +3119,14 @@ body.logged-out .income-summary{display:none !important;}
     if(!transactionId)return;
     const u=auth.currentUser;
     if(!u){showScreen('login-screen');return;}
+    setAuthLoading(true,'পেমেন্ট রিকোয়েস্ট পাঠানো হচ্ছে...');
     try{
       await db.collection('payments').add({uid:u.uid,packageId:pendingPackage.id||null,packageName:pendingPackage.name||'',amount:Number(pendingPackage.price||0),method:selectedMethod,transactionId,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
       const submittedPackage={...pendingPackage},submittedMethod=selectedMethod;
       addPendingPackageHistory(submittedPackage,submittedMethod,transactionId);
       closePaymentModal(); showScreen('package-history-screen'); pendingPackage=null; selectedMethod=null;
     }catch(err){alert('পেমেন্ট রিকোয়েস্ট পাঠানো যায়নি। Firebase Rules/connection পরীক্ষা করুন।');}
+    finally{setAuthLoading(false);}
   };
 
   const oldSubmitWithdrawal=window.submitWithdrawal;
