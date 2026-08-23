@@ -2249,20 +2249,42 @@
         return tb - ta;
       });
       list.innerHTML = '';
-      docs.forEach(doc=>{
-        const p = doc.data();
+      const MS_PER_DAY = 24*60*60*1000;
+      for(const doc of docs){
+        let p = doc.data();
+
+        // প্যাকেজ approve হওয়ার পর প্রথমবার এখানে দেখানো হলে, মেয়াদ গোনা শুরুর
+        // তারিখ (approvedAt) একবারই Firestore-এ সেভ করে রাখা হয়। এরপর থেকে
+        // ইউজার কোনো দিন claim মিস করলেও, ঠিক এই তারিখ থেকে durationDays
+        // ক্যালেন্ডার দিন পার হলেই প্যাকেজ মেয়াদোত্তীর্ণ ধরা হবে।
+        if(!p.approvedAt){
+          const approvedAtMs = Date.now();
+          try{
+            await doc.ref.update({approvedAt: approvedAtMs});
+            p = {...p, approvedAt: approvedAtMs};
+          }catch(err){
+            console.error('approvedAt set failed:', err);
+          }
+        }
+
         const dailyIncome = Number(p.dailyIncome||0);
         const durationDays = Number(p.durationDays||0);
-        const claimedDays = Number(p.claimedDays||0);
-        const remainingDays = Math.max(0, durationDays - claimedDays);
+        const approvedAt = Number(p.approvedAt||0);
+        const elapsedDays = approvedAt ? Math.floor((Date.now()-approvedAt)/MS_PER_DAY) : 0;
+        const remainingDays = Math.max(0, durationDays - elapsedDays);
         const title = String(p.packageName||'প্যাকেজ').replace(/\s*একটিভ\s*/g,'').trim() || 'প্যাকেজ';
-        const expired = durationDays > 0 && claimedDays >= durationDays;
-        const claimedToday = !expired && p.lastClaimDate === todayKey;
+        const expired = durationDays > 0 && elapsedDays >= durationDays;
+
+        // মেয়াদ শেষ হওয়া প্যাকেজের বক্স আর দেখানো হয় না — একাধিক প্যাকেজ কেনা
+        // থাকলে প্রতিটার মেয়াদ শেষ হওয়ার সাথে সাথে সেই বক্সটাই বাদ পড়ে যাবে।
+        // সবগুলোর মেয়াদ শেষ হলে (লুপ শেষে list খালি থাকলে) "কোনো প্যাকেজ
+        // একটিভ নেই" বক্সটা আবার দেখানো হবে।
+        if(expired) continue;
+
+        const claimedToday = p.lastClaimDate === todayKey;
 
         let btnHtml;
-        if(expired){
-          btnHtml = `<button type="button" class="status-btn" onclick="document.getElementById('packages').scrollIntoView({behavior:'smooth'})">মেয়াদ শেষ, নতুন প্যাকেজ কিনুন</button>`;
-        }else if(claimedToday){
+        if(claimedToday){
           btnHtml = `<button type="button" class="status-btn" disabled>✓ আজকের আয় নেওয়া হয়েছে</button>`;
         }else{
           btnHtml = `<button type="button" class="status-btn status-claim-btn" data-claim-id="${doc.id}" onclick="claimPackageIncome('${doc.id}', this)">আজকের আয় ৳${formatMoneyBn(dailyIncome)} দাবি করুন</button>`;
@@ -2274,7 +2296,7 @@
           <div class="status-icon">✅</div>
           <div class="status-label">প্যাকেজ স্ট্যাটাস</div>
           <div class="status-title">${title}</div>
-          <div class="status-sub">${expired ? 'আপনার প্যাকেজের মেয়াদ শেষ হয়েছে।' : 'আপনার প্যাকেজ একটিভ আছে, প্রতিদিন আয় দাবি করুন।'}</div>
+          <div class="status-sub">আপনার প্যাকেজ একটিভ আছে, প্রতিদিন আয় দাবি করুন।</div>
           <div class="status-detail">
             <div class="sd-item">
               <div class="sd-label">বাকি দিন</div>
@@ -2288,8 +2310,8 @@
           ${btnHtml}
         `;
         list.appendChild(card);
-      });
-      if(inactiveBox) inactiveBox.style.display = 'none';
+      }
+      if(inactiveBox) inactiveBox.style.display = list.children.length ? 'none' : '';
     }catch(e){
       console.error('Active package load failed:', e);
     }
@@ -2320,7 +2342,11 @@
         if(p.lastClaimDate === todayKey) throw new Error('ALREADY_CLAIMED');
         const durationDays = Number(p.durationDays||0);
         const claimedDays = Number(p.claimedDays||0);
-        if(durationDays > 0 && claimedDays >= durationDays) throw new Error('EXPIRED');
+        const approvedAt = Number(p.approvedAt||0);
+        // দিন গোনা হয় approve হওয়ার (approvedAt) তারিখ থেকে — claim মিস হলেও
+        // দিন গণনা থেমে থাকে না, তাই ৩০ ক্যালেন্ডার দিন পার হলেই মেয়াদ শেষ।
+        const elapsedDays = approvedAt ? Math.floor((Date.now()-approvedAt)/(24*60*60*1000)) : 0;
+        if(durationDays > 0 && approvedAt && elapsedDays >= durationDays) throw new Error('EXPIRED');
         const dailyIncome = Number(p.dailyIncome||0);
 
         const userSnap = await tx.get(userRef);
