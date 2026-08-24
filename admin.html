@@ -76,6 +76,7 @@ firebase.initializeApp(firebaseConfig); const db=firebase.firestore(); const aut
 <div class="menu-grid">
 <button class="menu-box" onclick="showUsersPage()"><div class="icon">👤</div><h3>User</h3></button>
 <button class="menu-box" onclick="showPackageOrdersPage()"><div class="icon">📦</div><h3>Package Order</h3></button>
+<button class="menu-box" onclick="showPackagesPage()"><div class="icon">🎁</div><h3>Package List</h3></button>
 <button class="menu-box" onclick="showWithdrawalsPage()"><div class="icon">💰</div><h3>Withdraw History</h3></button>
 <button class="menu-box" onclick="showMobilePage()"><div class="icon">📱</div><h3>Mobile Number</h3></button>
 <button class="menu-box" onclick="showSocialPage()"><div class="icon">📋</div><h3>Social Task</h3></button>
@@ -256,6 +257,161 @@ await pref.update({status,reviewedAt:firebase.firestore.FieldValue.serverTimesta
 showPackageOrdersPage();
 }
 async function showMessagesPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Inbox');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Inbox</h3><div id="msgList">Loading...</div></div>';const snap=await db.collection('messages').orderBy('createdAt','desc').get();let html='';snap.forEach(d=>{const x=d.data();html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>${x.mobile||'User'}</b><p style="margin-top:6px">${x.message||''}</p></div>`});document.getElementById('msgList').innerHTML=html||'No messages';}
+
+// ---------- PACKAGE LIST (add / edit / delete packages shown to users) ----------
+// index.html-এর "প্যাকেজ বেছে নিন" সেকশন এখন এই packages কালেকশন থেকেই
+// প্যাকেজ কার্ড দেখায়। এখান থেকে যোগ/এডিট/ডিলিট করলে সাথে সাথে অ্যাপে দেখা যাবে।
+function escAttr(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
+
+async function showPackagesPage(){
+  if(!requireAdmin())return;
+  hidePages();
+  document.getElementById('homePage').style.display='none';
+  showBack('Package List');
+  const c=document.getElementById('dataPage');
+  c.style.display='block';
+  c.innerHTML=`
+    <div class="form show">
+      <h3>নতুন প্যাকেজ যোগ করুন</h3>
+      <input id="newPkgName" type="text" placeholder="প্যাকেজের নাম (যেমন: প্যাকেজ ১১)" style="margin-bottom:10px">
+      <input id="newPkgPrice" type="number" placeholder="প্যাকেজের দাম (৳)" style="margin-bottom:10px">
+      <input id="newPkgIncome" type="number" placeholder="দৈনিক আয় (৳)" style="margin-bottom:10px">
+      <input id="newPkgDays" type="number" placeholder="মেয়াদ (দিন)" style="margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-top:6px"><input id="newPkgPopular" type="checkbox" style="width:auto"> "জনপ্রিয়" ব্যাজ দেখাবে</label>
+      <button class="save" onclick="addPackage()">প্যাকেজ যোগ করুন</button>
+      <div class="status" id="newPkgStatus"></div>
+    </div>
+    <div class="form show" style="margin-top:16px">
+      <h3>বিদ্যমান প্যাকেজসমূহ</h3>
+      <div id="packagesList">Loading...</div>
+      <div id="packagesSeedBox"></div>
+    </div>`;
+  await loadPackagesList();
+}
+
+async function loadPackagesList(){
+  const listEl=document.getElementById('packagesList');
+  const seedBox=document.getElementById('packagesSeedBox');
+  try{
+    const snap=await db.collection('packages').orderBy('price','asc').get();
+    if(snap.empty){
+      listEl.innerHTML='কোনো প্যাকেজ নেই।';
+      seedBox.innerHTML=`<button class="save" style="margin-top:12px;background:linear-gradient(135deg,#1c6b3f,#0d3b29)" onclick="seedDefaultPackages()">আগের ডিফল্ট ১০টা প্যাকেজ লোড করুন</button>`;
+      return;
+    }
+    seedBox.innerHTML='';
+    let html='';
+    snap.forEach(d=>{
+      const p=d.data();
+      html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0">
+        <input id="pkgName-${d.id}" type="text" value="${escAttr(p.name)}" placeholder="প্যাকেজের নাম" style="margin-bottom:8px">
+        <input id="pkgPrice-${d.id}" type="number" value="${Number(p.price||0)}" placeholder="দাম (৳)" style="margin-bottom:8px">
+        <input id="pkgIncome-${d.id}" type="number" value="${Number(p.dailyIncome||0)}" placeholder="দৈনিক আয় (৳)" style="margin-bottom:8px">
+        <input id="pkgDays-${d.id}" type="number" value="${Number(p.durationDays||0)}" placeholder="মেয়াদ (দিন)" style="margin-bottom:8px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-top:4px"><input id="pkgPopular-${d.id}" type="checkbox" ${p.popular?'checked':''} style="width:auto"> "জনপ্রিয়" ব্যাজ</label>
+        <button class="save" onclick="updatePackage('${d.id}')">সেভ করুন</button>
+        <button class="save" style="margin-top:8px;background:linear-gradient(135deg,#bd3030,#7a1f1f)" onclick="deletePackage('${d.id}')">ডিলিট করুন</button>
+        <div class="status" id="pkgStatus-${d.id}"></div>
+      </div>`;
+    });
+    listEl.innerHTML=html;
+  }catch(e){
+    listEl.innerHTML='প্যাকেজ লোড করা যায়নি।';
+    console.error(e);
+  }
+}
+
+async function addPackage(){
+  if(!requireAdmin())return;
+  const name=document.getElementById('newPkgName').value.trim();
+  const price=Number(document.getElementById('newPkgPrice').value);
+  const dailyIncome=Number(document.getElementById('newPkgIncome').value);
+  const durationDays=Number(document.getElementById('newPkgDays').value);
+  const popular=document.getElementById('newPkgPopular').checked;
+  const status=document.getElementById('newPkgStatus');
+  if(!name||!price||!dailyIncome||!durationDays){
+    status.textContent='সবগুলো ঘর সঠিকভাবে পূরণ করুন।';
+    status.style.color='#d93025';
+    return;
+  }
+  try{
+    await db.collection('packages').add({name,price,dailyIncome,durationDays,popular,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    status.textContent='প্যাকেজ যোগ হয়েছে ✓';
+    status.style.color='#16834b';
+    document.getElementById('newPkgName').value='';
+    document.getElementById('newPkgPrice').value='';
+    document.getElementById('newPkgIncome').value='';
+    document.getElementById('newPkgDays').value='';
+    document.getElementById('newPkgPopular').checked=false;
+    await loadPackagesList();
+  }catch(e){
+    status.textContent='যোগ করা যায়নি: '+(e&&e.message||e);
+    status.style.color='#d93025';
+  }
+}
+
+async function updatePackage(id){
+  if(!requireAdmin())return;
+  const status=document.getElementById('pkgStatus-'+id);
+  const name=document.getElementById('pkgName-'+id).value.trim();
+  const price=Number(document.getElementById('pkgPrice-'+id).value);
+  const dailyIncome=Number(document.getElementById('pkgIncome-'+id).value);
+  const durationDays=Number(document.getElementById('pkgDays-'+id).value);
+  const popular=document.getElementById('pkgPopular-'+id).checked;
+  if(!name||!price||!dailyIncome||!durationDays){
+    status.textContent='সবগুলো ঘর সঠিকভাবে পূরণ করুন।';
+    status.style.color='#d93025';
+    return;
+  }
+  try{
+    await db.collection('packages').doc(id).update({name,price,dailyIncome,durationDays,popular});
+    status.textContent='আপডেট হয়েছে ✓';
+    status.style.color='#16834b';
+  }catch(e){
+    status.textContent='আপডেট ব্যর্থ: '+(e&&e.message||e);
+    status.style.color='#d93025';
+  }
+}
+
+async function deletePackage(id){
+  if(!requireAdmin())return;
+  if(!confirm('এই প্যাকেজটা ডিলিট করবেন? যারা আগে থেকে এই প্যাকেজ কিনে একটিভ করে ফেলেছেন, তাদের চলমান প্যাকেজে কোনো প্রভাব পড়বে না — শুধু নতুন করে কেনার অপশন উঠে যাবে।'))return;
+  try{
+    await db.collection('packages').doc(id).delete();
+    await loadPackagesList();
+  }catch(e){
+    alert('ডিলিট ব্যর্থ: '+(e&&e.message||e));
+  }
+}
+
+async function seedDefaultPackages(){
+  if(!requireAdmin())return;
+  if(!confirm('আগে থেকে অ্যাপে থাকা ১০টা ডিফল্ট প্যাকেজ (৳১০০ থেকে ৳১০,০০০) Firestore-এ যোগ করা হবে। এগিয়ে যাবেন?'))return;
+  const defaults=[
+    {name:'প্যাকেজ ১', price:100,   dailyIncome:5,   durationDays:30, popular:false},
+    {name:'প্যাকেজ ২', price:200,   dailyIncome:10,  durationDays:30, popular:false},
+    {name:'প্যাকেজ ৩', price:500,   dailyIncome:25,  durationDays:30, popular:false},
+    {name:'প্যাকেজ ৪', price:700,   dailyIncome:35,  durationDays:30, popular:false},
+    {name:'প্যাকেজ ৫', price:1000,  dailyIncome:50,  durationDays:30, popular:true},
+    {name:'প্যাকেজ ৬', price:1500,  dailyIncome:75,  durationDays:30, popular:false},
+    {name:'প্যাকেজ ৭', price:2000,  dailyIncome:100, durationDays:30, popular:false},
+    {name:'প্যাকেজ ৮', price:3000,  dailyIncome:150, durationDays:30, popular:false},
+    {name:'প্যাকেজ ৯', price:5000,  dailyIncome:250, durationDays:30, popular:false},
+    {name:'প্যাকেজ ১০',price:10000, dailyIncome:500, durationDays:30, popular:false}
+  ];
+  try{
+    const batch=db.batch();
+    defaults.forEach(pkg=>{
+      const ref=db.collection('packages').doc();
+      batch.set(ref,{...pkg,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    });
+    await batch.commit();
+    await loadPackagesList();
+  }catch(e){
+    alert('সিড করা যায়নি: '+(e&&e.message||e));
+  }
+}
+
 </script>
 </body>
 </html>
