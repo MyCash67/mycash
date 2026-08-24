@@ -1847,7 +1847,7 @@
       <div class="sec-sub">নিচের এডগুলো দেখুন এবং প্রতিটি এড সম্পূর্ণ করলে রিওয়ার্ড পান।</div>
 
       <div class="income-summary">
-        <div><div class="income-summary-label">আজকের আয়</div><div class="income-summary-value">৳০</div></div>
+        <div><div class="income-summary-label">এড আয়</div><div class="income-summary-value">৳০</div></div>
         <div class="income-summary-count">০/১০ এড দেখা হয়েছে</div>
       </div>
 
@@ -2187,6 +2187,35 @@
   }
   window.loadActivePackagesFromFirestore = loadActivePackagesFromFirestore;
 
+  // ---- কেন্দ্রীয় income helper ----
+  // অ্যাপে এখন পর্যন্ত "এড দেখা" ও "প্যাকেজ" — এই দুইটাই একমাত্র বাস্তব (কার্যকর)
+  // আয়ের সেক্টর। (Task/Refer বাটনগুলো এখনো UI-তে আছে, কিন্তু সেগুলোর সাথে কোনো
+  // Firestore claim/reward লজিক যুক্ত নেই, তাই আপাতত ওখান থেকে কোনো আয় হয় না।)
+  //
+  // ভবিষ্যতে Task, Refer, বা অন্য যেকোনো নতুন income সেক্টর যোগ করার সময়, সেই
+  // সেক্টরের claim/reward কোডে সরাসরি balance/todayIncome না বসিয়ে এই
+  // applySectorIncome() ফাংশনটাই ব্যবহার করতে হবে — তাহলে নতুন সেক্টরের আয়ও
+  // স্বয়ংক্রিয়ভাবে হোম স্ক্রিনের সম্মিলিত "আজকের আয়"-এ যোগ হয়ে যাবে, আলাদা করে
+  // এই যোগফলের লজিক আর কোথাও বদলাতে হবে না।
+  //
+  // d          = ইউজারের বর্তমান Firestore ডকুমেন্ট ডেটা (transaction-এর ভেতর থেকে পড়া)
+  // amount     = এই সেক্টর থেকে এখন যত টাকা আয় হলো
+  // todayKey   = getBangladeshDateKey() থেকে পাওয়া আজকের তারিখ
+  // extraFields= এই নির্দিষ্ট সেক্টরের নিজস্ব কাউন্টার (যেমন এডের জন্য todayAdIncome),
+  //              যদি থাকে — এটা মূল balance/todayIncome আপডেটের সাথে merge হয়ে যাবে।
+  function applySectorIncome(d, amount, todayKey, extraFields){
+    const oldBalance = Number(d.balance||0);
+    const totalDate = String(d.todayIncomeDate||'');
+    const oldTotalToday = totalDate === todayKey ? Number(d.todayIncome||0) : 0;
+    const newBalance = oldBalance + amount;
+    const newTotalToday = oldTotalToday + amount;
+    return {
+      updateFields: Object.assign({ balance:newBalance, todayIncome:newTotalToday, todayIncomeDate:todayKey }, extraFields||{}),
+      newBalance,
+      newTotalToday
+    };
+  }
+
   async function claimPackageIncome(paymentId, btn){
     const fb = window.myCashFirebase;
     const u = fb && fb.auth ? fb.auth.currentUser : null;
@@ -2202,7 +2231,7 @@
     if(btn){ btn.disabled = true; btn.textContent = 'দাবি করা হচ্ছে...'; }
 
     try{
-      let savedBalance = 0, savedToday = 0;
+      let savedBalance = 0, savedTotalToday = 0;
       await fb.db.runTransaction(async tx=>{
         const paySnap = await tx.get(payRef);
         if(!paySnap.exists) throw new Error('PACKAGE_NOT_FOUND');
@@ -2221,24 +2250,23 @@
         const userSnap = await tx.get(userRef);
         if(!userSnap.exists) throw new Error('USER_NOT_FOUND');
         const d = userSnap.data() || {};
-        const oldBalance = Number(d.balance||0);
-        const oldDate = String(d.todayAdIncomeDate||'');
-        const oldToday = oldDate === todayKey ? Number(d.todayAdIncome||0) : 0;
-        const newBalance = oldBalance + dailyIncome;
-        const newToday = oldToday + dailyIncome;
 
-        // মূল ব্যালেন্স এবং আজকের আয় — উভয়েই প্যাকেজ Details অনুযায়ী নির্ধারিত দৈনিক আয় যোগ হবে।
+        // প্যাকেজের দৈনিক আয় কেন্দ্রীয় helper দিয়ে balance + সম্মিলিত "আজকের আয়"-এ
+        // যোগ করা হচ্ছে। এই সেক্টরের আলাদা কোনো নিজস্ব কাউন্টার নেই (এড-এর
+        // todayAdIncome-এর মতো), তাই extraFields ফাঁকা।
+        const result = applySectorIncome(d, dailyIncome, todayKey);
+
         tx.update(payRef, { claimedDays: claimedDays+1, lastClaimDate: todayKey });
-        tx.update(userRef, { balance:newBalance, todayAdIncome:newToday, todayAdIncomeDate:todayKey });
-        savedBalance = newBalance;
-        savedToday = newToday;
+        tx.update(userRef, result.updateFields);
+        savedBalance = result.newBalance;
+        savedTotalToday = result.newTotalToday;
       });
 
       mainBalance = savedBalance;
-      todayAdIncome = savedToday;
+      todayTotalIncome = savedTotalToday;
       if(currentAccountUid()){
         localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()), String(mainBalance));
-        localStorage.setItem(accountKey(AD_INCOME_KEY_BASE,currentAccountUid()), String(todayAdIncome));
+        localStorage.setItem(accountKey(TOTAL_INCOME_KEY_BASE,currentAccountUid()), String(todayTotalIncome));
         localStorage.setItem(accountKey(AD_INCOME_DATE_KEY_BASE,currentAccountUid()), todayKey);
       }
       updateMainBalanceUI();
@@ -2264,6 +2292,7 @@
   const AD_STATE_KEY_BASE = 'mycash_ad_states_v23';
   const AD_INCOME_KEY_BASE = 'mycash_ad_income_v23';
   const AD_INCOME_DATE_KEY_BASE = 'mycash_ad_income_date_v23';
+  const TOTAL_INCOME_KEY_BASE = 'mycash_total_income_v23';
   const MAIN_BALANCE_KEY_BASE = 'mycash_main_balance_v23';
   function accountKey(base, uid){ return `${base}:${uid || 'guest'}`; }
   function currentAccountUid(){ return window.myCashFirebase?.auth?.currentUser?.uid || null; }
@@ -2277,9 +2306,10 @@
   function scopedKey(base){ return accountKey(base, bestKnownUid()); }
   function loadAccountState(){
     const uid=bestKnownUid();
-    if(!uid){ adStates={}; todayAdIncome=0; mainBalance=0; return; }
+    if(!uid){ adStates={}; todayAdIncome=0; todayTotalIncome=0; mainBalance=0; return; }
     try { adStates=JSON.parse(localStorage.getItem(accountKey(AD_STATE_KEY_BASE,uid)) || '{}'); } catch(e){ adStates={}; }
     todayAdIncome=Number(localStorage.getItem(accountKey(AD_INCOME_KEY_BASE,uid)) || 0);
+    todayTotalIncome=Number(localStorage.getItem(accountKey(TOTAL_INCOME_KEY_BASE,uid)) || 0);
     mainBalance=Number(localStorage.getItem(accountKey(MAIN_BALANCE_KEY_BASE,uid)) || 0);
   }
   const AD_COOLDOWN = 24 * 60 * 60 * 1000;
@@ -2304,12 +2334,15 @@
     if(savedKey!==todayKey){
       localStorage.setItem(scopedKey(AD_INCOME_DATE_KEY_BASE),todayKey);
       localStorage.setItem(scopedKey(AD_INCOME_KEY_BASE),'0');
+      localStorage.setItem(scopedKey(TOTAL_INCOME_KEY_BASE),'0');
       todayAdIncome=0;
+      todayTotalIncome=0;
       updateMainBalanceUI();
     }
   }
   const AD_WATCH_SECONDS = 15;
   let todayAdIncome = 0;
+  let todayTotalIncome = 0;
   let mainBalance = 0;
   let countdownIntervals = {};
   let adStates = {};
@@ -2329,7 +2362,7 @@
   function updateMainBalanceUI(){
     document.querySelectorAll('.bc-amount').forEach(el => el.textContent = `৳ ${formatMoneyBn(mainBalance)}`);
     document.querySelectorAll('.withdraw-balance-value').forEach(el => el.textContent = `৳ ${formatMoneyBn(mainBalance)}`);
-    document.querySelectorAll('.bc-today-income strong').forEach(el => el.textContent = `৳ ${formatMoneyBn(todayAdIncome)}`);
+    document.querySelectorAll('.bc-today-income strong').forEach(el => el.textContent = `৳ ${formatMoneyBn(todayTotalIncome)}`);
   }
 
   function saveMainBalance(){
@@ -2433,7 +2466,7 @@
       // ডিভাইসে ঢুকলেও ২৪ ঘণ্টার কুলডাউন ঠিকভাবে সার্ভার থেকে যাচাই হবে।
       // users/{uid} rule-এ owner-এর পুরো ডকুমেন্ট read/write অনুমতি আগে থেকেই আছে,
       // তাই এই নতুন ফিল্ডের জন্য আলাদা কোনো rules পরিবর্তন লাগছে না।
-      let saved={balance:0,todayAdIncome:0,claimedAt:Date.now()};
+      let saved={balance:0,todayAdIncome:0,todayIncome:0,claimedAt:Date.now()};
       await fb.db.runTransaction(async tx=>{
         const snap=await tx.get(ref);
         if(!snap.exists) throw new Error('USER_DOC_NOT_FOUND');
@@ -2447,26 +2480,29 @@
           throw new Error('COOLDOWN_ACTIVE');
         }
 
-        const oldBalance=Number(d.balance||0);
-        const oldDate=String(d.todayAdIncomeDate||'');
-        const oldToday=oldDate===todayKey ? Number(d.todayAdIncome||0) : 0;
-        const newBalance=oldBalance+amount;
-        const newToday=oldToday+amount;
+        const oldAdDate=String(d.todayAdIncomeDate||'');
+        const oldAdToday=oldAdDate===todayKey ? Number(d.todayAdIncome||0) : 0;
+        const newAdToday=oldAdToday+amount;
         const nowMs=Date.now();
 
-        // এখন balance/todayAdIncome/date-এর পাশাপাশি এই নির্দিষ্ট এড-স্লটের claim সময়ও লেখা হচ্ছে।
-        tx.update(ref,{
-          balance:newBalance,
-          todayAdIncome:newToday,
+        // এড এই সেক্টরের জন্য কেন্দ্রীয় helper ব্যবহার করা হচ্ছে — এটা balance এবং
+        // হোম স্ক্রিনের সম্মিলিত "আজকের আয়" (todayIncome) আপডেট করে দেয়, আর extraFields
+        // দিয়ে এড-নির্দিষ্ট "এড আয়" কাউন্টার (todayAdIncome) ও এই স্লটের claim সময়ও
+        // একসাথে সেভ হচ্ছে।
+        const result = applySectorIncome(d, amount, todayKey, {
+          todayAdIncome:newAdToday,
           todayAdIncomeDate:todayKey,
           [`adClaims.${adNumber}`]:nowMs
         });
-        saved={balance:newBalance,todayAdIncome:newToday,claimedAt:nowMs};
+
+        tx.update(ref, result.updateFields);
+        saved={balance:result.newBalance,todayAdIncome:newAdToday,todayIncome:result.newTotalToday,claimedAt:nowMs};
       });
 
       // Firebase succeeded. Only now consume the Ad and show success.
       mainBalance=Number(saved.balance||0);
       todayAdIncome=Number(saved.todayAdIncome||0);
+      todayTotalIncome=Number(saved.todayIncome||0);
       state.claimed=true;
       state.ready=false;
       state.claimedAt=Number(saved.claimedAt||Date.now());
@@ -2475,6 +2511,7 @@
       if(currentAccountUid()){
         localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance));
         localStorage.setItem(accountKey(AD_INCOME_KEY_BASE,currentAccountUid()),String(todayAdIncome));
+        localStorage.setItem(accountKey(TOTAL_INCOME_KEY_BASE,currentAccountUid()),String(todayTotalIncome));
         localStorage.setItem(accountKey(AD_INCOME_DATE_KEY_BASE,currentAccountUid()),todayKey);
       }
       updateMainBalanceUI();
@@ -3317,7 +3354,7 @@ body.logged-out .income-summary{display:none !important;}
       setAuthLoading(true,'অ্যাকাউন্ট তৈরি হচ্ছে...');
       const cred=await auth.createUserWithEmailAndPassword(mobileEmail(mobile),password);
       try{
-        const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+        const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),todayIncome:0,todayIncomeDate:getBangladeshDateKey(),createdAt:firebase.firestore.FieldValue.serverTimestamp()};
         await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
       }catch(profileErr){
         // Never leave a half-created account: if the profile save fails,
@@ -3326,7 +3363,7 @@ body.logged-out .income-summary{display:none !important;}
         throw profileErr;
       }
       localStorage.setItem(PROFILE_KEY,JSON.stringify({firstName,lastName,mobile}));
-      mainBalance=0; todayAdIncome=0; if(currentAccountUid()) localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance)); updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
+      mainBalance=0; todayAdIncome=0; todayTotalIncome=0; if(currentAccountUid()) localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance)); updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
       await wait(250);
       authFlowPending=false;
       setAuthLoading(false);
@@ -3360,7 +3397,7 @@ body.logged-out .income-summary{display:none !important;}
     if(currentAccountUid()) localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance));
     updateMainBalanceUI();
     const u=auth.currentUser;
-    if(u) db.collection('users').doc(u.uid).set({balance:Number(mainBalance),todayAdIncome:Number(todayAdIncome||0)},{merge:true}).catch(()=>{});
+    if(u) db.collection('users').doc(u.uid).set({balance:Number(mainBalance),todayAdIncome:Number(todayAdIncome||0),todayIncome:Number(todayTotalIncome||0)},{merge:true}).catch(()=>{});
   };
 
   const oldSubmitPayment=window.submitPayment;
@@ -3448,6 +3485,7 @@ body.logged-out .income-summary{display:none !important;}
       if(uid){
         localStorage.removeItem(accountKey(MAIN_BALANCE_KEY_BASE,uid));
         localStorage.removeItem(accountKey(AD_INCOME_KEY_BASE,uid));
+        localStorage.removeItem(accountKey(TOTAL_INCOME_KEY_BASE,uid));
         localStorage.removeItem(accountKey(AD_STATE_KEY_BASE,uid));
       }
     }catch(e){}
@@ -3482,7 +3520,9 @@ body.logged-out .income-summary{display:none !important;}
       if(currentAccountUid()) localStorage.removeItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()));
       mainBalance=0;
       todayAdIncome=0;
+      todayTotalIncome=0;
       localStorage.setItem(scopedKey(AD_INCOME_KEY_BASE),'0');
+      localStorage.setItem(scopedKey(TOTAL_INCOME_KEY_BASE),'0');
       updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary();
       if(!document.getElementById('home-screen')?.classList.contains('visible')) showScreen('home-screen');
       if(authFlowPending){
@@ -3549,17 +3589,23 @@ body.logged-out .income-summary{display:none !important;}
         d=snap.data() || {};
       }else{
         // এই পয়েন্টে সার্ভার নিজে নিশ্চিত করেছে যে ডকুমেন্ট নেই — তাই এখন নতুন প্রোফাইল বানানো নিরাপদ।
-        d={uid:user.uid,firstName:user.displayName||'',lastName:'',mobile:'',balance:0,todayAdIncome:0,todayAdIncomeDate:todayKey};
+        d={uid:user.uid,firstName:user.displayName||'',lastName:'',mobile:'',balance:0,todayAdIncome:0,todayAdIncomeDate:todayKey,todayIncome:0,todayIncomeDate:todayKey};
         await ref.set({...d,createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
       }
       mainBalance=Number(d.balance||0);
       const storedIncomeDate=d.todayAdIncomeDate || '';
       todayAdIncome = storedIncomeDate===todayKey ? Number(d.todayAdIncome||0) : 0;
-      if(storedIncomeDate!==todayKey){
-        await ref.set({todayAdIncome:0,todayAdIncomeDate:todayKey},{merge:true});
+      const storedTotalIncomeDate=d.todayIncomeDate || '';
+      todayTotalIncome = storedTotalIncomeDate===todayKey ? Number(d.todayIncome||0) : 0;
+      const resetFields={};
+      if(storedIncomeDate!==todayKey){ resetFields.todayAdIncome=0; resetFields.todayAdIncomeDate=todayKey; }
+      if(storedTotalIncomeDate!==todayKey){ resetFields.todayIncome=0; resetFields.todayIncomeDate=todayKey; }
+      if(Object.keys(resetFields).length){
+        await ref.set(resetFields,{merge:true});
       }
       if(currentAccountUid()) localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance));
       if(currentAccountUid()) localStorage.setItem(accountKey(AD_INCOME_KEY_BASE,currentAccountUid()),String(todayAdIncome));
+      if(currentAccountUid()) localStorage.setItem(accountKey(TOTAL_INCOME_KEY_BASE,currentAccountUid()),String(todayTotalIncome));
       localStorage.setItem(scopedKey(AD_INCOME_DATE_KEY_BASE),todayKey);
       const profileData={firstName:d.firstName||'',lastName:d.lastName||'',mobile:d.mobile||''};
       localStorage.setItem(PROFILE_KEY,JSON.stringify(profileData));
@@ -3678,9 +3724,11 @@ body.logged-out .income-summary{display:none !important;}
     resetDailyIncomeIfNeeded();
     if(before!==localStorage.getItem(scopedKey(AD_INCOME_DATE_KEY_BASE))){
       todayAdIncome=0;
+      todayTotalIncome=0;
       updateIncomeSummary();
+      updateMainBalanceUI();
       const u=auth.currentUser;
-      if(u) db.collection('users').doc(u.uid).set({todayAdIncome:0},{merge:true}).catch(()=>{});
+      if(u) db.collection('users').doc(u.uid).set({todayAdIncome:0,todayIncome:0},{merge:true}).catch(()=>{});
     }
   },60000);
 
@@ -3697,6 +3745,7 @@ body.logged-out .income-summary{display:none !important;}
       localStorage.removeItem(LAST_UID_KEY);
       await auth.signOut();
       mainBalance=0;
+      todayTotalIncome=0;
       resetDailyIncomeIfNeeded();
       updateLoggedInHeader(null); updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary();
       showScreen('home-screen');
