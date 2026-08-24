@@ -1300,6 +1300,18 @@
 
 </head>
 <body>
+<script>
+  // রেফার লিংক দিয়ে কেউ এলে (?ref=CODE), সেই কোডটা রেজিস্ট্রেশন হওয়া পর্যন্ত
+  // localStorage-এ মনে রাখা হচ্ছে — যাতে ইউজার সাথে সাথে রেজিস্টার না করে
+  // অন্য পেজ ঘুরে এসেও রেফারারকে ঠিকভাবে ক্রেডিট দেওয়া যায়।
+  (function(){
+    try{
+      const params = new URLSearchParams(window.location.search);
+      const refCode = (params.get('ref') || '').trim().toUpperCase();
+      if(refCode) localStorage.setItem('mycash_pending_ref', refCode);
+    }catch(e){}
+  })();
+</script>
 
 <div class="phone">
 
@@ -1588,12 +1600,12 @@
         <div class="refer-stat">
           <div class="refer-stat-icon">👥</div>
           <div class="refer-stat-label">মোট রেফার</div>
-          <div class="refer-stat-value">০</div>
+          <div class="refer-stat-value" id="refer-total-count">০</div>
         </div>
         <div class="refer-stat">
           <div class="refer-stat-icon">৳</div>
           <div class="refer-stat-label">মোট রেফারকৃত আয়</div>
-          <div class="refer-stat-value">৳০</div>
+          <div class="refer-stat-value" id="refer-total-earning">৳০</div>
         </div>
       </div>
 
@@ -1605,7 +1617,8 @@
             class="refer-link-input"
             id="refer-link"
             type="text"
-            value="https://mycash.app/ref/RAFI50"
+            value=""
+            placeholder="লোড হচ্ছে..."
             readonly
           />
           <button class="refer-copy-btn" onclick="copyReferLink()">কপি</button>
@@ -2071,6 +2084,9 @@
     updateBottomNav(id);
     if(id === 'package-screen' && typeof loadActivePackagesFromFirestore === 'function'){
       loadActivePackagesFromFirestore();
+    }
+    if(id === 'refer-screen' && typeof window.ensureReferralCode === 'function'){
+      window.ensureReferralCode();
     }
   }
 
@@ -3704,6 +3720,66 @@ body.logged-out .income-summary{display:none !important;}
   let authFlowPending = false;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+  // ---------- REFER: কনস্ট্যান্ট ও স্টেট ----------
+  // ?ref=CODE দিয়ে এলে সেই কোড এই key-তে localStorage-এ ক্যাশ থাকে (দেখুন <body> শুরুর স্ক্রিপ্ট),
+  // যতক্ষণ না রেজিস্ট্রেশন সম্পন্ন হয়ে referredBy সেট করা হয়।
+  const PENDING_REF_KEY = 'mycash_pending_ref';
+  const REFERRAL_BONUS = 50; // প্রতি সফল রেফারে রেফারারকে যত টাকা বোনাস দেওয়া হবে
+  let currentReferralCode = '';
+  let currentReferralCount = 0;
+  let currentReferralEarnings = 0;
+
+  // ইউজারের uid + নাম থেকে একটা সংক্ষিপ্ত, মোটামুটি পঠনযোগ্য রেফার কোড বানানো হচ্ছে।
+  // uid-এর শেষ অংশ ব্যবহার করার কারণে এটা আলাদাভাবে uniqueness চেক করা ছাড়াই
+  // (Firestore-এ কোনো নতুন query/round-trip ছাড়াই) কার্যত ইউনিক থাকে।
+  function generateReferralCode(uid, firstName){
+    const namePart = String(firstName || 'USER').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4) || 'USER';
+    const uidPart = String(uid || '').replace(/[^a-zA-Z0-9]/g,'').slice(-5).toUpperCase();
+    return namePart + uidPart;
+  }
+
+  function buildReferralLink(code){
+    if(!code) return '';
+    return `${window.location.origin}${window.location.pathname}?ref=${encodeURIComponent(code)}`;
+  }
+
+  function updateReferUI(){
+    const input = document.getElementById('refer-link');
+    if(input) input.value = currentReferralCode ? buildReferralLink(currentReferralCode) : '';
+    const countEl = document.getElementById('refer-total-count');
+    if(countEl) countEl.textContent = Number(currentReferralCount || 0).toLocaleString('bn-BD');
+    const earnEl = document.getElementById('refer-total-earning');
+    if(earnEl) earnEl.textContent = `৳${formatMoneyBn(currentReferralEarnings)}`;
+  }
+
+  // Refer স্ক্রিন খোলার সময় কল হয়। লগইন করা ইউজারের যদি আগে থেকেই রেফার কোড
+  // সেট করা না থাকে (পুরনো অ্যাকাউন্ট), তাহলে একবারই বানিয়ে Firestore-এ সেভ করা হয়।
+  async function ensureReferralCode(){
+    const u = auth.currentUser;
+    if(!u) return;
+    if(currentReferralCode){ updateReferUI(); return; }
+    try{
+      const snap = await db.collection('users').doc(u.uid).get();
+      const d = snap.data() || {};
+      currentReferralCount = Number(d.referralCount || 0);
+      currentReferralEarnings = Number(d.referralEarnings || 0);
+      if(d.referralCode){
+        currentReferralCode = d.referralCode;
+      }else{
+        const p = getProfile() || {};
+        currentReferralCode = generateReferralCode(u.uid, p.firstName);
+        // users doc-এ কোড সেভ + লুকআপযোগ্য referralCodes/{code} ম্যাপিং তৈরি —
+        // দুটোই দরকার (দ্বিতীয়টা ছাড়া অন্য কেউ এই কোড দিয়ে uid খুঁজে পাবে না)।
+        await db.collection('users').doc(u.uid).set({referralCode: currentReferralCode}, {merge:true});
+        await db.collection('referralCodes').doc(currentReferralCode).set({uid: u.uid});
+      }
+    }catch(e){
+      console.error('রেফার কোড লোড/তৈরি করা যায়নি:', e);
+    }
+    updateReferUI();
+  }
+  window.ensureReferralCode = ensureReferralCode;
+
   function setAuthLoading(show, text){
     const overlay=document.getElementById('auth-loading-overlay');
     const label=document.getElementById('auth-loading-text');
@@ -3744,15 +3820,62 @@ body.logged-out .income-summary{display:none !important;}
       authFlowPending=true;
       setAuthLoading(true,'অ্যাকাউন্ট তৈরি হচ্ছে...');
       const cred=await auth.createUserWithEmailAndPassword(mobileEmail(mobile),password);
+      const ownReferralCode = generateReferralCode(cred.user.uid, firstName);
+      // ?ref=CODE দিয়ে কেউ এলে ওই কোডের মালিক (রেফারার) কে, তা এখানে বের করা হচ্ছে।
+      // এই lookup ব্যর্থ হলেও রেজিস্ট্রেশন যেন কোনোভাবেই আটকে না যায়, তাই নিজস্ব try/catch।
+      let referredByUid = null;
       try{
-        const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),todayIncome:0,todayIncomeDate:getBangladeshDateKey(),createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+        const pendingRef = (localStorage.getItem(PENDING_REF_KEY) || '').trim().toUpperCase();
+        if(pendingRef){
+          const codeSnap = await db.collection('referralCodes').doc(pendingRef).get();
+          if(codeSnap.exists && codeSnap.data().uid !== cred.user.uid){
+            referredByUid = codeSnap.data().uid;
+          }
+        }
+      }catch(refLookupErr){
+        console.error('রেফারার খুঁজে পাওয়া যায়নি:', refLookupErr);
+      }
+      try{
+        const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),todayIncome:0,todayIncomeDate:getBangladeshDateKey(),referralCode:ownReferralCode,referredBy:referredByUid,referralCount:0,referralEarnings:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
         await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
+        await db.collection('referralCodes').doc(ownReferralCode).set({uid: cred.user.uid});
       }catch(profileErr){
         // Never leave a half-created account: if the profile save fails,
         // remove the just-created Auth user so the person can cleanly retry.
         try{ await cred.user.delete(); }catch(cleanupErr){}
         throw profileErr;
       }
+      currentReferralCode = ownReferralCode;
+      currentReferralCount = 0;
+      currentReferralEarnings = 0;
+      // প্রোফাইল সফলভাবে তৈরি হয়ে গেছে — এখন referredByUid থাকলে রেফারারকে বোনাস দেওয়া
+      // হচ্ছে। users-এর balance আপডেট আর referrals/{নিজের-uid} তৈরি — দুটোই একই
+      // transaction-এ, যাতে Firestore rules নিশ্চিত করতে পারে এই বোনাস ঠিক একবারই
+      // দেওয়া হয়েছে (দেখুন firestore.rules)। ব্যর্থ হলেও নতুন অ্যাকাউন্ট বাতিল হবে না।
+      if(referredByUid){
+        try{
+          await db.runTransaction(async (tx)=>{
+            const refRef = db.collection('users').doc(referredByUid);
+            const refSnap = await tx.get(refRef);
+            if(!refSnap.exists) return;
+            const rd = refSnap.data() || {};
+            tx.update(refRef,{
+              balance: Number(rd.balance||0) + REFERRAL_BONUS,
+              referralCount: Number(rd.referralCount||0) + 1,
+              referralEarnings: Number(rd.referralEarnings||0) + REFERRAL_BONUS
+            });
+            tx.set(db.collection('referrals').doc(cred.user.uid),{
+              referrerUid: referredByUid,
+              referredUid: cred.user.uid,
+              amount: REFERRAL_BONUS,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          });
+        }catch(bonusErr){
+          console.error('রেফারার বোনাস দেওয়া যায়নি:', bonusErr);
+        }
+      }
+      try{ localStorage.removeItem(PENDING_REF_KEY); }catch(e){}
       localStorage.setItem(PROFILE_KEY,JSON.stringify({firstName,lastName,mobile}));
       mainBalance=0; todayAdIncome=0; todayTotalIncome=0; if(currentAccountUid()) localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance)); updateProfileUI(); updateMainBalanceUI(); updateLoggedInHeader(cred.user, {firstName,lastName,mobile}); showScreen('home-screen');
       await wait(250);
@@ -3912,9 +4035,10 @@ body.logged-out .income-summary{display:none !important;}
       mainBalance=0;
       todayAdIncome=0;
       todayTotalIncome=0;
+      currentReferralCode=''; currentReferralCount=0; currentReferralEarnings=0;
       localStorage.setItem(scopedKey(AD_INCOME_KEY_BASE),'0');
       localStorage.setItem(scopedKey(TOTAL_INCOME_KEY_BASE),'0');
-      updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary();
+      updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary(); updateReferUI();
       if(!document.getElementById('home-screen')?.classList.contains('visible')) showScreen('home-screen');
       if(authFlowPending){
         authFlowPending=false;
@@ -3984,6 +4108,10 @@ body.logged-out .income-summary{display:none !important;}
         await ref.set({...d,createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
       }
       mainBalance=Number(d.balance||0);
+      currentReferralCode = d.referralCode || '';
+      currentReferralCount = Number(d.referralCount||0);
+      currentReferralEarnings = Number(d.referralEarnings||0);
+      updateReferUI();
       const storedIncomeDate=d.todayAdIncomeDate || '';
       todayAdIncome = storedIncomeDate===todayKey ? Number(d.todayAdIncome||0) : 0;
       const storedTotalIncomeDate=d.todayIncomeDate || '';
