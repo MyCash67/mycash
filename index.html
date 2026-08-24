@@ -864,6 +864,18 @@
     background:var(--ink);
     color:var(--paper);
   }
+  .refer-copy-btn:disabled,
+  .refer-share-btn:disabled{
+    background:#c9c9c9;
+    color:#8a8a8a;
+    cursor:not-allowed;
+    opacity:.75;
+  }
+  .share-logo.whatsapp{ background:#25D366; }
+  .share-logo.facebook{ background:#1877F2; }
+  .share-logo.telegram{ background:#229ED9; }
+  .share-logo.sms{ background:var(--ink); }
+  .share-logo.copy{ background:var(--taka); }
   .refer-copy-feedback{
     min-height:16px;
     font-size:11px;
@@ -1621,12 +1633,12 @@
             placeholder="লোড হচ্ছে..."
             readonly
           />
-          <button class="refer-copy-btn" onclick="copyReferLink()">কপি</button>
+          <button class="refer-copy-btn" id="refer-copy-btn" onclick="copyReferLink()" disabled>কপি</button>
         </div>
 
         <div class="refer-copy-feedback" id="refer-copy-feedback"></div>
 
-        <button class="refer-share-btn" onclick="shareReferLink()">↗ শেয়ার করুন</button>
+        <button class="refer-share-btn" id="refer-share-btn" onclick="shareReferLink()" disabled>↗ শেয়ার করুন</button>
       </div>
 
     </div>
@@ -1781,6 +1793,39 @@
 
       <button type="button" class="withdraw-submit" onclick="submitWithdrawal()">উত্তোলন করুন</button>
       <div class="withdraw-note">সর্বনিম্ন ৳৫০০ • সর্বোচ্চ ৳২৫,০০০ • দিনে সর্বোচ্চ ৩ বার</div>
+    </div>
+  </div>
+
+  <!-- REFER SHARE OPTIONS SHEET -->
+  <div class="modal-backdrop" id="refer-share-modal" onclick="closeReferShareModalOnBackdrop(event)">
+    <div class="payment-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div class="sheet-title">কোথায় শেয়ার করবেন?</div>
+        <div class="sheet-sub">আপনার রেফার লিংক বন্ধুদের সাথে শেয়ার করুন</div>
+      </div>
+      <div class="pm-options">
+        <a class="pm-option" id="refer-share-whatsapp" href="#" target="_blank" rel="noopener">
+          <span class="pm-logo share-logo whatsapp">W</span>
+          <span class="pm-name">হোয়াটসঅ্যাপ</span>
+        </a>
+        <a class="pm-option" id="refer-share-telegram" href="#" target="_blank" rel="noopener">
+          <span class="pm-logo share-logo telegram">T</span>
+          <span class="pm-name">টেলিগ্রাম</span>
+        </a>
+        <a class="pm-option" id="refer-share-facebook" href="#" target="_blank" rel="noopener">
+          <span class="pm-logo share-logo facebook">F</span>
+          <span class="pm-name">ফেসবুক</span>
+        </a>
+        <a class="pm-option" id="refer-share-sms" href="#">
+          <span class="pm-logo share-logo sms">SMS</span>
+          <span class="pm-name">এসএমএস</span>
+        </a>
+        <button type="button" class="pm-option" onclick="copyReferLink(); closeReferShareModal();">
+          <span class="pm-logo share-logo copy">🔗</span>
+          <span class="pm-name">লিংক কপি করুন</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -2077,6 +2122,7 @@
     if (typeof closeWithdrawModal === 'function') closeWithdrawModal();
     if (typeof closePaymentModal === 'function') closePaymentModal();
     if (typeof closeContactModal === 'function') closeContactModal();
+    if (typeof closeReferShareModal === 'function') closeReferShareModal();
     document.body.style.overflow = '';
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
     const target = document.getElementById(id);
@@ -3255,6 +3301,7 @@
   function copyReferLink(){
     const input = document.getElementById('refer-link');
     const feedback = document.getElementById('refer-copy-feedback');
+    if(!input || !input.value) return; // লিংক এখনো জেনারেট হয়নি
 
     if(navigator.clipboard && window.isSecureContext){
       navigator.clipboard.writeText(input.value).then(() => {
@@ -3276,22 +3323,55 @@
     window.getSelection()?.removeAllRanges();
   }
 
-  async function shareReferLink(){
-    const link = document.getElementById('refer-link').value;
-    const shareData = {
-      title: 'My Cash',
-      text: 'My Cash-এ যোগ দিন এবং রেফার করে আয় করুন!',
-      url: link
-    };
+  const REFER_SHARE_TEXT = 'My Cash-এ যোগ দিন এবং রেফার করে আয় করুন!';
 
+  async function shareReferLink(){
+    const link = document.getElementById('refer-link')?.value;
+    if(!link) return; // লিংক এখনো জেনারেট হয়নি
+
+    // মোবাইলের নেটিভ শেয়ার শিট (WhatsApp/Messenger/Telegram ইত্যাদি সব একসাথে
+    // দেখায়) থাকলে সেটাই আগে ট্রাই করা হচ্ছে — এটাই সবচেয়ে ভালো অভিজ্ঞতা।
     if(navigator.share){
       try{
-        await navigator.share(shareData);
-      }catch(e){}
-    }else{
-      copyReferLink();
+        await navigator.share({ title:'My Cash', text:REFER_SHARE_TEXT, url:link });
+        return;
+      }catch(e){
+        // ইউজার শেয়ার শিট বন্ধ করে দিলে (AbortError) এখানে চুপচাপ থেমে যাওয়া হয়,
+        // অন্য কোনো এররে (যেমন আসলে সাপোর্টই করে না) নিচের কাস্টম শিট দেখানো হয়।
+        if(e && e.name === 'AbortError') return;
+      }
     }
+    // navigator.share সাপোর্ট না করলে (বেশিরভাগ ডেস্কটপ ব্রাউজার/কিছু in-app
+    // browser), নিজস্ব শেয়ার-অপশন শিট দেখানো হচ্ছে — শুধু কপি করে থেমে যাওয়ার
+    // বদলে, যাতে ইউজার সরাসরি WhatsApp/Telegram/Facebook/SMS-এ শেয়ার করতে পারে।
+    openReferShareModal(link);
   }
+
+  function openReferShareModal(link){
+    const text = REFER_SHARE_TEXT;
+    const encodedLink = encodeURIComponent(link);
+    const encodedText = encodeURIComponent(text + ' ' + link);
+    const wa = document.getElementById('refer-share-whatsapp');
+    const tg = document.getElementById('refer-share-telegram');
+    const fb = document.getElementById('refer-share-facebook');
+    const sms = document.getElementById('refer-share-sms');
+    if(wa) wa.href = `https://wa.me/?text=${encodedText}`;
+    if(tg) tg.href = `https://t.me/share/url?url=${encodedLink}&text=${encodeURIComponent(text)}`;
+    if(fb) fb.href = `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`;
+    if(sms) sms.href = `sms:?body=${encodedText}`;
+    const modal = document.getElementById('refer-share-modal');
+    if(modal){ modal.classList.add('visible'); document.body.style.overflow = 'hidden'; }
+  }
+
+  function closeReferShareModal(){
+    const modal = document.getElementById('refer-share-modal');
+    if(modal){ modal.classList.remove('visible'); document.body.style.overflow = ''; }
+  }
+
+  function closeReferShareModalOnBackdrop(e){
+    if(e.target.id === 'refer-share-modal') closeReferShareModal();
+  }
+
 
   // ---------- PAYMENT MODAL ----------
   let pendingPackage = null;
@@ -3750,6 +3830,13 @@ body.logged-out .income-summary{display:none !important;}
     if(countEl) countEl.textContent = Number(currentReferralCount || 0).toLocaleString('bn-BD');
     const earnEl = document.getElementById('refer-total-earning');
     if(earnEl) earnEl.textContent = `৳${formatMoneyBn(currentReferralEarnings)}`;
+    // যতক্ষণ লিংক জেনারেট না হয় (currentReferralCode খালি), ততক্ষণ কপি/শেয়ার
+    // বাটন ধূসর ও নিষ্ক্রিয় থাকবে — লোডিং অবস্থায় ভুল/খালি লিংক কপি/শেয়ার হওয়া আটকাতে।
+    const copyBtn = document.getElementById('refer-copy-btn');
+    const shareBtn = document.getElementById('refer-share-btn');
+    const ready = !!currentReferralCode;
+    if(copyBtn) copyBtn.disabled = !ready;
+    if(shareBtn) shareBtn.disabled = !ready;
   }
 
   // Refer স্ক্রিন খোলার সময় কল হয়। লগইন করা ইউজারের যদি আগে থেকেই রেফার কোড
