@@ -4194,9 +4194,15 @@ body.logged-out .income-summary{display:none !important;}
       if(snap.exists){
         d=snap.data() || {};
       }else{
-        // এই পয়েন্টে সার্ভার নিজে নিশ্চিত করেছে যে ডকুমেন্ট নেই — তাই এখন নতুন প্রোফাইল বানানো নিরাপদ।
-        d={uid:user.uid,firstName:user.displayName||'',lastName:'',mobile:'',balance:0,todayAdIncome:0,todayAdIncomeDate:todayKey,todayIncome:0,todayIncomeDate:todayKey};
-        await ref.set({...d,createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+        // সার্ভার নিশ্চিত করেছে এই uid-এর users/ ডকুমেন্ট নেই। এই অ্যাপে রেজিস্ট্রেশনের
+        // সময় (handleRegistration) সবসময় সাথে সাথেই users doc বানানো হয় — তাই এখানে
+        // doc না থাকার মানে এই uid আসলে main website-এ কখনো register-ই হয়নি
+        // (যেমন: admin panel-এর অ্যাডমিন uid, একই ব্রাউজারে অন্য কোনো stray/foreign
+        // Firebase session)। আগে এখানে চুপচাপ একটা ফাঁকা প্রোফাইল বানিয়ে ফেলা হতো —
+        // এটাই "ব্ল্যাংক অ্যাকাউন্ট" bug-এর মূল কারণ ছিল (বিশেষত admin panel লগইন করলে)।
+        // তাই এখন ফাঁকা প্রোফাইল না বানিয়ে সরাসরি logout করে দেওয়া হচ্ছে।
+        await forceLogoutBrokenAccount('server confirmed no users/doc for this uid — not a real registered account on this site');
+        return;
       }
       mainBalance=Number(d.balance||0);
       currentReferralCode = d.referralCode || '';
