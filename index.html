@@ -3449,6 +3449,21 @@ body.logged-out .income-summary{display:none !important;}
   auth.onAuthStateChanged(async function(user){
     updateLoggedInHeader(user, user ? getProfile() : null);
     if(!user){
+      // Firebase নিজে থেকে user=null পাঠালেই সেটা সবসময় real/ইচ্ছাকৃত logout নয়।
+      // দীর্ঘক্ষণ ব্যাকগ্রাউন্ডে থাকা ট্যাব, in-app browser, বা দুর্বল/পরিবর্তিত নেটওয়ার্কে
+      // অনেক সময় Firebase Auth নিজেই আগের session সঠিকভাবে restore করতে ব্যর্থ হয় —
+      // অথচ ইউজার আসলে লগইন অবস্থাতেই ছিল এবং localStorage-এ তার আগের নাম/মোবাইল
+      // (PROFILE_KEY) ক্যাশ করা থেকে যায়। আগে এই মুহূর্তে সরাসরি সব মুছে ব্যালেন্স/নাম/
+      // মোবাইল blank দেখিয়ে দেওয়া হতো — এটাই মূল bug ছিল।
+      // এখন: যদি PROFILE_KEY-তে আগের ক্যাশ করা প্রোফাইল থেকে যায়, তার মানে এটা একটা
+      // সন্দেহজনক/অপ্রত্যাশিত session-loss — তাই blank দেখানোর বদলে forceLogoutBrokenAccount()
+      // দিয়ে সরাসরি স্পষ্ট বার্তাসহ login স্ক্রিনে পাঠিয়ে দেওয়া হচ্ছে। প্রকৃত ইচ্ছাকৃত logout-এ
+      // (profileLogout / forceLogoutBrokenAccount নিজে) PROFILE_KEY আগেই মুছে ফেলা হয়, তাই
+      // তখন এই চেক normal (guest) অবস্থাতেই যাবে, কোনো ডাবল-রিডাইরেক্ট হবে না।
+      if(getProfile()){
+        await forceLogoutBrokenAccount('auth/user=null but cached profile still existed (likely lost session, not a real logout)');
+        return;
+      }
       localStorage.removeItem(PROFILE_KEY);
       if(currentAccountUid()) localStorage.removeItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()));
       mainBalance=0;
