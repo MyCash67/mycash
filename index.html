@@ -2267,9 +2267,16 @@
   const MAIN_BALANCE_KEY_BASE = 'mycash_main_balance_v23';
   function accountKey(base, uid){ return `${base}:${uid || 'guest'}`; }
   function currentAccountUid(){ return window.myCashFirebase?.auth?.currentUser?.uid || null; }
-  function scopedKey(base){ return accountKey(base, currentAccountUid()); }
+  // পেজ reload হওয়ার সাথে সাথেই এই স্ক্রিপ্ট চলে — কিন্তু Firebase SDK (gstatic.com থেকে)
+  // load হতে ও session restore হতে কিছুটা সময় লাগে। ততক্ষণ currentAccountUid() সবসময়
+  // null থাকে, ফলে আগে balance/নাম/মোবাইল সাময়িকভাবে 0/blank দেখানো হতো — এটাই মূল bug।
+  // এখন শেষবার লগইন করা uid আলাদাভাবে (Firebase ছাড়াই পড়া যায় এমন) LAST_UID_KEY-তে
+  // রাখা হচ্ছে, যাতে Firebase load হওয়ার আগেই ক্যাশ করা তথ্য সাথে সাথে দেখানো যায়।
+  const LAST_UID_KEY = 'mycash_last_uid_v1';
+  function bestKnownUid(){ return currentAccountUid() || localStorage.getItem(LAST_UID_KEY) || null; }
+  function scopedKey(base){ return accountKey(base, bestKnownUid()); }
   function loadAccountState(){
-    const uid=currentAccountUid();
+    const uid=bestKnownUid();
     if(!uid){ adStates={}; todayAdIncome=0; mainBalance=0; return; }
     try { adStates=JSON.parse(localStorage.getItem(accountKey(AD_STATE_KEY_BASE,uid)) || '{}'); } catch(e){ adStates={}; }
     todayAdIncome=Number(localStorage.getItem(accountKey(AD_INCOME_KEY_BASE,uid)) || 0);
@@ -2308,6 +2315,12 @@
   let adStates = {};
   loadAccountState();
   resetDailyIncomeIfNeeded();
+  // Firebase load হওয়ার জন্য অপেক্ষা না করেই, localStorage-এ যা ক্যাশ আছে তা দিয়ে
+  // সাথে সাথে UI paint করা হচ্ছে — এতে reload/tab-switch এর পরে ফিরে আসার মুহূর্তে
+  // নাম/মোবাইল/ব্যালেন্স আর blank বা ০ দেখাবে না, বরং আগের মতোই দেখাবে (নেটওয়ার্ক ফিরলে
+  // Firebase নিজে থেকেই আসল/হালনাগাদ তথ্য দিয়ে এটা যাচাই ও রিফ্রেশ করে নেবে)।
+  if(typeof updateProfileUI==='function') updateProfileUI();
+  if(typeof updateMainBalanceUI==='function') updateMainBalanceUI();
 
   function formatMoneyBn(amount){
     return Number(amount || 0).toLocaleString('bn-BD');
@@ -3428,9 +3441,10 @@ body.logged-out .income-summary{display:none !important;}
   // সরাসরি লগআউট করে লগইন স্ক্রিনে পাঠানো হচ্ছে, যাতে আবার লগইন করে ঠিক তথ্য পান।
   async function forceLogoutBrokenAccount(reason){
     console.error('Forcing logout — account state could not be determined:', reason);
-    const uid=currentAccountUid();
+    const uid=currentAccountUid() || localStorage.getItem(LAST_UID_KEY);
     try{
       localStorage.removeItem(PROFILE_KEY);
+      localStorage.removeItem(LAST_UID_KEY);
       if(uid){
         localStorage.removeItem(accountKey(MAIN_BALANCE_KEY_BASE,uid));
         localStorage.removeItem(accountKey(AD_INCOME_KEY_BASE,uid));
@@ -3478,6 +3492,9 @@ body.logged-out .income-summary{display:none !important;}
       return;
     }
     try{
+      // পরের বার পেজ লোড হওয়ার সময় (Firebase রেডি হওয়ার আগেই) ক্যাশ করা তথ্য দেখানোর
+      // জন্য এই uid-টা মনে রাখা হচ্ছে — দেখুন bestKnownUid()/LAST_UID_KEY এর কমেন্ট।
+      localStorage.setItem(LAST_UID_KEY, user.uid);
       // Switch all local UI state to this Firebase account. Never reuse another account's ad claims.
       loadAccountState();
       // দুর্বল নেটওয়ার্কে সার্ভার থেকে ডেটা আসার আগ পর্যন্ত, localStorage-এ যা ক্যাশ করা আছে
@@ -3672,9 +3689,13 @@ body.logged-out .income-summary{display:none !important;}
     try{
       setAuthLoading(true,'লগআউট হচ্ছে...');
       const started=Date.now();
-      await auth.signOut();
-      localStorage.removeItem(PROFILE_KEY);
+      // signOut()-এর আগেই PROFILE_KEY/LAST_UID_KEY মুছে ফেলা হচ্ছে — এতে signOut() সম্পন্ন
+      // হয়ে onAuthStateChanged(null) ট্রিগার হওয়ার সময় সেই handler ভুল করে এই স্বাভাবিক,
+      // ইচ্ছাকৃত logout-কে "session হারিয়ে গেছে" ভেবে forceLogoutBrokenAccount() চালাবে না।
       if(currentAccountUid()) localStorage.removeItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()));
+      localStorage.removeItem(PROFILE_KEY);
+      localStorage.removeItem(LAST_UID_KEY);
+      await auth.signOut();
       mainBalance=0;
       resetDailyIncomeIfNeeded();
       updateLoggedInHeader(null); updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary();
