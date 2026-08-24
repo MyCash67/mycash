@@ -245,6 +245,11 @@
   /* Logged-out obosthay checkin button-er jaygay kichu dekhabe na */
   body.logged-out #checkin-btn{ display:none; }
 
+  /* ---------- Social task (YouTube/Telegram/Facebook) button states ---------- */
+  .task-btn.claim{ background:var(--gold); color:#fff; }
+  .task-btn.done{ background:var(--taka-soft); color:var(--taka-deep); }
+  .task-btn:disabled{ opacity:.82; cursor:not-allowed; }
+
   .status-card{ text-align:center; }
   .status-icon{
     width:50px; height:50px; border-radius:50%;
@@ -1360,37 +1365,37 @@
           <button class="task-btn checkin" id="checkin-btn" onclick="claimCheckin()">ক্লেইম করুন</button>
         </div>
 
-        <div class="task-row">
+        <div class="task-row" id="social-row-telegram">
           <div class="task-icon tg">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M21.5 3.5L2.7 10.9c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.9 5.7c.2.5.4.7.9.7.4 0 .6-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.7l3-14.1c.3-1.2-.4-1.6-1.9-1.6z" fill="#28A7E8"/><path d="M9 15.5l9.5-8.5c.4-.4 0-.6-.4-.3L7.5 13.8l-.5 3.8c.4 0 .6-.2.8-.5z" fill="#fff"/></svg>
           </div>
           <div class="task-body">
             <div class="task-title">টেলিগ্রাম চ্যানেলে জয়েন করুন</div>
-            <div class="task-reward">+৳১০ পুরস্কার</div>
+            <div class="task-reward">+৳৫ পুরস্কার</div>
           </div>
-          <button class="task-btn tg">জয়েন করুন</button>
+          <button class="task-btn tg" id="social-btn-telegram" onclick="handleSocialTaskClick('telegram')">জয়েন করুন</button>
         </div>
 
-        <div class="task-row">
+        <div class="task-row" id="social-row-youtube">
           <div class="task-icon yt">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="1" y="5" width="22" height="14" rx="4" fill="#E14538"/><path d="M10 8.5L16 12L10 15.5V8.5Z" fill="#fff"/></svg>
           </div>
           <div class="task-body">
             <div class="task-title">ইউটিউব চ্যানেল সাবস্ক্রাইব করুন</div>
-            <div class="task-reward">+৳১৫ পুরস্কার</div>
+            <div class="task-reward">+৳৫ পুরস্কার</div>
           </div>
-          <button class="task-btn yt">সাবস্ক্রাইব</button>
+          <button class="task-btn yt" id="social-btn-youtube" onclick="handleSocialTaskClick('youtube')">সাবস্ক্রাইব</button>
         </div>
 
-        <div class="task-row">
+        <div class="task-row" id="social-row-facebook">
           <div class="task-icon fb">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#3B5FA6"/><path d="M14 8.5h1.7V6h-1.9c-2 0-3 1.1-3 3.1V11H9v2.5h1.8V19h2.6v-5.5h1.9L15.7 11h-2.3V9.3c0-.5.2-.8.6-.8z" fill="#fff"/></svg>
           </div>
           <div class="task-body">
             <div class="task-title">ফেসবুক পেজ ফলো করুন</div>
-            <div class="task-reward">+৳১০ পুরস্কার</div>
+            <div class="task-reward">+৳৫ পুরস্কার</div>
           </div>
-          <button class="task-btn fb">ফলো করুন</button>
+          <button class="task-btn fb" id="social-btn-facebook" onclick="handleSocialTaskClick('facebook')">ফলো করুন</button>
         </div>
 
       </div>
@@ -2799,6 +2804,220 @@
   }
   window.claimCheckin=claimCheckin;
 
+  // ================= SOCIAL TASKS (YouTube / Telegram / Facebook) =================
+  // Admin panel (admin.html) → Social Task অপশনে যে লিংক সেভ করা হয়, সেটা Firestore-এর
+  // settings/public ডকুমেন্টের social ফিল্ডে থাকে। এখানে সেটা লোড করে বাটনে জোড়া হচ্ছে।
+  // ক্লেইম করা হয় Firestore-ভিত্তিক (একবারই claim করা যায়, প্রতিদিন না) — লোকাল স্টেট শুধু
+  // UI ক্যাশ, আসল সত্য সবসময় ইউজার ডকুমেন্টের socialTasksClaimed ফিল্ড।
+  const SOCIAL_PLATFORMS = ['telegram','youtube','facebook'];
+  const SOCIAL_TASK_REWARD = 5;
+  const SOCIAL_WATCH_SECONDS = 15;
+  const SOCIAL_STATE_KEY_BASE = 'mycash_social_state_v1';
+  const SOCIAL_BTN_TEXT = { telegram:'জয়েন করুন', youtube:'সাবস্ক্রাইব', facebook:'ফলো করুন' };
+  let socialLinks = { telegram:'', youtube:'', facebook:'' };
+  let socialTaskStates = {};
+  let socialCountdownIntervals = {};
+
+  function socialBtnColorClass(platform){
+    return platform==='telegram' ? 'tg' : platform==='youtube' ? 'yt' : 'fb';
+  }
+
+  function loadSocialLocalCache(){
+    const uid=bestKnownUid();
+    if(!uid){ socialTaskStates={}; return; }
+    try{ socialTaskStates=JSON.parse(localStorage.getItem(accountKey(SOCIAL_STATE_KEY_BASE,uid)) || '{}') || {}; }
+    catch(e){ socialTaskStates={}; }
+  }
+  loadSocialLocalCache();
+
+  function saveSocialTaskStates(){
+    if(currentAccountUid()) localStorage.setItem(accountKey(SOCIAL_STATE_KEY_BASE,currentAccountUid()), JSON.stringify(socialTaskStates));
+  }
+
+  // settings/public পাবলিকভাবে readable (লগইন ছাড়াও), তাই পেজ লোড হওয়ার সাথে সাথেই
+  // লিংক লোড হয়ে বাটনে বসে যায় — ইউজার লগইন করুক বা না করুক।
+  async function loadSocialLinksFromFirestore(){
+    try{
+      const fb=window.myCashFirebase;
+      if(!fb || !fb.db) return;
+      const snap=await fb.db.collection('settings').doc('public').get();
+      const data=snap.exists ? (snap.data()||{}) : {};
+      socialLinks=Object.assign({telegram:'',youtube:'',facebook:''}, data.social||{});
+    }catch(e){
+      console.error('Social task links load failed:', e);
+    }
+    SOCIAL_PLATFORMS.forEach(applySocialLinkAvailability);
+  }
+
+  function applySocialLinkAvailability(platform){
+    const row=document.getElementById('social-row-'+platform);
+    if(!row) return;
+    // এডমিন এখনো লিংক না দিলে টাস্কটা লুকিয়ে রাখা হচ্ছে — খালি লিংকে ক্লিক করে
+    // ভুয়া ক্লেইম করার সুযোগ যেন না থাকে।
+    row.style.display = socialLinks[platform] ? '' : 'none';
+  }
+
+  function setSocialBtnDefault(platform){
+    const btn=document.getElementById('social-btn-'+platform);
+    if(!btn) return;
+    if(socialCountdownIntervals[platform]){ clearInterval(socialCountdownIntervals[platform]); delete socialCountdownIntervals[platform]; }
+    btn.disabled=false;
+    btn.className='task-btn '+socialBtnColorClass(platform);
+    btn.textContent=SOCIAL_BTN_TEXT[platform];
+  }
+
+  function setSocialBtnClaim(platform){
+    const btn=document.getElementById('social-btn-'+platform);
+    if(!btn) return;
+    if(socialCountdownIntervals[platform]){ clearInterval(socialCountdownIntervals[platform]); delete socialCountdownIntervals[platform]; }
+    btn.disabled=false;
+    btn.className='task-btn '+socialBtnColorClass(platform)+' claim';
+    btn.textContent=`৳${SOCIAL_TASK_REWARD} ক্লেইম`;
+  }
+
+  function setSocialBtnDone(platform){
+    const btn=document.getElementById('social-btn-'+platform);
+    if(!btn) return;
+    if(socialCountdownIntervals[platform]){ clearInterval(socialCountdownIntervals[platform]); delete socialCountdownIntervals[platform]; }
+    btn.disabled=true;
+    btn.className='task-btn done';
+    btn.textContent='✓ সম্পন্ন';
+  }
+
+  function finishSocialWatch(platform){
+    const state=socialTaskStates[platform];
+    if(!state || state.claimed) return;
+    state.ready=true;
+    saveSocialTaskStates();
+    setSocialBtnClaim(platform);
+  }
+
+  function startSocialWatchCountdown(platform){
+    const btn=document.getElementById('social-btn-'+platform);
+    if(!btn) return;
+    if(socialCountdownIntervals[platform]) clearInterval(socialCountdownIntervals[platform]);
+    const state=socialTaskStates[platform];
+    let remaining=Math.max(1, SOCIAL_WATCH_SECONDS - Math.floor((Date.now()-(state?.startedAt||Date.now()))/1000));
+    btn.disabled=true;
+    btn.className='task-btn '+socialBtnColorClass(platform);
+    btn.textContent=`${remaining} সেকেন্ড`;
+    socialCountdownIntervals[platform]=setInterval(()=>{
+      remaining--;
+      if(remaining<=0){
+        clearInterval(socialCountdownIntervals[platform]);
+        delete socialCountdownIntervals[platform];
+        finishSocialWatch(platform);
+      }else{
+        btn.textContent=`${remaining} সেকেন্ড`;
+      }
+    },1000);
+  }
+
+  function restoreSocialTaskStates(){
+    SOCIAL_PLATFORMS.forEach(platform=>{
+      const btn=document.getElementById('social-btn-'+platform);
+      if(!btn) return;
+      const state=socialTaskStates[platform];
+      if(state && state.claimed){
+        setSocialBtnDone(platform);
+      }else if(state && state.ready){
+        setSocialBtnClaim(platform);
+      }else if(state && state.startedAt && (Date.now()-state.startedAt) < SOCIAL_WATCH_SECONDS*1000){
+        startSocialWatchCountdown(platform);
+      }else if(state && state.startedAt){
+        finishSocialWatch(platform);
+      }else{
+        setSocialBtnDefault(platform);
+      }
+    });
+  }
+  document.addEventListener('DOMContentLoaded', restoreSocialTaskStates);
+
+  async function handleSocialTaskClick(platform){
+    const fb=window.myCashFirebase;
+    const u=fb?.auth?.currentUser;
+    if(!u){
+      if(window.myCashRequireLogin) await window.myCashRequireLogin();
+      return;
+    }
+    const link=socialLinks[platform];
+    if(!link){ alert('এই টাস্কের লিংক এখনো যোগ করা হয়নি। একটু পরে আবার চেষ্টা করুন।'); return; }
+    const state=socialTaskStates[platform];
+    if(state && state.claimed) return;
+    if(state && state.ready){
+      claimSocialTask(platform);
+      return;
+    }
+    // লিংকটা নতুন ট্যাবে খোলা হচ্ছে, যাতে ইউজার চ্যানেলে জয়েন/সাবস্ক্রাইব/ফলো করার
+    // সুযোগ পান — এর পরই ১৫ সেকেন্ড পর ক্লেইম বাটন সক্রিয় হবে।
+    window.open(link, '_blank', 'noopener');
+    socialTaskStates[platform]={ startedAt:Date.now(), ready:false, claimed:false };
+    saveSocialTaskStates();
+    startSocialWatchCountdown(platform);
+  }
+  window.handleSocialTaskClick = handleSocialTaskClick;
+
+  async function claimSocialTask(platform){
+    const btn=document.getElementById('social-btn-'+platform);
+    const fb=window.myCashFirebase;
+    const u=fb?.auth?.currentUser;
+    if(!u){
+      if(window.myCashRequireLogin) await window.myCashRequireLogin();
+      return;
+    }
+    const state=socialTaskStates[platform];
+    if(!state || !state.ready || state.claimed || !btn) return;
+
+    const todayKey=getBangladeshDateKey();
+    const ref=fb.db.collection('users').doc(u.uid);
+    const originalText=btn.textContent;
+    btn.disabled=true;
+    btn.textContent='ক্লেইম হচ্ছে...';
+
+    try{
+      let saved={balance:0,todayIncome:0};
+      await fb.db.runTransaction(async tx=>{
+        const snap=await tx.get(ref);
+        if(!snap.exists) throw new Error('USER_DOC_NOT_FOUND');
+        const d=snap.data()||{};
+
+        // সার্ভারে থাকা socialTasksClaimed-ই আসল সত্য — এই টাস্ক একবারই claim করা যাবে।
+        const claimedMap=d.socialTasksClaimed||{};
+        if(claimedMap[platform]) throw new Error('ALREADY_CLAIMED');
+
+        const result=applySectorIncome(d, SOCIAL_TASK_REWARD, todayKey, {
+          [`socialTasksClaimed.${platform}`]:true
+        });
+        tx.update(ref, result.updateFields);
+        saved={balance:result.newBalance, todayIncome:result.newTotalToday};
+      });
+
+      mainBalance=Number(saved.balance||0);
+      todayTotalIncome=Number(saved.todayIncome||0);
+      socialTaskStates[platform]={ startedAt:state.startedAt, ready:false, claimed:true };
+      saveSocialTaskStates();
+      if(currentAccountUid()){
+        localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance));
+        localStorage.setItem(accountKey(TOTAL_INCOME_KEY_BASE,currentAccountUid()),String(todayTotalIncome));
+      }
+      updateMainBalanceUI();
+      updateIncomeSummary();
+      setSocialBtnDone(platform);
+    }catch(e){
+      console.error('Social task claim failed:',e);
+      if(String(e && e.message)==='ALREADY_CLAIMED'){
+        // অন্য ডিভাইসে আগেই claim হয়ে গেছে — লোকাল স্টেট সার্ভারের সাথে মিলিয়ে নেওয়া হচ্ছে।
+        socialTaskStates[platform]={ startedAt:state.startedAt, ready:false, claimed:true };
+        saveSocialTaskStates();
+        setSocialBtnDone(platform);
+        return;
+      }
+      btn.disabled=false;
+      btn.textContent=originalText;
+    }
+  }
+  window.claimSocialTask = claimSocialTask;
+
   // ---------- PACKAGE LIST (loaded from Firestore, managed via admin panel) ----------
   // আগে ১০টা প্যাকেজ কার্ড এখানেই হার্ডকোড করা ছিল। এখন এগুলো Firestore-এর
   // packages কালেকশন থেকে লোড হয়, তাই অ্যাডমিন প্যানেল থেকে যোগ/এডিট/ডিলিট
@@ -3479,6 +3698,9 @@ body.logged-out .income-summary{display:none !important;}
   }
   const auth = firebase.auth();
   window.myCashFirebase = {db, auth};
+  // settings/public পাবলিক ডকুমেন্ট — লগইন অবস্থার জন্য অপেক্ষা না করেই সরাসরি লোড করা হচ্ছে,
+  // যাতে লগইন করা না থাকলেও Social Task বাটনগুলো এডমিনের দেওয়া লিংক নিয়ে ঠিকভাবে কাজ করে।
+  loadSocialLinksFromFirestore();
   let authFlowPending = false;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -3815,6 +4037,19 @@ body.logged-out .income-summary{display:none !important;}
       }
       saveCheckinState();
       restoreCheckinState();
+
+      // ---- Firestore-এর socialTasksClaimed দিয়ে লোকাল socialTaskStates সিঙ্ক করা ----
+      // এটাও ওয়ানটাইম টাস্ক — সার্ভারে claimed:true থাকলে সেটাই আসল সত্য, অন্য
+      // ডিভাইস/ব্রাউজারে গেলেও আগে থেকে ক্লেইম করা টাস্ক আবার দেখাবে না।
+      const serverSocialClaims=d.socialTasksClaimed||{};
+      SOCIAL_PLATFORMS.forEach(function(platform){
+        if(serverSocialClaims[platform]){
+          socialTaskStates[platform]={ startedAt:(socialTaskStates[platform]||{}).startedAt||Date.now(), ready:false, claimed:true };
+        }
+      });
+      saveSocialTaskStates();
+      restoreSocialTaskStates();
+      loadSocialLinksFromFirestore();
 
       restoreAdStates();
       // Always repaint the visible UI after Firebase data is loaded.
