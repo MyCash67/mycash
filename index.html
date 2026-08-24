@@ -2118,19 +2118,18 @@
         return tb - ta;
       });
       list.innerHTML = '';
-      const MS_PER_DAY = 24*60*60*1000;
       for(const doc of docs){
         let p = doc.data();
 
         // প্যাকেজ approve হওয়ার পর প্রথমবার এখানে দেখানো হলে, মেয়াদ গোনা শুরুর
-        // তারিখ (approvedAt) একবারই Firestore-এ সেভ করে রাখা হয়। এরপর থেকে
-        // ইউজার কোনো দিন claim মিস করলেও, ঠিক এই তারিখ থেকে durationDays
+        // তারিখ (approvedAt + approvedDateKey) একবারই Firestore-এ সেভ করে রাখা হয়।
+        // এরপর থেকে ইউজার কোনো দিন claim মিস করলেও, ঠিক এই তারিখ থেকে durationDays
         // ক্যালেন্ডার দিন পার হলেই প্যাকেজ মেয়াদোত্তীর্ণ ধরা হবে।
         if(!p.approvedAt){
           const approvedAtMs = Date.now();
           try{
-            await doc.ref.update({approvedAt: approvedAtMs});
-            p = {...p, approvedAt: approvedAtMs};
+            await doc.ref.update({approvedAt: approvedAtMs, approvedDateKey: todayKey});
+            p = {...p, approvedAt: approvedAtMs, approvedDateKey: todayKey};
           }catch(err){
             console.error('approvedAt set failed:', err);
           }
@@ -2139,7 +2138,9 @@
         const dailyIncome = Number(p.dailyIncome||0);
         const durationDays = Number(p.durationDays||0);
         const approvedAt = Number(p.approvedAt||0);
-        const elapsedDays = approvedAt ? Math.floor((Date.now()-approvedAt)/MS_PER_DAY) : 0;
+        // approvedDateKey না থাকলে (পুরোনো ডকুমেন্ট) approvedAt থেকে তারিখ বের করে নেওয়া হয়।
+        const approvedDateKey = p.approvedDateKey || (approvedAt ? dateKeyFromMs(approvedAt) : todayKey);
+        const elapsedDays = approvedAt ? Math.max(0, daysBetweenDateKeys(approvedDateKey, todayKey)) : 0;
         const remainingDays = Math.max(0, durationDays - elapsedDays);
         const title = String(p.packageName||'প্যাকেজ').replace(/\s*একটিভ\s*/g,'').trim() || 'প্যাকেজ';
         const expired = durationDays > 0 && elapsedDays >= durationDays;
@@ -2241,9 +2242,10 @@
         const durationDays = Number(p.durationDays||0);
         const claimedDays = Number(p.claimedDays||0);
         const approvedAt = Number(p.approvedAt||0);
-        // দিন গোনা হয় approve হওয়ার (approvedAt) তারিখ থেকে — claim মিস হলেও
-        // দিন গণনা থেমে থাকে না, তাই ৩০ ক্যালেন্ডার দিন পার হলেই মেয়াদ শেষ।
-        const elapsedDays = approvedAt ? Math.floor((Date.now()-approvedAt)/(24*60*60*1000)) : 0;
+        const approvedDateKey = p.approvedDateKey || (approvedAt ? dateKeyFromMs(approvedAt) : todayKey);
+        // দিন গোনা হয় approve হওয়ার ক্যালেন্ডার তারিখ (approvedDateKey) থেকে — claim মিস
+        // হলেও দিন গণনা থেমে থাকে না, তাই ৩০ ক্যালেন্ডার দিন পার হলেই মেয়াদ শেষ।
+        const elapsedDays = approvedAt ? Math.max(0, daysBetweenDateKeys(approvedDateKey, todayKey)) : 0;
         if(durationDays > 0 && approvedAt && elapsedDays >= durationDays) throw new Error('EXPIRED');
         const dailyIncome = Number(p.dailyIncome||0);
 
@@ -2316,6 +2318,23 @@
 
   function getBangladeshDateKey(){
     return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  }
+
+  // একটা নির্দিষ্ট সময়ের (ms timestamp) বাংলাদেশ ক্যালেন্ডার-তারিখ (YYYY-MM-DD) বের করা।
+  // পুরোনো প্যাকেজ ডকুমেন্টে শুধু approvedAt (ms) থাকতে পারে, approvedDateKey না-ও
+  // থাকতে পারে — তখন এটা দিয়ে সেই তারিখ বের করে নেওয়া হয়।
+  function dateKeyFromMs(ms){
+    return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Dhaka',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ms));
+  }
+
+  // দুইটা YYYY-MM-DD ক্যালেন্ডার-তারিখের মধ্যে দিনের পার্থক্য বের করা — সময়/ঘণ্টা
+  // ধরে ২৪ ঘণ্টা পার হয়েছে কিনা তা দেখা হয় না, শুধু ক্যালেন্ডার তারিখ পাল্টেছে কিনা
+  // সেটাই গোনা হয়। এর ফলে "কালকে কিনেছি" মানেই আজ ১ দিন কমে যাবে, তা যত ঘণ্টাই
+  // পার হোক না কেন — যেভাবে todayKey-ভিত্তিক দৈনিক আয় রিসেট হয়, ঠিক সেভাবেই।
+  function daysBetweenDateKeys(startKey, endKey){
+    const start = new Date(startKey + 'T00:00:00Z');
+    const end = new Date(endKey + 'T00:00:00Z');
+    return Math.round((end - start) / (24*60*60*1000));
   }
 
   // Bengali digits/৳/কমা যুক্ত স্ট্রিং (যেমন "৳৫,০০০" বা "৩০ দিন বাকি") থেকে সংখ্যা বের করা।
