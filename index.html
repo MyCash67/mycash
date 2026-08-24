@@ -3804,6 +3804,11 @@ body.logged-out .income-summary{display:none !important;}
   // যাতে লগইন করা না থাকলেও Social Task বাটনগুলো এডমিনের দেওয়া লিংক নিয়ে ঠিকভাবে কাজ করে।
   loadSocialLinksFromFirestore();
   let authFlowPending = false;
+  // createUserWithEmailAndPassword() সফল হওয়া মাত্রই onAuthStateChanged ট্রিগার হয়ে যায় —
+  // অথচ users/{uid} ডকুমেন্ট তখনো Firestore-এ লেখা শেষ হয়নি। এই সময়টুকুতে
+  // onAuthStateChanged যাতে ভুল করে "not registered" ধরে জোর করে সাইন-আউট না করে দেয়,
+  // তার জন্য এই আলাদা ফ্ল্যাগ (শুধু handleRegistration-এর ডকুমেন্ট-লেখার সময় true থাকে)।
+  let registrationWriteInProgress = false;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   // ---------- REFER: কনস্ট্যান্ট ও স্টেট ----------
@@ -3911,6 +3916,7 @@ body.logged-out .income-summary{display:none !important;}
     if(password!==repassword){showFieldMessage('register-repassword','register-repassword-message','দুইটি পাসওয়ার্ড একই হতে হবে।');return;}
     try{
       authFlowPending=true;
+      registrationWriteInProgress=true;
       setAuthLoading(true,'অ্যাকাউন্ট তৈরি হচ্ছে...');
       const cred=await auth.createUserWithEmailAndPassword(mobileEmail(mobile),password);
       const ownReferralCode = generateReferralCode(cred.user.uid, firstName);
@@ -3932,7 +3938,11 @@ body.logged-out .income-summary{display:none !important;}
         const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),todayIncome:0,todayIncomeDate:getBangladeshDateKey(),referralCode:ownReferralCode,referredBy:referredByUid,referralCount:0,referralEarnings:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
         await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
         await db.collection('referralCodes').doc(ownReferralCode).set({uid: cred.user.uid});
+        // users/{uid} ডকুমেন্ট এখন সার্ভারে লেখা হয়ে গেছে — এখন থেকে onAuthStateChanged
+        // স্বাভাবিকভাবেই এটা খুঁজে পাবে, তাই race-condition গার্ডের আর দরকার নেই।
+        registrationWriteInProgress=false;
       }catch(profileErr){
+        registrationWriteInProgress=false;
         // Never leave a half-created account: if the profile save fails,
         // remove the just-created Auth user so the person can cleanly retry.
         try{ await cred.user.delete(); }catch(cleanupErr){}
@@ -3980,6 +3990,7 @@ body.logged-out .income-summary{display:none !important;}
       setAuthLoading(false);
     }catch(err){
       authFlowPending=false;
+      registrationWriteInProgress=false;
       setAuthLoading(false);
       showFieldMessage('register-mobile','register-mobile-message',friendlyError(err));
     }
@@ -4203,6 +4214,15 @@ body.logged-out .income-summary{display:none !important;}
       }
 
       if(!snap || (!snap.exists && !serverConfirmed)){
+        if(registrationWriteInProgress){
+          // handleRegistration()/handleLogin() নিজেই চলমান — এই মুহূর্তে ডকুমেন্ট এখনো
+          // লেখা হচ্ছে বা সার্ভারে propagate হচ্ছে (race condition)। এখানে জোর করে
+          // লগআউট করলে সদ্য-রেজিস্টার হওয়া ইউজার নিজে home-screen-এর বদলে login-screen-এ
+          // ফেরত চলে যেত, আর তার পাশাপাশি referral bonus write-ও permission-denied
+          // দিয়ে silently ফেইল করত। তাই এই ক্ষেত্রে কিছু না করে চুপচাপ ফিরে যাওয়া হচ্ছে —
+          // handleRegistration/handleLogin নিজেই নিজের UI/স্ক্রিন সামলাবে।
+          return;
+        }
         if(!hasCachedAccountData(user.uid)){
           // এই ডিভাইসে এই অ্যাকাউন্টের কোনো ক্যাশ করা তথ্যই নেই (নতুন ডিভাইস/ব্রাউজার,
           // অথবা সাইট ডেটা মুছে গেছে) — আর সার্ভার থেকেও কিছু নিশ্চিত করা যাচ্ছে না।
@@ -4219,6 +4239,15 @@ body.logged-out .income-summary{display:none !important;}
       let d;
       if(snap.exists){
         d=snap.data() || {};
+      }else if(registrationWriteInProgress){
+        // handleRegistration() এই মুহূর্তে চলছে এবং createUserWithEmailAndPassword()
+        // সাথে সাথেই এই onAuthStateChanged ট্রিগার করে দিয়েছে — অথচ users/{uid}
+        // ডকুমেন্ট তখনো Firestore-এ লেখা শেষ হয়নি (এটাই race condition)। এই অবস্থায়
+        // "not registered" ধরে নিয়ে জোর করে সাইন-আউট করলে রেজিস্ট্রেশনের পরপরই
+        // home-screen এর বদলে login-screen দেখাত, আর referral bonus write-ও
+        // permission-denied দিয়ে ফেইল করত। তাই এখানে কিছু না করে ফিরে যাওয়া হচ্ছে —
+        // handleRegistration নিজেই ডকুমেন্ট লিখবে ও home-screen দেখাবে।
+        return;
       }else{
         // সার্ভার নিশ্চিত করেছে এই uid-এর users/ ডকুমেন্ট নেই। এই অ্যাপে রেজিস্ট্রেশনের
         // সময় (handleRegistration) সবসময় সাথে সাথেই users doc বানানো হয় — তাই এখানে
