@@ -236,6 +236,15 @@
     padding:6px 12px; border-radius:100px; font-family:'JetBrains Mono',monospace;
   }
 
+  /* ---------- Daily check-in task button states ---------- */
+  .task-btn.checkin{ background:var(--leaf); color:#fff; min-width:92px; text-align:center; }
+  .task-btn.checkin.claim{ background:var(--gold); color:#fff; }
+  .task-btn.checkin.done{ background:var(--taka-soft); color:var(--taka-deep); }
+  .task-btn.checkin.cooldown{ background:#e7eee9; color:var(--taka-deep); }
+  .task-btn.checkin:disabled{ opacity:.85; cursor:not-allowed; }
+  /* Logged-out obosthay checkin button-er jaygay kichu dekhabe na */
+  body.logged-out #checkin-btn{ display:none; }
+
   .status-card{ text-align:center; }
   .status-icon{
     width:50px; height:50px; border-radius:50%;
@@ -1340,6 +1349,17 @@
 
       <div class="task-list">
 
+        <div class="task-row" id="checkin-task-row">
+          <div class="task-icon chk">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2C7 6 4 10 4 14a8 8 0 0016 0c0-4-3-8-8-12z" fill="#3FA65C"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">প্রতিদিনের চেক-ইন</div>
+            <div class="task-reward" id="checkin-reward-text">+৳৫ পুরস্কার</div>
+          </div>
+          <button class="task-btn checkin" id="checkin-btn" onclick="claimCheckin()">ক্লেইম করুন</button>
+        </div>
+
         <div class="task-row">
           <div class="task-icon tg">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M21.5 3.5L2.7 10.9c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.9 5.7c.2.5.4.7.9.7.4 0 .6-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.7l3-14.1c.3-1.2-.4-1.6-1.9-1.6z" fill="#28A7E8"/><path d="M9 15.5l9.5-8.5c.4-.4 0-.6-.4-.3L7.5 13.8l-.5 3.8c.4 0 .6-.2.8-.5z" fill="#fff"/></svg>
@@ -1371,17 +1391,6 @@
             <div class="task-reward">+৳১০ পুরস্কার</div>
           </div>
           <button class="task-btn fb">ফলো করুন</button>
-        </div>
-
-        <div class="task-row">
-          <div class="task-icon chk">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2C7 6 4 10 4 14a8 8 0 0016 0c0-4-3-8-8-12z" fill="#3FA65C"/></svg>
-          </div>
-          <div class="task-body">
-            <div class="task-title">প্রতিদিনের অ্যাপ চেক-ইন</div>
-            <div class="task-reward">সম্পন্ন হয়েছে</div>
-          </div>
-          <span class="task-done">✓ সম্পন্ন</span>
         </div>
 
       </div>
@@ -2649,6 +2658,147 @@
 
   document.addEventListener('DOMContentLoaded', restoreAdStates);
 
+  // ================= DAILY CHECK-IN TASK =================
+  // এড-এর মতোই এখানে Firestore-এর একটা সিঙ্গেল ফিল্ড (checkinLastClaimedAt, ms)
+  // দিয়েই ২৪ ঘণ্টার কুলডাউন যাচাই হয় — এটাই আসল সত্য। localStorage-এ শুধু
+  // ক্যাশ রাখা হয় যাতে Firebase লোড হওয়ার আগ পর্যন্ত রিফ্রেশে বাটন/কাউন্ট মিলিয়ে
+  // যায়/হারিয়ে না যায়; আসল হিসাব সবসময় সার্ভার থেকেই আসে (onAuthStateChanged sync দেখুন)।
+  const CHECKIN_REWARD = 5;
+  const CHECKIN_COOLDOWN = AD_COOLDOWN; // ২৪ ঘণ্টা
+  const CHECKIN_STATE_KEY_BASE = 'mycash_checkin_state_v1';
+  let checkinState = { claimedAt:0, cooldownUntil:0 };
+  let checkinCountdownInterval = null;
+
+  function loadCheckinLocalCache(){
+    const uid=bestKnownUid();
+    if(!uid){ checkinState={claimedAt:0,cooldownUntil:0}; return; }
+    try{ checkinState=JSON.parse(localStorage.getItem(accountKey(CHECKIN_STATE_KEY_BASE,uid)) || '{}') || {}; }
+    catch(e){ checkinState={claimedAt:0,cooldownUntil:0}; }
+    if(!checkinState.claimedAt) checkinState={claimedAt:0,cooldownUntil:0};
+  }
+  loadCheckinLocalCache();
+
+  function saveCheckinState(){
+    if(currentAccountUid()) localStorage.setItem(accountKey(CHECKIN_STATE_KEY_BASE,currentAccountUid()), JSON.stringify(checkinState));
+  }
+
+  function setCheckinBtnReady(){
+    const btn=document.getElementById('checkin-btn');
+    if(!btn) return;
+    if(checkinCountdownInterval){ clearInterval(checkinCountdownInterval); checkinCountdownInterval=null; }
+    btn.disabled=false;
+    btn.className='task-btn checkin';
+    btn.textContent=`৳${CHECKIN_REWARD} ক্লেইম করুন`;
+  }
+
+  function startCheckinCooldownCountdown(){
+    const btn=document.getElementById('checkin-btn');
+    if(!btn) return;
+    if(checkinCountdownInterval) clearInterval(checkinCountdownInterval);
+    const update=()=>{
+      const left=(checkinState.cooldownUntil||0)-Date.now();
+      if(left<=0){
+        clearInterval(checkinCountdownInterval);
+        checkinCountdownInterval=null;
+        checkinState={claimedAt:0,cooldownUntil:0};
+        saveCheckinState();
+        setCheckinBtnReady();
+        return;
+      }
+      btn.disabled=true;
+      btn.className='task-btn checkin cooldown';
+      btn.textContent=formatRemaining(left);
+    };
+    update();
+    checkinCountdownInterval=setInterval(update,1000);
+  }
+
+  function restoreCheckinState(){
+    const btn=document.getElementById('checkin-btn');
+    if(!btn) return;
+    if(checkinState.cooldownUntil && checkinState.cooldownUntil>Date.now()){
+      startCheckinCooldownCountdown();
+    }else{
+      checkinState={claimedAt:0,cooldownUntil:0};
+      saveCheckinState();
+      setCheckinBtnReady();
+    }
+  }
+  document.addEventListener('DOMContentLoaded', restoreCheckinState);
+
+  async function claimCheckin(){
+    const btn=document.getElementById('checkin-btn');
+    const fb=window.myCashFirebase;
+    const u=fb?.auth?.currentUser;
+    if(!u){
+      if(window.myCashRequireLogin) await window.myCashRequireLogin();
+      return;
+    }
+    if(!btn || btn.disabled) return;
+    if(checkinState.cooldownUntil && checkinState.cooldownUntil>Date.now()) return;
+
+    const todayKey=getBangladeshDateKey();
+    const ref=fb.db.collection('users').doc(u.uid);
+    const originalText=btn.textContent;
+    btn.disabled=true;
+    btn.textContent='ক্লেইম হচ্ছে...';
+
+    try{
+      let saved={balance:0,todayIncome:0,claimedAt:Date.now()};
+      await fb.db.runTransaction(async tx=>{
+        const snap=await tx.get(ref);
+        if(!snap.exists) throw new Error('USER_DOC_NOT_FOUND');
+        const d=snap.data()||{};
+
+        // সার্ভারে থাকা checkinLastClaimedAt-ই আসল সত্য — লোকাল স্টেট নয়।
+        const lastClaimedAt=Number(d.checkinLastClaimedAt||0);
+        if(lastClaimedAt && (Date.now()-lastClaimedAt) < CHECKIN_COOLDOWN){
+          throw new Error('COOLDOWN_ACTIVE');
+        }
+
+        const nowMs=Date.now();
+        const result=applySectorIncome(d, CHECKIN_REWARD, todayKey, {
+          checkinLastClaimedAt:nowMs
+        });
+        tx.update(ref, result.updateFields);
+        saved={balance:result.newBalance, todayIncome:result.newTotalToday, claimedAt:nowMs};
+      });
+
+      mainBalance=Number(saved.balance||0);
+      todayTotalIncome=Number(saved.todayIncome||0);
+      checkinState={ claimedAt:Number(saved.claimedAt||Date.now()), cooldownUntil:Number(saved.claimedAt||Date.now())+CHECKIN_COOLDOWN };
+      saveCheckinState();
+      if(currentAccountUid()){
+        localStorage.setItem(accountKey(MAIN_BALANCE_KEY_BASE,currentAccountUid()),String(mainBalance));
+        localStorage.setItem(accountKey(TOTAL_INCOME_KEY_BASE,currentAccountUid()),String(todayTotalIncome));
+      }
+      updateMainBalanceUI();
+      updateIncomeSummary();
+      startCheckinCooldownCountdown();
+    }catch(e){
+      console.error('Checkin claim failed:',e);
+      if(String(e && e.message)==='COOLDOWN_ACTIVE'){
+        // লোকাল ক্যাশ পুরনো ছিল (হয়তো অন্য ডিভাইসে আগেই claim হয়েছে) — সার্ভার থেকে
+        // আসল সময় নিয়ে লোকাল স্টেট মিলিয়ে নেওয়া হচ্ছে।
+        try{
+          const freshSnap=await ref.get();
+          const freshData=freshSnap.exists ? (freshSnap.data()||{}) : {};
+          const lastClaimedAt=Number(freshData.checkinLastClaimedAt||Date.now());
+          checkinState={ claimedAt:lastClaimedAt, cooldownUntil:lastClaimedAt+CHECKIN_COOLDOWN };
+          saveCheckinState();
+          startCheckinCooldownCountdown();
+        }catch(err2){
+          btn.disabled=false;
+          btn.textContent=originalText;
+        }
+        return;
+      }
+      btn.disabled=false;
+      btn.textContent=originalText;
+    }
+  }
+  window.claimCheckin=claimCheckin;
+
   // ---------- PACKAGE LIST (loaded from Firestore, managed via admin panel) ----------
   // আগে ১০টা প্যাকেজ কার্ড এখানেই হার্ডকোড করা ছিল। এখন এগুলো Firestore-এর
   // packages কালেকশন থেকে লোড হয়, তাই অ্যাডমিন প্যানেল থেকে যোগ/এডিট/ডিলিট
@@ -3648,6 +3798,23 @@ body.logged-out .income-summary{display:none !important;}
         }
       });
       saveAdStates();
+
+      // ---- Firestore-এর checkinLastClaimedAt দিয়ে লোকাল checkinState সিঙ্ক করা ----
+      // এড-এর মতোই সার্ভারের সময়টাকেই আসল সত্য ধরা হচ্ছে, যাতে localStorage মুছে গেলে
+      // বা অন্য ডিভাইসে লগইন করলেও ২৪ ঘণ্টার কুলডাউন ঠিকভাবে দেখায়/রিফ্রেশে হারিয়ে না যায়।
+      const serverCheckinAt=Number(d.checkinLastClaimedAt||0);
+      if(serverCheckinAt){
+        const checkinCooldownUntil=serverCheckinAt+CHECKIN_COOLDOWN;
+        if(checkinCooldownUntil>Date.now()){
+          checkinState={ claimedAt:serverCheckinAt, cooldownUntil:checkinCooldownUntil };
+        }else{
+          checkinState={ claimedAt:0, cooldownUntil:0 };
+        }
+      }else{
+        checkinState={ claimedAt:0, cooldownUntil:0 };
+      }
+      saveCheckinState();
+      restoreCheckinState();
 
       restoreAdStates();
       // Always repaint the visible UI after Firebase data is loaded.
