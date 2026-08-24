@@ -3941,23 +3941,27 @@ body.logged-out .income-summary{display:none !important;}
       // দেওয়া হয়েছে (দেখুন firestore.rules)। ব্যর্থ হলেও নতুন অ্যাকাউন্ট বাতিল হবে না।
       if(referredByUid){
         try{
-          await db.runTransaction(async (tx)=>{
-            const refRef = db.collection('users').doc(referredByUid);
-            const refSnap = await tx.get(refRef);
-            if(!refSnap.exists) return;
-            const rd = refSnap.data() || {};
-            tx.update(refRef,{
-              balance: Number(rd.balance||0) + REFERRAL_BONUS,
-              referralCount: Number(rd.referralCount||0) + 1,
-              referralEarnings: Number(rd.referralEarnings||0) + REFERRAL_BONUS
-            });
-            tx.set(db.collection('referrals').doc(cred.user.uid),{
-              referrerUid: referredByUid,
-              referredUid: cred.user.uid,
-              amount: REFERRAL_BONUS,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+          // আগে tx.get(refRef) দিয়ে রেফারারের ডকুমেন্ট read করার চেষ্টা হতো — কিন্তু
+          // এই মুহূর্তে লগইন থাকে নতুন ইউজার, রেফারার নয়। firestore.rules-এ
+          // users/{uid}-এর "read" শুধু owner/admin-কে অনুমতি দেয়, তাই সেই read-ই
+          // permission-denied দিয়ে আটকে যেত এবং পুরো bonus silently fail করত।
+          // সমাধান: FieldValue.increment() ব্যবহার করে আগে থেকে read না করেই
+          // ব্যালেন্স বাড়ানো — increment সার্ভার সাইডে হিসাব হয় বলে read permission
+          // লাগে না, আর rules-এর balance==prev+50 শর্তও ঠিকভাবে মিলে যায়।
+          const batch = db.batch();
+          const refRef = db.collection('users').doc(referredByUid);
+          batch.update(refRef,{
+            balance: firebase.firestore.FieldValue.increment(REFERRAL_BONUS),
+            referralCount: firebase.firestore.FieldValue.increment(1),
+            referralEarnings: firebase.firestore.FieldValue.increment(REFERRAL_BONUS)
           });
+          batch.set(db.collection('referrals').doc(cred.user.uid),{
+            referrerUid: referredByUid,
+            referredUid: cred.user.uid,
+            amount: REFERRAL_BONUS,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          await batch.commit();
         }catch(bonusErr){
           console.error('রেফারার বোনাস দেওয়া যায়নি:', bonusErr);
         }
