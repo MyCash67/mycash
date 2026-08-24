@@ -1320,7 +1320,13 @@
     try{
       const params = new URLSearchParams(window.location.search);
       const refCode = (params.get('ref') || '').trim().toUpperCase();
-      if(refCode) localStorage.setItem('mycash_pending_ref', refCode);
+      if(refCode){
+        localStorage.setItem('mycash_pending_ref', refCode);
+        // এই লোডেই URL-এ ?ref= ছিল — মানে এটা একটা তাজা রেফার-লিংক ভিজিট।
+        // ব্রাউজারে আগে থেকে অন্য কোনো অ্যাকাউন্ট লগইন থাকলে সেটা দিয়ে সরাসরি
+        // হোমে না ঢুকিয়ে, সাইন-আউট করে রেজিস্ট্রেশন পেজ দেখানোর জন্য এই ফ্ল্যাগ।
+        window.myCashForceRegisterFromRef = true;
+      }
     }catch(e){}
   })();
 </script>
@@ -4104,6 +4110,20 @@ body.logged-out .income-summary{display:none !important;}
 
   document.body.classList.add('logged-out');
   auth.onAuthStateChanged(async function(user){
+    if(user && window.myCashForceRegisterFromRef){
+      // রেফার লিংক (?ref=) দিয়ে ঢোকার সময় ব্রাউজারে আগের কোনো অ্যাকাউন্ট লগইন
+      // অবস্থায় থেকে গেলে, সেটা দিয়ে সরাসরি হোম/লগইন অবস্থায় না ঢুকিয়ে বরং
+      // সাইন-আউট করে দেওয়া হচ্ছে — যাতে নিচের null-user কোড রেজিস্ট্রেশন পেজ
+      // দেখাতে পারে এবং referred user সবসময় নতুন অ্যাকাউন্ট তৈরির ফর্ম পায়।
+      window.myCashForceRegisterFromRef = false;
+      window.myCashShowRegisterOnLogout = true;
+      try{
+        localStorage.removeItem(PROFILE_KEY);
+        localStorage.removeItem(LAST_UID_KEY);
+      }catch(e){}
+      try{ await auth.signOut(); }catch(e){}
+      return;
+    }
     updateLoggedInHeader(user, user ? getProfile() : null);
     if(!user){
       // Firebase নিজে থেকে user=null পাঠালেই সেটা সবসময় real/ইচ্ছাকৃত logout নয়।
@@ -4130,7 +4150,13 @@ body.logged-out .income-summary{display:none !important;}
       localStorage.setItem(scopedKey(AD_INCOME_KEY_BASE),'0');
       localStorage.setItem(scopedKey(TOTAL_INCOME_KEY_BASE),'0');
       updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary(); updateReferUI();
-      if(!document.getElementById('home-screen')?.classList.contains('visible')) showScreen('home-screen');
+      if(window.myCashShowRegisterOnLogout || window.myCashForceRegisterFromRef){
+        window.myCashShowRegisterOnLogout = false;
+        window.myCashForceRegisterFromRef = false;
+        showScreen('register-screen');
+      }else if(!document.getElementById('home-screen')?.classList.contains('visible')){
+        showScreen('home-screen');
+      }
       if(authFlowPending){
         authFlowPending=false;
         setAuthLoading(false);
