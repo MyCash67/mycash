@@ -3247,6 +3247,17 @@ body.logged-out .income-summary{display:none !important;}
   if (!window.firebase) return;
   if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+  // Firestore-এর নিজস্ব অফলাইন ক্যাশ (IndexedDB) চালু করা হচ্ছে — এতে দুর্বল নেটওয়ার্কে
+  // বা সাময়িক সংযোগ বিচ্ছিন্ন থাকলেও ref.get() আগে থেকেই ডিভাইসে সেভ থাকা ডেটা থেকে
+  // দ্রুত ও নির্ভরযোগ্যভাবে ফলাফল দিতে পারবে, আর নেট ফিরলে নিজে থেকেই সিঙ্ক করবে।
+  // একাধিক ট্যাবে একসাথে খোলা থাকলে এরর এড়াতে চেষ্টা ব্যর্থ হলে চুপচাপ এগিয়ে যাওয়া হচ্ছে।
+  try{
+    db.enablePersistence({synchronizeTabs:true}).catch(function(err){
+      console.warn('Firestore offline persistence enable failed:', err && err.code);
+    });
+  }catch(e){
+    console.warn('Firestore offline persistence not supported:', e);
+  }
   const auth = firebase.auth();
   window.myCashFirebase = {db, auth};
   let authFlowPending = false;
@@ -3399,6 +3410,41 @@ body.logged-out .income-summary{display:none !important;}
     });
   }
 
+  // অ্যাকাউন্টের তথ্য (নাম/ব্যালেন্স) localStorage-এ ক্যাশ হিসেবে আছে কিনা চেক করা —
+  // থাকলে দুর্বল নেটওয়ার্কে সেটাই সাময়িকভাবে দেখানো নিরাপদ, না থাকলে নিরাপদ না।
+  function hasCachedAccountData(uid){
+    try{
+      const p=getProfile();
+      if(p && (p.firstName || p.mobile)) return true;
+    }catch(e){}
+    try{
+      if(uid && localStorage.getItem(accountKey(MAIN_BALANCE_KEY_BASE,uid))!==null) return true;
+    }catch(e){}
+    return false;
+  }
+
+  // অ্যাকাউন্টের তথ্য কোনোভাবেই (সার্ভার থেকে বা ক্যাশ থেকে) নিশ্চিতভাবে বের করা না
+  // গেলে — "নাম নেই/ফাঁকা প্রোফাইল/ব্যালেন্স ০" এমন ভাঙা অবস্থা দেখানোর বদলে ইউজারকে
+  // সরাসরি লগআউট করে লগইন স্ক্রিনে পাঠানো হচ্ছে, যাতে আবার লগইন করে ঠিক তথ্য পান।
+  async function forceLogoutBrokenAccount(reason){
+    console.error('Forcing logout — account state could not be determined:', reason);
+    const uid=currentAccountUid();
+    try{
+      localStorage.removeItem(PROFILE_KEY);
+      if(uid){
+        localStorage.removeItem(accountKey(MAIN_BALANCE_KEY_BASE,uid));
+        localStorage.removeItem(accountKey(AD_INCOME_KEY_BASE,uid));
+        localStorage.removeItem(accountKey(AD_STATE_KEY_BASE,uid));
+      }
+    }catch(e){}
+    try{ await auth.signOut(); }catch(e){}
+    // auth.signOut() নিজে থেকেই onAuthStateChanged(null)-কে ট্রিগার করবে, যেটা balance/profile
+    // শূন্য করে home-screen দেখাবে। এখানে আলাদা করে শুধু login-screen-এ পাঠিয়ে বার্তা দেখানো হচ্ছে।
+    showScreen('login-screen');
+    showFieldMessage('login-mobile','login-mobile-message','অ্যাকাউন্টের তথ্য লোড করা যায়নি, দয়া করে আবার লগইন করুন।');
+    if(authFlowPending){ authFlowPending=false; setAuthLoading(false); }
+  }
+
   document.body.classList.add('logged-out');
   auth.onAuthStateChanged(async function(user){
     updateLoggedInHeader(user, user ? getProfile() : null);
@@ -3432,14 +3478,34 @@ body.logged-out .income-summary{display:none !important;}
       // কখনোই কাউকে "নতুন" ধরে নেওয়া হয় না বা Firestore-এ কিছু ওভাররাইট করা হয় না।
       let snap = null;
       let serverConfirmed = false;
-      try{
-        snap = await ref.get({source:'server'});
-        serverConfirmed = true;
-      }catch(networkErr){
+      // দুর্বল নেটওয়ার্কে একবার ব্যর্থ হলেই হাল না ছেড়ে, অল্প বিরতিতে আরও ২ বার চেষ্টা করা
+      // হচ্ছে — সাময়িক সংযোগ কাঁপাকাঁপিতে (weak/flaky network) এতেই বেশিরভাগ সময় সফল হয়।
+      const RETRY_DELAYS_MS = [400, 900];
+      for(let attempt=0; attempt<=RETRY_DELAYS_MS.length; attempt++){
+        try{
+          snap = await ref.get({source:'server'});
+          serverConfirmed = true;
+          break;
+        }catch(networkErr){
+          if(attempt < RETRY_DELAYS_MS.length){
+            await wait(RETRY_DELAYS_MS[attempt]);
+          }
+        }
+      }
+      if(!serverConfirmed){
+        // সব চেষ্টার পরও সার্ভারে পৌঁছানো যায়নি — এবার Firestore-এর নিজস্ব অফলাইন
+        // ক্যাশ (IndexedDB, উপরে enablePersistence দিয়ে চালু করা) থেকে পড়ার চেষ্টা।
         try{ snap = await ref.get(); }catch(cacheErr){ snap = null; }
       }
 
       if(!snap || (!snap.exists && !serverConfirmed)){
+        if(!hasCachedAccountData(user.uid)){
+          // এই ডিভাইসে এই অ্যাকাউন্টের কোনো ক্যাশ করা তথ্যই নেই (নতুন ডিভাইস/ব্রাউজার,
+          // অথবা সাইট ডেটা মুছে গেছে) — আর সার্ভার থেকেও কিছু নিশ্চিত করা যাচ্ছে না।
+          // এমতাবস্থায় ফাঁকা/ভাঙা প্রোফাইল দেখানোর বদলে লগআউট করে দেওয়া হচ্ছে।
+          await forceLogoutBrokenAccount('no server + no cache');
+          return;
+        }
         // নেটওয়ার্ক দুর্বল থাকায় সার্ভার থেকে নিশ্চিত হওয়া যায়নি — এই মুহূর্তে কিছু পরিবর্তন না করে
         // আগে থেকে দেখানো (cache করা) তথ্যই বহাল রাখা হচ্ছে, যাতে আসল ডেটা মুছে না যায়।
         if(authFlowPending){ authFlowPending=false; setAuthLoading(false); }
@@ -3502,9 +3568,14 @@ body.logged-out .income-summary{display:none !important;}
         setAuthLoading(false);
       }
     }catch(e){
-      // অপ্রত্যাশিত এরর হলেও ব্যালেন্স/আয় জোর করে শূন্য না করে, loadAccountState() থেকে
-      // localStorage-এ যা আছে সেটাই দেখানো থাকবে — আসল ইউজারকে যেন ফাঁকা/ভুয়া অবস্থায় না দেখায়।
+      // অপ্রত্যাশিত এরর হলেও ব্যালেন্স/আয় জোর করে শূন্য না করে, localStorage-এ যা আছে
+      // সেটাই দেখানো থাকবে — আসল ইউজারকে যেন ফাঁকা/ভুয়া অবস্থায় না দেখায়। তবে যদি
+      // ক্যাশেও কিছুই না থাকে, তাহলে ভাঙা অবস্থায় রেখে না দিয়ে লগআউট করে দেওয়া হচ্ছে।
       console.error('Account sync failed:', e);
+      if(!hasCachedAccountData(user.uid)){
+        await forceLogoutBrokenAccount(e);
+        return;
+      }
       updateMainBalanceUI(); updateIncomeSummary();
       if(authFlowPending){
         authFlowPending=false;
