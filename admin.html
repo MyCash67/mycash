@@ -55,7 +55,14 @@ input:focus{border-color:#7d8cff;background:#fff;box-shadow:0 0 0 4px rgba(95,11
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 const firebaseConfig={apiKey:"AIzaSyCjVdu9yzLXQNO_HCfFmEXLMjD1EZKpBFM",authDomain:"mycash-96.firebaseapp.com",projectId:"mycash-96",storageBucket:"mycash-96.firebasestorage.app",messagingSenderId:"456949677588",appId:"1:456949677588:web:bffcc5529b354b858c7101"};
-firebase.initializeApp(firebaseConfig); const db=firebase.firestore(); const auth=firebase.auth(); const ADMIN_EMAIL='admin@mycash.com';
+// এখানে ইচ্ছাকৃতভাবে ডিফল্ট app-এর বদলে একটা আলাদা নামের ("adminApp") secondary
+// Firebase app ব্যবহার করা হচ্ছে। Firebase Auth session ব্রাউজারে app-name অনুযায়ী
+// আলাদা key-তে (localStorage) সেভ থাকে — তাই এখন admin panel-এ login করলে সেটা আর
+// main website (index.html, যেটা ডিফল্ট app ব্যবহার করে)-এর ইউজার session-কে ওভাররাইট
+// করবে না বা সেখানে "blank account" তৈরি করবে না। db/auth ভ্যারিয়েবলের নাম একই রাখা
+// হয়েছে যাতে নিচের বাকি কোড অপরিবর্তিত থাকে।
+const adminApp = firebase.initializeApp(firebaseConfig, 'adminApp');
+const db=adminApp.firestore(); const auth=adminApp.auth(); const ADMIN_EMAIL='admin@mycash.com';
 </script>
 
 </head>
