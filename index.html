@@ -4379,7 +4379,7 @@ body.logged-out .income-summary{display:none !important;}
         console.error('রেফারার খুঁজে পাওয়া যায়নি:', refLookupErr);
       }
       try{
-        const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),todayIncome:0,todayIncomeDate:getBangladeshDateKey(),referralCode:ownReferralCode,referredBy:referredByUid,referralCount:0,referralEarnings:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+        const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),todayIncome:0,todayIncomeDate:getBangladeshDateKey(),referralCode:ownReferralCode,referredBy:referredByUid,referralCount:0,referralEarnings:0,referralPendingIncome:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
         await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
         await db.collection('referralCodes').doc(ownReferralCode).set({uid: cred.user.uid});
         // users/{uid} ডকুমেন্ট এখন সার্ভারে লেখা হয়ে গেছে — এখন থেকে onAuthStateChanged
@@ -4408,12 +4408,20 @@ body.logged-out .income-summary{display:none !important;}
           // সমাধান: FieldValue.increment() ব্যবহার করে আগে থেকে read না করেই
           // ব্যালেন্স বাড়ানো — increment সার্ভার সাইডে হিসাব হয় বলে read permission
           // লাগে না, আর rules-এর balance==prev+50 শর্তও ঠিকভাবে মিলে যায়।
+          //
+          // referralPendingIncome: এই বোনাসটা রেফারারের "আজকের আয়"-এ (todayIncome,
+          // মেইন ব্যালেন্স বক্সে দেখানো হয়) তখনই সঠিকভাবে যোগ করা যায় না, কারণ সেটার
+          // জন্য রেফারারের আজকের তারিখ ঠিক আছে কিনা (todayIncomeDate) যাচাই করতে হয়,
+          // যা read ছাড়া সম্ভব না। তাই বোনাসটা এখানে আলাদা করে জমা রাখা হচ্ছে —
+          // রেফারার পরে নিজে লগইন করলে (onAuthStateChanged handler দেখুন) এই পেন্ডিং
+          // অংশটা আজকের আয়ে merge করে ফিল্ডটা শূন্য করে দেওয়া হয়।
           const batch = db.batch();
           const refRef = db.collection('users').doc(referredByUid);
           batch.update(refRef,{
             balance: firebase.firestore.FieldValue.increment(REFERRAL_BONUS),
             referralCount: firebase.firestore.FieldValue.increment(1),
-            referralEarnings: firebase.firestore.FieldValue.increment(REFERRAL_BONUS)
+            referralEarnings: firebase.firestore.FieldValue.increment(REFERRAL_BONUS),
+            referralPendingIncome: firebase.firestore.FieldValue.increment(REFERRAL_BONUS)
           });
           batch.set(db.collection('referrals').doc(cred.user.uid),{
             referrerUid: referredByUid,
@@ -4717,6 +4725,25 @@ body.logged-out .income-summary{display:none !important;}
       const resetFields={};
       if(storedIncomeDate!==todayKey){ resetFields.todayAdIncome=0; resetFields.todayAdIncomeDate=todayKey; }
       if(storedTotalIncomeDate!==todayKey){ resetFields.todayIncome=0; resetFields.todayIncomeDate=todayKey; }
+      // ---- রেফার-বোনাস "আজকের আয়"-এ যোগ করা ----
+      // কেউ রেফার লিংকে রেজিস্ট্রেশন করলে রেফারারের balance/referralEarnings তখনই
+      // batch.update()+FieldValue.increment() দিয়ে বাড়ানো হয় (দেখুন handleRegistration)।
+      // কিন্তু সেই মুহূর্তে রেফারার হয়তো লগইন করা নেই, তাই তার todayIncome ঠিকভাবে
+      // (আজকের তারিখ মিলিয়ে) আপডেট করা সম্ভব হয় না — firestore.rules-এ অন্য ইউজারের
+      // ডকুমেন্ট read করার অনুমতি নেই বলে সেই মুহূর্তে todayIncome-এর পুরোনো/নতুন মান
+      // যাচাই করে বসানো যায় না (ভুল তারিখের পুরোনো মানের উপর যোগ হয়ে যাওয়ার ঝুঁকি)।
+      // তাই সেই বোনাসটা আলাদা "referralPendingIncome" ফিল্ডে জমা রাখা হয়, আর রেফারার
+      // নিজে যখন লগইন/লোড করে (এখানে, নিজের ডকুমেন্ট — যা read করার অনুমতি আছে), তখন
+      // সেটা আজকের আয়ের সাথে যোগ করে মূল todayIncome-এ বসিয়ে দেওয়া হয় এবং pending
+      // ফিল্ডটা শূন্য করে দেওয়া হয়, যাতে পরের বার আবার একই টাকা দুইবার যোগ না হয়।
+      const pendingReferralIncome = Number(d.referralPendingIncome || 0);
+      if(pendingReferralIncome){
+        todayTotalIncome += pendingReferralIncome;
+        mainBalance = Number(d.balance||0); // balance আগে থেকেই বোনাস সহ (registration-এর সময় বসানো), শুধু today-তে merge করা হচ্ছে
+        resetFields.todayIncome = todayTotalIncome;
+        resetFields.todayIncomeDate = todayKey;
+        resetFields.referralPendingIncome = 0;
+      }
       if(Object.keys(resetFields).length){
         await ref.set(resetFields,{merge:true});
       }
