@@ -3451,12 +3451,10 @@
     const u=fb.auth.currentUser;
     if(contactMessagesUnsub){ contactMessagesUnsub(); contactMessagesUnsub=null; }
     if(!u){ renderContactMessageHistory([]); return; }
-    console.log('[DEBUG] starting messages listener for uid:', u.uid);
     contactMessagesUnsub=fb.db.collection('messages')
       .where('uid','==',u.uid)
       .orderBy('createdAt','desc')
       .onSnapshot(function(snap){
-        console.log('[DEBUG] snapshot fired. fromCache:', snap.metadata.fromCache, 'hasPendingWrites:', snap.metadata.hasPendingWrites, 'docCount:', snap.size);
         const oneDayAgo=Date.now()-24*60*60*1000;
         const visible=[];
         const expiredRefs=[];
@@ -3468,19 +3466,15 @@
           // look like it "disappeared" right after sending.
           const data=doc.data({serverTimestamps:'estimate'});
           const createdDate=data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : null;
-          console.log('[DEBUG] doc', doc.id, 'uid:', data.uid, 'text:', data.text, 'createdAt:', createdDate, 'oneDayAgo:', new Date(oneDayAgo));
           if(createdDate && createdDate.getTime()<oneDayAgo){
-            console.log('[DEBUG] -> marked EXPIRED, will attempt delete:', doc.id);
             expiredRefs.push(doc.ref);
             return;
           }
           visible.push({id:doc.id,text:data.text||'',status:data.status||'sent',createdAt:data.createdAt});
         });
-        console.log('[DEBUG] visible count after filtering:', visible.length);
         renderContactMessageHistory(visible);
-        expiredRefs.forEach(function(ref){ ref.delete().then(function(){ console.log('[DEBUG] deleted expired doc', ref.id); }).catch(function(e){ console.log('[DEBUG] delete FAILED for', ref.id, e.message); }); });
+        expiredRefs.forEach(function(ref){ ref.delete().catch(function(){}); });
       }, function(err){
-        console.log('[DEBUG] onSnapshot ERROR:', err.code, err.message);
         renderContactMessageHistory([]);
       });
   }
@@ -4797,11 +4791,6 @@ body.logged-out .income-summary{display:none !important;}
   };
 })();
 </script>
-
-<!-- ---------- TEMPORARY DEBUG CONSOLE (Eruda) — remove after debugging ---------- -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
-<!-- ------------------------------------------------------------------------------ -->
 
 </body>
 </html>
