@@ -32,15 +32,9 @@
     font-family:'Hind Siliguri', sans-serif;
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
-    height:100dvh;
     display:flex;
     justify-content:center;
     padding:28px 14px;
-    /* The outer page must never scroll on its own — otherwise, on short
-       mobile viewports, you get the "double scroll" feeling (the whole
-       page moves AND the SMS box scrolls). All scrolling should happen
-       inside .phone / the individual screen, never on body/document. */
-    overflow:hidden;
   }
 
   .display{ font-family:'Tiro Bangla', serif; font-weight:400; letter-spacing:-0.01em; }
@@ -53,15 +47,9 @@
     background:var(--paper);
     border-radius:34px;
     box-shadow:0 40px 80px -30px rgba(15,46,29,0.35), 0 0 0 1px rgba(15,46,29,0.06);
+    overflow:hidden;
     position:relative;
     min-height:780px;
-    /* Cap the mockup to the real viewport height and let IT scroll
-       internally instead of the outer body. On short phone screens this
-       stops the whole page from scrolling along with the SMS box. */
-    max-height:100dvh;
-    overflow-y:auto;
-    overflow-x:hidden;
-    -webkit-overflow-scrolling:touch;
   }
 
   .status{
@@ -3377,7 +3365,6 @@
       });
       if(input){ input.value=''; input.style.height=''; }
       input?.focus();
-      forceScrollOnNextRender=true;
     }catch(err){
       showChatStatus('মেসেজ পাঠানো যায়নি। আবার চেষ্টা করুন।', true);
     }finally{
@@ -3387,7 +3374,6 @@
 
   // ---------- CONTACT MESSAGE HISTORY: Messenger-style chat bubbles, sent-only, right-aligned ----------
   let contactMessagesUnsub=null;
-  let forceScrollOnNextRender=false;
 
   function escapeContactHtml(str){
     const div=document.createElement('div');
@@ -3407,8 +3393,6 @@
     const wrap=document.getElementById('contact-message-history');
     if(!wrap) return;
     const wasNearBottom = (wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight) < 120;
-    const shouldForceScroll = forceScrollOnNextRender;
-    forceScrollOnNextRender = false;
     if(!list.length){
       wrap.innerHTML='<div class="chat-empty">এখনো কোনো মেসেজ নেই। সাপোর্ট টিমকে মেসেজ পাঠিয়ে কথা বলুন।</div>';
       return;
@@ -3427,9 +3411,7 @@
         +'</div>'
       +'</div>';
     }).join('');
-    // Always snap to bottom right after the user sends their own message,
-    // even if the near-bottom heuristic misfires during the pending-write window.
-    if(wasNearBottom || shouldForceScroll) scrollChatToBottom();
+    if(wasNearBottom) scrollChatToBottom();
   }
 
   function startContactMessagesListener(){
@@ -3446,12 +3428,7 @@
         const visible=[];
         const expiredRefs=[];
         snap.forEach(function(doc){
-          // Use 'estimate' so a message we just sent (still pending server ack)
-          // gets a local clock-based timestamp instead of null. Without this,
-          // a brand-new message sorts as the OLDEST item (null < any real time)
-          // and jumps to the top of the thread instead of the bottom, making it
-          // look like it "disappeared" right after sending.
-          const data=doc.data({serverTimestamps:'estimate'});
+          const data=doc.data();
           const createdDate=data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : null;
           if(createdDate && createdDate.getTime()<oneDayAgo){
             expiredRefs.push(doc.ref);
