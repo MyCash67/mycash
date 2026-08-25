@@ -294,6 +294,39 @@
   .status-card.active .status-btn.status-claim-btn{ background:var(--gold); color:#fff; border:none; }
   .status-btn:disabled{ opacity:0.65; cursor:not-allowed; }
 
+  /* ---------- PACKAGE STATUS: ROW LAYOUT (replaces the old big box) ---------- */
+  .status-row-list{ display:flex; flex-direction:column; gap:10px; margin-top:16px; }
+  .status-row{
+    display:flex; align-items:center; gap:12px;
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:12px 13px;
+  }
+  .status-row-num{
+    width:34px; height:34px; flex-shrink:0; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono','Hind Siliguri',monospace; font-weight:800; font-size:13px;
+    background:var(--taka-soft); color:var(--taka-deep);
+  }
+  .status-row.inactive .status-row-num{
+    background:rgba(226,102,79,0.14); color:var(--coral); font-size:16px;
+  }
+  .status-row-info{ flex:1; min-width:0; }
+  .status-row-title{ font-size:13.5px; font-weight:800; margin-bottom:3px; }
+  .status-row.inactive .status-row-title{ color:var(--muted); font-weight:600; }
+  .status-row-meta{
+    display:flex; flex-wrap:wrap; column-gap:8px; row-gap:2px;
+    font-size:10.5px; color:var(--muted);
+    font-family:'JetBrains Mono','Hind Siliguri',monospace;
+  }
+  .status-row-action{ flex-shrink:0; }
+  .status-row-btn{
+    border:0; border-radius:10px; padding:9px 12px;
+    font-size:11px; font-weight:800; white-space:nowrap; cursor:pointer;
+    background:var(--ink); color:var(--paper);
+  }
+  .status-row-btn.claim{ background:var(--gold); color:#fff; }
+  .status-row-btn:disabled{ background:var(--taka-soft); color:var(--taka-deep); opacity:0.9; cursor:not-allowed; }
+
   .pkg-list{ display:flex; flex-direction:column; gap:12px; }
   .pkg-card{
     background:var(--card); border-radius:18px; padding:18px;
@@ -1882,17 +1915,21 @@
         <div class="package-history-arrow">›</div>
       </button>
 
-      <!-- shown when NO package is active (default) -->
-      <div class="status-card inactive" id="status-inactive">
-        <div class="status-icon">📦</div>
-        <div class="status-label">প্যাকেজ স্ট্যাটাস</div>
-        <div class="status-title">কোনো প্যাকেজ একটিভ করা নেই</div>
-        <div class="status-sub">এখনো কোনো প্যাকেজ কেনা হয়নি। আয় বাড়াতে নিচ থেকে একটি প্যাকেজ বেছে নিন।</div>
-        <button class="status-btn" onclick="document.getElementById('packages').scrollIntoView({behavior:'smooth'})">প্যাকেজ কিনুন</button>
-      </div>
+      <!-- PACKAGE STATUS: row list. Each purchased package is one row; if none
+           purchased, a single "no package" row is shown instead. -->
+      <div class="status-row-list" id="package-status-list">
+        <!-- shown when NO package is active (default) -->
+        <div class="status-row inactive" id="status-inactive" onclick="document.getElementById('packages').scrollIntoView({behavior:'smooth'})" style="cursor:pointer">
+          <div class="status-row-num">📦</div>
+          <div class="status-row-info">
+            <div class="status-row-title">কোনো প্যাকেজ কেনা নেই</div>
+            <div class="status-row-meta"><span>আয় বাড়াতে নিচ থেকে একটি প্যাকেজ কিনুন</span></div>
+          </div>
+        </div>
 
-      <!-- active packages: multiple package status boxes can appear here -->
-      <div id="active-packages-list"></div>
+        <!-- active packages: multiple package status rows appear here -->
+        <div id="active-packages-list"></div>
+      </div>
 
       <div class="sec-head" id="packages"><h2>প্যাকেজ বেছে নিন</h2></div>
       <div class="sec-sub">প্যাকেজ একটিভ করলে প্রতিদিন নির্দিষ্ট পরিমাণ টাকা আপনার ব্যালেন্সে জমা হবে</div>
@@ -2470,12 +2507,23 @@
   // এখানে সেটি প্যাকেজ স্ট্যাটাস বক্স হিসেবে দেখানো হয়, এবং ইউজার প্রতিদিন
   // একবার করে সেই প্যাকেজের নির্ধারিত আয় দাবি (claim) করতে পারে —
   // যা মূল ব্যালেন্স ও আজকের আয়-তে যোগ হয়।
+  // এই কাউন্টারটা "সবশেষ কোন কলটা আসল" তা ট্র্যাক করে। loadActivePackagesFromFirestore()
+  // একইসাথে দুইবার (যেমন: স্ক্রিন ওপেন হওয়ার সময় + লগইন/অথ-স্টেট পরিবর্তনের সময়)
+  // কল হলে আগে DOM-এ race condition হয়ে একই প্যাকেজ দুইবার (ডাবল) দেখাত — কারণ
+  // পুরনো কলটা মাঝপথে থেমে থাকা অবস্থায় নতুন কলটা list খালি করে নিজের রো বসিয়ে
+  // দিত, তারপর পুরনো কলটা জেগে উঠে আবার নিজের রো যোগ করত (মুছে না ফেলেই)।
+  // এখন প্রতিটা কল নিজের একটা সিরিয়াল নম্বর (mySeq) নেয়, এবং যেকোনো await-এর পর
+  // চেক করে দেখে সে-ই এখনো সবশেষ কল কিনা — না হলে চুপচাপ থেমে যায়, DOM ছোঁয় না।
+  // সব ডেটা রেডি হওয়ার আগ পর্যন্ত রো-গুলো আলাদা array-তে বানানো হয়, DOM-এ বসে
+  // একবারেই (clear + append একসাথে, কোনো await ছাড়া) — তাই আংশিক/ডাবল অবস্থা আর হয় না।
+  let activePackagesLoadSeq = 0;
   async function loadActivePackagesFromFirestore(){
     const list = document.getElementById('active-packages-list');
     const inactiveBox = document.getElementById('status-inactive');
     if(!list) return;
     const fb = window.myCashFirebase;
     const u = fb && fb.auth ? fb.auth.currentUser : null;
+    const mySeq = ++activePackagesLoadSeq;
     if(!u){
       list.innerHTML = '';
       if(inactiveBox) inactiveBox.style.display = '';
@@ -2483,6 +2531,7 @@
     }
     try{
       const snap = await fb.db.collection('payments').where('uid','==',u.uid).where('status','==','approved').get();
+      if(mySeq !== activePackagesLoadSeq) return; // এর মাঝে আরেকটা নতুন কল শুরু হয়ে গেছে — এই ফলাফল বাতিল
       if(snap.empty){
         list.innerHTML = '';
         if(inactiveBox) inactiveBox.style.display = '';
@@ -2494,7 +2543,9 @@
         const tb = b.data().createdAt && b.data().createdAt.toMillis ? b.data().createdAt.toMillis() : 0;
         return tb - ta;
       });
-      list.innerHTML = '';
+
+      const rows = []; // DOM-এ বসানোর আগে এখানে সব রো জমা হবে
+      let rowNum = 0;
       for(const doc of docs){
         let p = doc.data();
 
@@ -2509,6 +2560,7 @@
             // অনুমতি দেয়, তাই approvedDateKey এখানে একসাথে পাঠানো যাবে না —
             // approvedDateKey পরে approvedAt থেকেই বের করে নেওয়া হয় (নিচে দেখুন)।
             await doc.ref.update({approvedAt: approvedAtMs});
+            if(mySeq !== activePackagesLoadSeq) return; // এই await চলাকালীন নতুন কল শুরু হলে থেমে যাওয়া
             p = {...p, approvedAt: approvedAtMs};
           }catch(err){
             console.error('approvedAt set failed:', err);
@@ -2517,6 +2569,7 @@
 
         const dailyIncome = Number(p.dailyIncome||0);
         const durationDays = Number(p.durationDays||0);
+        const amount = Number(p.amount||0);
         const approvedAt = Number(p.approvedAt||0);
         // approvedDateKey না থাকলে (পুরোনো ডকুমেন্ট) approvedAt থেকে তারিখ বের করে নেওয়া হয়।
         const approvedDateKey = p.approvedDateKey || (approvedAt ? dateKeyFromMs(approvedAt) : todayKey);
@@ -2525,42 +2578,45 @@
         const title = String(p.packageName||'প্যাকেজ').replace(/\s*একটিভ\s*/g,'').trim() || 'প্যাকেজ';
         const expired = durationDays > 0 && elapsedDays >= durationDays;
 
-        // মেয়াদ শেষ হওয়া প্যাকেজের বক্স আর দেখানো হয় না — একাধিক প্যাকেজ কেনা
-        // থাকলে প্রতিটার মেয়াদ শেষ হওয়ার সাথে সাথে সেই বক্সটাই বাদ পড়ে যাবে।
-        // সবগুলোর মেয়াদ শেষ হলে (লুপ শেষে list খালি থাকলে) "কোনো প্যাকেজ
-        // একটিভ নেই" বক্সটা আবার দেখানো হবে।
+        // মেয়াদ শেষ হওয়া প্যাকেজের রো আর দেখানো হয় না — একাধিক প্যাকেজ কেনা
+        // থাকলে প্রতিটার মেয়াদ শেষ হওয়ার সাথে সাথে সেই রো-টাই বাদ পড়ে যাবে।
+        // সবগুলোর মেয়াদ শেষ হলে (লুপ শেষে rows খালি থাকলে) "কোনো প্যাকেজ
+        // কেনা নেই" রো-টা আবার দেখানো হবে।
         if(expired) continue;
 
+        rowNum++;
         const claimedToday = p.lastClaimDate === todayKey;
 
         let btnHtml;
         if(claimedToday){
-          btnHtml = `<button type="button" class="status-btn" disabled>✓ আজকের আয় নেওয়া হয়েছে</button>`;
+          btnHtml = `<button type="button" class="status-row-btn" disabled>✓ নেওয়া হয়েছে</button>`;
         }else{
-          btnHtml = `<button type="button" class="status-btn status-claim-btn" data-claim-id="${doc.id}" onclick="claimPackageIncome('${doc.id}', this)">আজকের আয় ৳${formatMoneyBn(dailyIncome)} দাবি করুন</button>`;
+          btnHtml = `<button type="button" class="status-row-btn claim" data-claim-id="${doc.id}" onclick="claimPackageIncome('${doc.id}', this)">৳${formatMoneyBn(dailyIncome)} দাবি করুন</button>`;
         }
 
-        const card = document.createElement('div');
-        card.className = 'status-card active';
-        card.innerHTML = `
-          <div class="status-icon">✅</div>
-          <div class="status-label">প্যাকেজ স্ট্যাটাস</div>
-          <div class="status-title">${title}</div>
-          <div class="status-sub">আপনার প্যাকেজ একটিভ আছে, প্রতিদিন আয় দাবি করুন।</div>
-          <div class="status-detail">
-            <div class="sd-item">
-              <div class="sd-label">বাকি দিন</div>
-              <div class="sd-val">${remainingDays} দিন</div>
-            </div>
-            <div class="sd-item right">
-              <div class="sd-label">দৈনিক আয়</div>
-              <div class="sd-val">৳${formatMoneyBn(dailyIncome)}</div>
+        const row = document.createElement('div');
+        row.className = 'status-row active';
+        row.innerHTML = `
+          <div class="status-row-num">${rowNum}</div>
+          <div class="status-row-info">
+            <div class="status-row-title">${title}</div>
+            <div class="status-row-meta">
+              <span>৳${formatMoneyBn(amount)} প্যাকেজ</span>
+              <span>•</span>
+              <span>${durationDays} দিনের</span>
+              <span>•</span>
+              <span>বাকি ${remainingDays} দিন</span>
             </div>
           </div>
-          ${btnHtml}
+          <div class="status-row-action">${btnHtml}</div>
         `;
-        list.appendChild(card);
+        rows.push(row);
       }
+
+      if(mySeq !== activePackagesLoadSeq) return; // এই মাঝে আরেকটা কল শুরু হলে DOM না ছুঁয়ে থেমে যাওয়া
+      // clear + append একসাথে, কোনো await ছাড়া — তাই অন্য কোনো কলের সাথে interleave হওয়ার সুযোগ নেই।
+      list.innerHTML = '';
+      rows.forEach(r => list.appendChild(r));
       if(inactiveBox) inactiveBox.style.display = list.children.length ? 'none' : '';
     }catch(e){
       console.error('Active package load failed:', e);
