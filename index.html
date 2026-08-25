@@ -1251,7 +1251,7 @@
 }
 .contact-modal-title{font-size:20px;font-weight:800;color:var(--ink);padding-right:42px}
 .contact-direct-card{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 8px 24px rgba(15,46,29,.06)}
-.contact-direct-card .contact-message-input{display:block;margin-bottom:12px;min-height:150px}
+.contact-direct-card .contact-message-input{display:block;margin-bottom:12px;min-height:260px}
 .contact-modal-sub{font-size:12.5px;color:var(--muted);margin:4px 0 16px}
 .contact-message-input{
   width:100%;min-height:125px;resize:vertical;
@@ -1277,6 +1277,32 @@
   .contact-modal-backdrop{align-items:center;padding:24px}
   .contact-modal{border-radius:24px;max-height:calc(100dvh - 48px)}
 }
+
+.contact-history-wrap{margin-top:20px}
+.contact-history-title{font-size:13px;font-weight:800;color:var(--ink);margin-bottom:4px}
+.contact-history-sub{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.contact-history-empty{
+  text-align:center;font-size:12.5px;color:var(--muted);
+  padding:18px 10px;border:1px dashed var(--line);border-radius:14px;
+}
+.contact-history-item{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:12px 14px;margin-bottom:10px;box-shadow:0 4px 14px rgba(15,46,29,.05);
+}
+.contact-history-text{
+  font-size:13.5px;color:var(--ink);line-height:1.5;
+  white-space:pre-wrap;word-break:break-word;margin-bottom:8px;
+}
+.contact-history-meta{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:11px;color:var(--muted);
+}
+.contact-history-status{
+  font-weight:800;font-size:10.5px;padding:3px 10px;border-radius:100px;
+  letter-spacing:.3px;
+}
+.contact-history-status.sent{background:rgba(120,120,120,.14);color:var(--muted)}
+.contact-history-status.seen{background:rgba(31,110,74,.14);color:var(--taka)}
 
 </style>
 
@@ -2029,6 +2055,11 @@
         <button type="button" class="contact-send-btn" onclick="sendContactPageMessage()">মেসেজ পাঠান</button>
         <div class="contact-message-status" id="contact-page-message-status"></div>
       </div>
+      <div class="contact-history-wrap">
+        <div class="contact-history-title">আপনার পাঠানো মেসেজ</div>
+        <div class="contact-history-sub">গত ২৪ ঘণ্টার মেসেজ এখানে দেখা যাবে, এরপর নিজে থেকেই মুছে যাবে।</div>
+        <div id="contact-message-history"></div>
+      </div>
     </div>
   </div>
   <div class="screen" id="profile-screen">
@@ -2136,6 +2167,12 @@
     updateBottomNav(id);
     if(id === 'package-screen' && typeof loadActivePackagesFromFirestore === 'function'){
       loadActivePackagesFromFirestore();
+    }
+    if(id === 'contact-screen' && typeof window.startContactMessagesListener === 'function'){
+      window.startContactMessagesListener();
+    }
+    if(id !== 'contact-screen' && typeof window.stopContactMessagesListener === 'function'){
+      window.stopContactMessagesListener();
     }
     if(id === 'refer-screen' && typeof window.ensureReferralCode === 'function'){
       window.ensureReferralCode();
@@ -3158,7 +3195,7 @@
     if(map[target]) showScreen(map[target]);
   }
 
-  function sendContactPageMessage(){
+  async function sendContactPageMessage(){
     const input=document.getElementById('contact-page-message-input');
     const status=document.getElementById('contact-page-message-status');
     const message=(input?.value||'').trim();
@@ -3167,9 +3204,105 @@
       input?.focus();
       return;
     }
-    if(status){status.textContent='মেসেজ সফলভাবে পাঠানো হয়েছে।';status.className='contact-message-status success';}
+    const fb=window.myCashFirebase;
+    const u=fb && fb.auth.currentUser;
+    if(!u){
+      if(status){status.textContent='মেসেজ পাঠাতে লগইন করুন।';status.className='contact-message-status error';}
+      return;
+    }
+    const sendBtn=document.querySelector('#contact-screen .contact-send-btn');
+    if(sendBtn) sendBtn.disabled=true;
+    if(status){status.textContent='পাঠানো হচ্ছে...';status.className='contact-message-status';}
+    try{
+      await fb.db.collection('contactMessages').add({
+        uid:u.uid,
+        text:message,
+        status:'sent',
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      if(status){status.textContent='মেসেজ সফলভাবে পাঠানো হয়েছে।';status.className='contact-message-status success';}
     if(input) input.value='';
+    }catch(err){
+      if(status){status.textContent='মেসেজ পাঠানো যায়নি। আবার চেষ্টা করুন।';status.className='contact-message-status error';}
+    }finally{
+      if(sendBtn) sendBtn.disabled=false;
+    }
   }
+
+  // ---------- CONTACT MESSAGE HISTORY: recent messages with Sent/Seen status ----------
+  let contactMessagesUnsub=null;
+
+  function escapeContactHtml(str){
+    const div=document.createElement('div');
+    div.textContent=str||'';
+    return div.innerHTML;
+  }
+
+  function formatContactMessageTime(ts){
+    try{
+      const date=ts && ts.toDate ? ts.toDate() : null;
+      if(!date) return '';
+      return date.toLocaleString('bn-BD',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    }catch(e){ return ''; }
+  }
+
+  function renderContactMessageHistory(list){
+    const wrap=document.getElementById('contact-message-history');
+    if(!wrap) return;
+    if(!list.length){
+      wrap.innerHTML='<div class="contact-history-empty">এখনো কোনো মেসেজ নেই।</div>';
+      return;
+    }
+    wrap.innerHTML=list.map(function(m){
+      const isSeen=m.status==='seen';
+      const label=isSeen?'Seen':'Sent';
+      const cls=isSeen?'seen':'sent';
+      const time=formatContactMessageTime(m.createdAt);
+      return '<div class="contact-history-item">'
+        +'<div class="contact-history-text">'+escapeContactHtml(m.text)+'</div>'
+        +'<div class="contact-history-meta">'
+          +'<span class="contact-history-time">'+time+'</span>'
+          +'<span class="contact-history-status '+cls+'">'+label+'</span>'
+        +'</div>'
+      +'</div>';
+    }).join('');
+  }
+
+  function startContactMessagesListener(){
+    const fb=window.myCashFirebase;
+    if(!fb || !fb.db || !fb.auth){ setTimeout(startContactMessagesListener,400); return; }
+    const u=fb.auth.currentUser;
+    if(contactMessagesUnsub){ contactMessagesUnsub(); contactMessagesUnsub=null; }
+    if(!u){ renderContactMessageHistory([]); return; }
+    contactMessagesUnsub=fb.db.collection('contactMessages')
+      .where('uid','==',u.uid)
+      .orderBy('createdAt','desc')
+      .onSnapshot(function(snap){
+        const oneDayAgo=Date.now()-24*60*60*1000;
+        const visible=[];
+        const expiredRefs=[];
+        snap.forEach(function(doc){
+          const data=doc.data();
+          const createdDate=data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : null;
+          if(createdDate && createdDate.getTime()<oneDayAgo){
+            expiredRefs.push(doc.ref);
+            return;
+          }
+          visible.push({id:doc.id,text:data.text||'',status:data.status||'sent',createdAt:data.createdAt});
+        });
+        renderContactMessageHistory(visible);
+        expiredRefs.forEach(function(ref){ ref.delete().catch(function(){}); });
+      }, function(err){
+        renderContactMessageHistory([]);
+      });
+  }
+
+  function stopContactMessagesListener(){
+    if(contactMessagesUnsub){ contactMessagesUnsub(); contactMessagesUnsub=null; }
+  }
+
+  window.startContactMessagesListener=startContactMessagesListener;
+  window.stopContactMessagesListener=stopContactMessagesListener;
 
   function openContactModal(){
     const modal=document.getElementById('contact-message-modal');
