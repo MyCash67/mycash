@@ -3354,8 +3354,11 @@
     const sendBtn=document.getElementById('contact-page-send-btn');
     if(sendBtn) sendBtn.disabled=true;
     try{
-      await fb.db.collection('contactMessages').add({
+      const mobile=(getProfile() && getProfile().mobile) || '';
+      await fb.db.collection('messages').add({
         uid:u.uid,
+        mobile:mobile,
+        message:message,
         text:message,
         status:'sent',
         createdAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -3417,7 +3420,7 @@
     const u=fb.auth.currentUser;
     if(contactMessagesUnsub){ contactMessagesUnsub(); contactMessagesUnsub=null; }
     if(!u){ renderContactMessageHistory([]); return; }
-    contactMessagesUnsub=fb.db.collection('contactMessages')
+    contactMessagesUnsub=fb.db.collection('messages')
       .where('uid','==',u.uid)
       .orderBy('createdAt','desc')
       .onSnapshot(function(snap){
