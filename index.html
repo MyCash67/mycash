@@ -1620,7 +1620,7 @@
         </div>
         <div class="bc-actions">
           <button type="button" class="bc-btn primary" onclick="openWithdrawModal()">উত্তোলন করুন</button>
-          <button type="button" class="bc-btn ghost" onclick="showScreen('withdrawal-history-screen')">উত্তোলন হিস্টোরি</button>
+          <button type="button" class="bc-btn ghost" onclick="showWithdrawalHistory()">উত্তোলন হিস্টোরি</button>
         </div>
       </div>
 
@@ -2033,7 +2033,7 @@
       </div>
 
       <div class="withdraw-limits">
-        <div class="withdraw-limit"><div class="withdraw-limit-label">সর্বনিম্ন</div><div class="withdraw-limit-value">৳৫০০</div></div>
+        <div class="withdraw-limit"><div class="withdraw-limit-label">সর্বনিম্ন</div><div class="withdraw-limit-value">৳১,০০০</div></div>
         <div class="withdraw-limit"><div class="withdraw-limit-label">সর্বোচ্চ</div><div class="withdraw-limit-value">৳২৫,০০০</div></div>
         <div class="withdraw-limit"><div class="withdraw-limit-label">দৈনিক সীমা</div><div class="withdraw-limit-value">৩ বার</div></div>
       </div>
@@ -2056,14 +2056,14 @@
       </div>
 
       <label class="withdraw-label" for="withdraw-amount">উত্তোলনের পরিমাণ</label>
-      <input class="withdraw-input" id="withdraw-amount" type="number" inputmode="numeric" min="500" max="25000" placeholder="৳৫০০ - ৳২৫,০০০">
+      <input class="withdraw-input" id="withdraw-amount" type="number" inputmode="numeric" min="1000" max="25000" placeholder="৳১,০০০ - ৳২৫,০০০">
       <div class="withdrawal-field-message" id="withdraw-amount-message">
         <span class="field-message-icon">!</span>
         <span></span>
       </div>
 
       <button type="button" class="withdraw-submit" onclick="submitWithdrawal()">উত্তোলন করুন</button>
-      <div class="withdraw-note">সর্বনিম্ন ৳৫০০ • সর্বোচ্চ ৳২৫,০০০ • দিনে সর্বোচ্চ ৩ বার</div>
+      <div class="withdraw-note">সর্বনিম্ন ৳১,০০০ • সর্বোচ্চ ৳২৫,০০০ • দিনে সর্বোচ্চ ৩ বার</div>
     </div>
   </div>
 
@@ -4214,6 +4214,66 @@
     list.prepend(row);
   }
 
+  // Firestore থেকে লগইন করা ইউজারের সব উত্তোলন রিকোয়েস্ট লোড করে হিস্টোরি স্ক্রিনে
+  // দেখানো হয় — আগে হিস্টোরি শুধু DOM-এ (addWithdrawalHistory দিয়ে) যোগ হতো, Firestore-এ
+  // সেভ করা থাকলেও পেজ রিফ্রেশ করলে সেটা হারিয়ে যেত। এখন প্রতিবার এই স্ক্রিনে গেলে
+  // সব রিকোয়েস্ট (pending/approved/rejected সহ) নতুন করে লোড হয়, তাই রিফ্রেশ করলেও থাকে।
+  async function loadWithdrawalHistoryFromFirestore(){
+    const list = document.getElementById('withdrawal-history-list');
+    if(!list) return;
+    const fb = window.myCashFirebase;
+    const u = fb && fb.auth ? fb.auth.currentUser : null;
+    if(!u){
+      list.innerHTML = '<div class="history-empty" id="withdrawal-history-empty">এখনো কোনো উত্তোলনের অনুরোধ করা হয়নি।</div>';
+      return;
+    }
+    list.innerHTML = '<div class="history-empty">লোড হচ্ছে...</div>';
+    try{
+      const snap = await fb.db.collection('withdrawals').where('uid','==',u.uid).get();
+      if(snap.empty){
+        list.innerHTML = '<div class="history-empty" id="withdrawal-history-empty">এখনো কোনো উত্তোলনের অনুরোধ করা হয়নি।</div>';
+        return;
+      }
+      const docs = snap.docs.slice().sort((a,b)=>{
+        const ta = a.data().createdAt && a.data().createdAt.toMillis ? a.data().createdAt.toMillis() : 0;
+        const tb = b.data().createdAt && b.data().createdAt.toMillis ? b.data().createdAt.toMillis() : 0;
+        return tb - ta;
+      });
+      let html = '';
+      docs.forEach(doc=>{
+        const w = doc.data();
+        const dateObj = w.createdAt && w.createdAt.toDate ? w.createdAt.toDate() : new Date();
+        const date = dateObj.toLocaleDateString('bn-BD');
+        const time = dateObj.toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'});
+        let statusText = 'অপেক্ষমাণ';
+        if(w.status === 'approved') statusText = 'সম্পন্ন ✓';
+        else if(w.status === 'rejected') statusText = 'বাতিল হয়েছে';
+        html += `
+          <div class="withdrawal-history-row">
+            <div class="withdrawal-history-top">
+              <div class="withdrawal-history-icon">৳</div>
+              <div class="withdrawal-history-body">
+                <div class="withdrawal-history-title">${w.method||''} — ${w.number||''}</div>
+                <div class="withdrawal-history-meta">${date} • ${time}</div>
+              </div>
+              <div class="withdrawal-history-amount">৳${Number(w.amount||0).toLocaleString('bn-BD')}</div>
+            </div>
+            <div class="withdrawal-history-status">${statusText}</div>
+          </div>`;
+      });
+      list.innerHTML = html;
+    }catch(e){
+      list.innerHTML = '<div class="history-empty">ইতিহাস লোড করা যায়নি। আবার চেষ্টা করুন।</div>';
+    }
+  }
+  window.loadWithdrawalHistoryFromFirestore = loadWithdrawalHistoryFromFirestore;
+
+  function showWithdrawalHistory(){
+    showScreen('withdrawal-history-screen');
+    loadWithdrawalHistoryFromFirestore();
+  }
+  window.showWithdrawalHistory = showWithdrawalHistory;
+
   function showWithdrawalMessage(inputId, message){
     clearTimeout(withdrawalMessageTimer);
 
@@ -4260,8 +4320,8 @@
       showWithdrawalMessage('withdraw-number','মোবাইল নাম্বার দিন।');
       return;
     }
-    if(!amount || amount < 500){
-      showWithdrawalMessage('withdraw-amount','সর্বনিম্ন উত্তোলনের পরিমাণ ৳৫০০।');
+    if(!amount || amount < 1000){
+      showWithdrawalMessage('withdraw-amount','সর্বনিম্ন উত্তোলনের পরিমাণ ৳১,০০০।');
       return;
     }
     if(amount > 25000){
@@ -4693,14 +4753,22 @@ body.logged-out .income-summary{display:none !important;}
     const amount=Number(document.getElementById('withdraw-amount').value);
     clearWithdrawalMessages();
     if(!number){showWithdrawalMessage('withdraw-number','মোবাইল নাম্বার দিন।');return;}
-    if(!amount||amount<500){showWithdrawalMessage('withdraw-amount','সর্বনিম্ন উত্তোলনের পরিমাণ ৳৫০০।');return;}
+    if(!amount||amount<1000){showWithdrawalMessage('withdraw-amount','সর্বনিম্ন উত্তোলনের পরিমাণ ৳১,০০০।');return;}
     if(amount>25000){showWithdrawalMessage('withdraw-amount','সর্বোচ্চ উত্তোলনের পরিমাণ ৳২৫,০০০।');return;}
-    if(amount>Number(mainBalance||0)){showWithdrawalMessage('withdraw-amount','আপনার ব্যালেন্সের চেয়ে বেশি উত্তোলন করা যাবে না।');return;}
+    if(amount>Number(mainBalance||0)){showWithdrawalMessage('withdraw-amount','আপনার ব্যালেন্সের চেয়ে বেশি উত্তোলন করা যাবে না।');return;}
     const u=auth.currentUser;if(!u){showScreen('login-screen');return;}
+    const submitBtn=document.querySelector('.withdraw-submit');
+    if(submitBtn) submitBtn.disabled=true;
     try{
+      // রিকোয়েস্ট সফলভাবে Firestore-এ সেভ হওয়ার সাথে সাথেই মূল ব্যালেন্স (mainBalance)
+      // থেকে টাকাটা কেটে সেভ করা হচ্ছে — আগে এখানে ব্যালেন্স আপডেট করা হতো না,
+      // ফলে উত্তোলন করলেও ব্যালেন্স কমতো না।
       await db.collection('withdrawals').add({uid:u.uid,number,amount,method:selectedWithdrawMethod,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-      addWithdrawalHistory(number,amount,selectedWithdrawMethod); closeWithdrawModal(); showScreen('withdrawal-history-screen'); showWithdrawalToast();
-    }catch(err){alert('উত্তোলন রিকোয়েস্ট পাঠানো যায়নি। Firebase Rules/connection পরীক্ষা করুন।');}
+      mainBalance = Number(mainBalance||0) - amount;
+      saveMainBalance();
+      closeWithdrawModal(); showWithdrawalHistory(); showWithdrawalToast();
+    }catch(err){alert('উত্তোলন রিকোয়েস্ট পাঠানো যায়নি। Firebase Rules/connection পরীক্ষা করুন।');}
+    finally{ if(submitBtn) submitBtn.disabled=false; }
   };
 
   function updateLoggedInHeader(user, profileData){
