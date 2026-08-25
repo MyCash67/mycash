@@ -81,7 +81,7 @@ const db=adminApp.firestore(); const auth=adminApp.auth(); const ADMIN_EMAIL='ad
 <div class="container">
 <div id="homePage">
 <div class="menu-grid">
-<button class="menu-box" onclick="showUsersPage()"><div class="icon">👤</div><h3>User</h3></button>
+<button class="menu-box" onclick="showUsersPage()"><div class="icon">👤</div><h3>User</h3><p id="userCountBadge" style="font-size:12px;color:#7b8495;margin-top:4px">লোড হচ্ছে...</p><p id="activeUserBadge" style="font-size:12px;color:#16834b;margin-top:2px;font-weight:700">—</p></button>
 <button class="menu-box" onclick="showPackageOrdersPage()"><div class="icon">📦</div><h3>Package Order</h3></button>
 <button class="menu-box" onclick="showPackagesPage()"><div class="icon">🎁</div><h3>Package List</h3></button>
 <button class="menu-box" onclick="showWithdrawalsPage()"><div class="icon">💰</div><h3>Withdraw History</h3></button>
@@ -140,8 +140,45 @@ async function saveSocialLinks(){try{await db.collection('settings').doc('public
 async function saveAdsLinks(){const ads={};for(let i=1;i<=10;i++)ads['ads'+i]=document.getElementById('ads'+i+'Link').value.trim();try{await db.collection('settings').doc('public').set({ads},{merge:true});const s=document.getElementById('adsStatus');s.textContent='Ads saved to Firebase ✓';s.style.color='#16834b';}catch(e){document.getElementById('adsStatus').textContent='Save failed';}}
 async function loadSettings(){try{const s=(await db.collection('settings').doc('public').get()).data()||{};const p=s.paymentNumbers||{};document.getElementById('numberInput').value=selectedMethod?(p[selectedMethod]||''):'';const social=s.social||{};['youtube','telegram','facebook'].forEach(k=>{const el=document.getElementById(k+'Link');if(el)el.value=social[k]||''});const ads=s.ads||{};for(let i=1;i<=10;i++){const el=document.getElementById('ads'+i+'Link');if(el)el.value=ads['ads'+i]||''}}catch(e){console.warn(e)}}
 async function adminLogin(){const email=document.getElementById('adminEmail').value.trim().toLowerCase(),pass=document.getElementById('adminPassword').value;const st=document.getElementById('adminAuthStatus');if(email!==ADMIN_EMAIL){st.textContent='Admin email must be admin@mycash.com';return;}try{await auth.signInWithEmailAndPassword(email,pass);}catch(e){st.textContent='Login failed. Firebase Authentication-এ admin@mycash.com user তৈরি আছে কিনা দেখুন.';}}
-async function adminLogout(){await auth.signOut();}
-auth.onAuthStateChanged(async user=>{const gate=document.getElementById('adminAuth');if(user && user.email.toLowerCase()===ADMIN_EMAIL){gate.style.display='none';await loadSettings();}else{gate.style.display='flex';}});
+async function adminLogout(){stopUserCountListener();await auth.signOut();}
+let __userCountUnsub=null;
+let __activeTickTimer=null;
+let __liveUsersCache=[];
+const ACTIVE_THRESHOLD_MS=60*1000; // heartbeat প্রতি ~20 সেকেন্ডে; ৬০ সেকেন্ড ধরে কোনো আপডেট না এলে অফলাইন গণ্য হবে
+function recomputeActiveBadge(){
+  const el=document.getElementById('activeUserBadge');
+  if(!el)return;
+  const now=Date.now();
+  const activeCount=__liveUsersCache.filter(u=>{
+    const la=u.lastActive&&u.lastActive.toMillis?u.lastActive.toMillis():0;
+    return la&&(now-la)<ACTIVE_THRESHOLD_MS;
+  }).length;
+  el.textContent='এখন অ্যাক্টিভ: '+activeCount+' জন';
+}
+function startUserCountListener(){
+  if(__userCountUnsub)return; // already listening
+  __userCountUnsub=db.collection('users').onSnapshot(snap=>{
+    const el=document.getElementById('userCountBadge');
+    if(el)el.textContent='মোট ইউজার: '+snap.size+' জন';
+    __liveUsersCache=snap.docs.map(d=>d.data());
+    recomputeActiveBadge();
+  },err=>{
+    console.warn('user count listener error',err);
+    const el=document.getElementById('userCountBadge');
+    if(el)el.textContent='লোড ব্যর্থ';
+  });
+  if(!__activeTickTimer)__activeTickTimer=setInterval(recomputeActiveBadge,5000);
+}
+function stopUserCountListener(){
+  if(__userCountUnsub){__userCountUnsub();__userCountUnsub=null;}
+  if(__activeTickTimer){clearInterval(__activeTickTimer);__activeTickTimer=null;}
+  __liveUsersCache=[];
+  const el=document.getElementById('userCountBadge');
+  if(el)el.textContent='লোড হচ্ছে...';
+  const el2=document.getElementById('activeUserBadge');
+  if(el2)el2.textContent='—';
+}
+auth.onAuthStateChanged(async user=>{const gate=document.getElementById('adminAuth');if(user && user.email.toLowerCase()===ADMIN_EMAIL){gate.style.display='none';await loadSettings();startUserCountListener();}else{gate.style.display='flex';stopUserCountListener();}});
 function requireAdmin(){const u=auth.currentUser;if(!u||u.email.toLowerCase()!==ADMIN_EMAIL){alert('Admin login required');return false}return true}
 let __usersCache=[];
 let __paymentsByUid={};
