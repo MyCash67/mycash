@@ -1311,8 +1311,18 @@
 #contact-screen.visible{
   display:flex;
   flex-direction:column;
-  position:absolute;
-  inset:0;
+  /* Anchor to the real viewport (same trick as .topbar / .bottom-nav)
+     instead of stretching to fill .phone's box. This way the chat screen
+     always matches exactly what's visible on screen -- no page-level
+     scroll needed on top of the message list's own scroll. */
+  position:fixed;
+  top:0;
+  bottom:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(100%, 412px);
+  height:100vh;
+  height:100dvh;
   z-index:400;
   background:#EDE7D8;
 }
@@ -1454,6 +1464,7 @@
     .phone{width:min(100vw, 760px); max-width:760px; min-height:100vh; border-radius:0; box-shadow:none;}
     .content{max-width:760px; margin:0 auto;}
     .topbar{max-width:760px; margin:0 auto;}
+    #contact-screen.visible{width:min(100vw, 760px);}
   }
 
 </style>
@@ -2301,31 +2312,6 @@
     }
     if(id !== 'contact-screen' && typeof window.stopContactMessagesListener === 'function'){
       window.stopContactMessagesListener();
-    }
-    // ---- Contact/chat screen only: stop the page itself from scrolling ----
-    // The chat screen sits inside .phone (which can be taller than the real
-    // screen). While this screen is open, lock body scroll and size the
-    // chat screen to the ACTUAL visible viewport, so only the message list
-    // (.chat-messages) scrolls -- never the page underneath it. This is
-    // undone the moment the user navigates to any other screen.
-    const contactScreenEl = document.getElementById('contact-screen');
-    if(id === 'contact-screen'){
-      document.body.style.overflow = 'hidden';
-      if(contactScreenEl){
-        const setContactScreenHeight = function(){
-          const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-          contactScreenEl.style.height = vh + 'px';
-        };
-        setContactScreenHeight();
-        window.addEventListener('resize', setContactScreenHeight);
-        window.myCashContactResizeHandler = setContactScreenHeight;
-      }
-    } else {
-      if(window.myCashContactResizeHandler){
-        window.removeEventListener('resize', window.myCashContactResizeHandler);
-        window.myCashContactResizeHandler = null;
-      }
-      if(contactScreenEl) contactScreenEl.style.height = '';
     }
     if(id === 'refer-screen' && typeof window.ensureReferralCode === 'function'){
       window.ensureReferralCode();
