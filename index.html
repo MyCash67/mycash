@@ -1390,7 +1390,9 @@
 }
 .chat-row{ display:flex; }
 .chat-row.out{ justify-content:flex-end; }
+.chat-row.in{ justify-content:flex-start; }
 .chat-bubble-wrap{ max-width:78%; display:flex; flex-direction:column; align-items:flex-end; }
+.chat-row.in .chat-bubble-wrap{ align-items:flex-start; }
 .chat-bubble{
   padding:10px 13px;
   border-radius:17px;
@@ -1404,6 +1406,12 @@
   background:var(--taka);
   color:#fff;
   border-bottom-right-radius:4px;
+}
+.chat-bubble.admin-reply{
+  background:var(--card);
+  color:var(--ink);
+  border:1px solid var(--line);
+  border-bottom-left-radius:4px;
 }
 .chat-meta{
   display:flex; align-items:center; gap:4px;
@@ -3476,12 +3484,23 @@
     const sendBtn=document.getElementById('contact-page-send-btn');
     if(sendBtn) sendBtn.disabled=true;
     try{
+      // এডমিন কোনো নির্দিষ্ট মেয়াদের জন্য মেসেজ পাঠানো বন্ধ (restrict) করে রাখলে,
+      // পাঠানোর আগে সরাসরি সার্ভার থেকে চেক করা হচ্ছে যাতে বাইপাস করা না যায়।
+      const userSnap=await fb.db.collection('users').doc(u.uid).get({source:'server'}).catch(()=>fb.db.collection('users').doc(u.uid).get());
+      const restrictedUntil=Number((userSnap && userSnap.data() && userSnap.data().messageRestrictedUntil)||0);
+      if(restrictedUntil>Date.now()){
+        const untilStr=new Date(restrictedUntil).toLocaleString('bn-BD');
+        showChatStatus('আপনাকে সাময়িকভাবে মেসেজ পাঠানো থেকে বিরত রাখা হয়েছে। মেয়াদ শেষ হবে: '+untilStr, true);
+        if(sendBtn) sendBtn.disabled=false;
+        return;
+      }
       const mobile=(getProfile() && getProfile().mobile) || '';
       await fb.db.collection('messages').add({
         uid:u.uid,
         mobile:mobile,
         message:message,
         text:message,
+        sender:'user',
         status:'sent',
         createdAt:firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -3522,6 +3541,16 @@
     // list arrives newest-first; render oldest-first like a real chat thread.
     const chronological = list.slice().reverse();
     wrap.innerHTML = chronological.map(function(m){
+      const isAdmin = m.sender==='admin';
+      if(isAdmin){
+        const time = formatContactMessageTime(m.createdAt);
+        return '<div class="chat-row in">'
+          +'<div class="chat-bubble-wrap">'
+            +'<div class="chat-bubble admin-reply">'+escapeContactHtml(m.text)+'</div>'
+            +'<div class="chat-meta"><span class="chat-time">'+time+'</span></div>'
+          +'</div>'
+        +'</div>';
+      }
       const isSeen = m.status==='seen';
       const tick = isSeen ? '✓✓' : '✓';
       const tickCls = isSeen ? 'tick seen' : 'tick';
@@ -3556,7 +3585,7 @@
             expiredRefs.push(doc.ref);
             return;
           }
-          visible.push({id:doc.id,text:data.text||'',status:data.status||'sent',createdAt:data.createdAt});
+          visible.push({id:doc.id,text:data.text||'',status:data.status||'sent',sender:data.sender||'user',createdAt:data.createdAt});
         });
         renderContactMessageHistory(visible);
         expiredRefs.forEach(function(ref){ ref.delete().catch(function(){}); });
