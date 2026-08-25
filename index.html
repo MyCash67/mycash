@@ -2327,11 +2327,34 @@
       document.body.style.left = '0';
       document.body.style.right = '0';
       document.body.style.width = '100%';
+      // Body normally has vertical padding (28px top+bottom on mobile) around
+      // the .phone card. That padding was NOT being subtracted before, so the
+      // chat screen was sized a bit taller than the real visible area and its
+      // bottom (input bar / latest messages) got clipped by .phone's
+      // overflow:hidden. Remove that padding while chat is open (saved and
+      // restored below) so the chat fills the exact visible viewport on any
+      // phone or PC, with no page-level scrolling -- only .chat-messages
+      // scrolls internally.
+      if(window._contactScreenSavedBodyPadding === undefined){
+        window._contactScreenSavedBodyPadding = document.body.style.padding || '';
+      }
+      document.body.style.padding = '0';
+      if(phoneEl){
+        if(window._contactScreenSavedPhoneRadius === undefined){
+          window._contactScreenSavedPhoneRadius = phoneEl.style.borderRadius || '';
+          window._contactScreenSavedPhoneShadow = phoneEl.style.boxShadow || '';
+        }
+        phoneEl.style.borderRadius = '0';
+        phoneEl.style.boxShadow = 'none';
+      }
       if(contactScreenEl){
         const setContactScreenHeight = function(){
           const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
           contactScreenEl.style.height = vh + 'px';
-          if(phoneEl) phoneEl.style.minHeight = vh + 'px';
+          if(phoneEl){
+            phoneEl.style.minHeight = vh + 'px';
+            phoneEl.style.height = vh + 'px';
+          }
         };
         setContactScreenHeight();
         window.addEventListener('resize', setContactScreenHeight);
@@ -2351,8 +2374,17 @@
       document.body.style.left = '';
       document.body.style.right = '';
       document.body.style.width = '';
+      document.body.style.padding = window._contactScreenSavedBodyPadding !== undefined ? window._contactScreenSavedBodyPadding : '';
+      window._contactScreenSavedBodyPadding = undefined;
       if(contactScreenEl) contactScreenEl.style.height = '';
-      if(phoneEl) phoneEl.style.minHeight = '';
+      if(phoneEl){
+        phoneEl.style.minHeight = '';
+        phoneEl.style.height = '';
+        phoneEl.style.borderRadius = window._contactScreenSavedPhoneRadius !== undefined ? window._contactScreenSavedPhoneRadius : '';
+        phoneEl.style.boxShadow = window._contactScreenSavedPhoneShadow !== undefined ? window._contactScreenSavedPhoneShadow : '';
+        window._contactScreenSavedPhoneRadius = undefined;
+        window._contactScreenSavedPhoneShadow = undefined;
+      }
       window.scrollTo(0, window._contactScreenScrollY || 0);
     }
     if(id === 'refer-screen' && typeof window.ensureReferralCode === 'function'){
