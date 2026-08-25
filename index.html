@@ -2505,8 +2505,11 @@
         if(!p.approvedAt){
           const approvedAtMs = Date.now();
           try{
-            await doc.ref.update({approvedAt: approvedAtMs, approvedDateKey: todayKey});
-            p = {...p, approvedAt: approvedAtMs, approvedDateKey: todayKey};
+            // Firestore Rules শুধু approvedAt একা (অন্য কোনো ফিল্ড ছাড়া) বদলানোর
+            // অনুমতি দেয়, তাই approvedDateKey এখানে একসাথে পাঠানো যাবে না —
+            // approvedDateKey পরে approvedAt থেকেই বের করে নেওয়া হয় (নিচে দেখুন)।
+            await doc.ref.update({approvedAt: approvedAtMs});
+            p = {...p, approvedAt: approvedAtMs};
           }catch(err){
             console.error('approvedAt set failed:', err);
           }
