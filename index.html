@@ -2302,35 +2302,58 @@
     if(id !== 'contact-screen' && typeof window.stopContactMessagesListener === 'function'){
       window.stopContactMessagesListener();
     }
-    // ---- Contact/chat screen only: match the REAL device viewport height ----
+    // ---- Contact/chat screen only: lock the OUTER page and match the REAL viewport ----
     // #contact-screen is position:absolute;inset:0 inside .phone, but .phone
     // itself has no fixed height (only min-height:780px) once every other
-    // .screen is hidden. Without this, the chat screen was stuck around
-    // ~780px on every device instead of the phone's actual visible height —
-    // so on shorter/taller phones the whole page scrolled instead of just
-    // the message list, and older messages at the top stayed hidden. This
-    // sets an explicit pixel height on #contact-screen only, matching the
-    // real visible viewport (accounts for the on-screen keyboard via
-    // visualViewport), so only .chat-messages scrolls internally. Fully
-    // undone the moment the user leaves this screen — no effect elsewhere.
+    // .screen is hidden -- so on shorter/taller phones .phone was taller than
+    // the real visible viewport, and plain `body{overflow:hidden}` does NOT
+    // reliably stop the outer page from dragging/scrolling on many mobile
+    // browsers (a well-known limitation -- overflow:hidden on body alone is
+    // often ignored by touch scrolling). The fix below uses the standard
+    // "position:fixed body" scroll-lock (reliable across mobile browsers)
+    // and also sizes both #contact-screen AND .phone to the real visible
+    // viewport height, so only .chat-messages scrolls internally and older
+    // messages at the top become reachable. Fully undone -- including the
+    // page's exact previous scroll position -- the moment the user leaves
+    // this screen, so no other page is affected.
     const contactScreenEl = document.getElementById('contact-screen');
+    const phoneEl = document.querySelector('.phone');
     if(id === 'contact-screen'){
+      window._contactScreenScrollY = window.scrollY || window.pageYOffset || 0;
+      document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = (-window._contactScreenScrollY) + 'px';
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
       if(contactScreenEl){
         const setContactScreenHeight = function(){
           const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
           contactScreenEl.style.height = vh + 'px';
+          if(phoneEl) phoneEl.style.minHeight = vh + 'px';
         };
         setContactScreenHeight();
         window.addEventListener('resize', setContactScreenHeight);
         if(window.visualViewport) window.visualViewport.addEventListener('resize', setContactScreenHeight);
         window._contactScreenHeightHandler = setContactScreenHeight;
       }
-    } else if(window._contactScreenHeightHandler){
-      window.removeEventListener('resize', window._contactScreenHeightHandler);
-      if(window.visualViewport) window.visualViewport.removeEventListener('resize', window._contactScreenHeightHandler);
-      window._contactScreenHeightHandler = null;
+    } else if(window._contactScreenHeightHandler || document.body.style.position === 'fixed'){
+      if(window._contactScreenHeightHandler){
+        window.removeEventListener('resize', window._contactScreenHeightHandler);
+        if(window.visualViewport) window.visualViewport.removeEventListener('resize', window._contactScreenHeightHandler);
+        window._contactScreenHeightHandler = null;
+      }
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
       if(contactScreenEl) contactScreenEl.style.height = '';
+      if(phoneEl) phoneEl.style.minHeight = '';
+      window.scrollTo(0, window._contactScreenScrollY || 0);
     }
     if(id === 'refer-screen' && typeof window.ensureReferralCode === 'function'){
       window.ensureReferralCode();
