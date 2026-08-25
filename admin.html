@@ -48,6 +48,35 @@ input:focus{border-color:#7d8cff;background:#fff;box-shadow:0 0 0 4px rgba(95,11
 .ads-list .social-info h3{font-size:17px;margin-bottom:4px}
 .ads-list .social-info p{font-size:12px;color:#8992a2;margin-bottom:8px}
 .ads-list .social-info input{padding:11px 12px;font-size:14px}
+
+/* ---------- INBOX CHAT VIEW (index.html-এর চ্যাট ডিজাইনের সাথে মিলিয়ে) ---------- */
+.chat-page{background:#EDE7D8;border-radius:22px;overflow:hidden;box-shadow:0 12px 30px rgba(26,42,68,.10);display:flex;flex-direction:column}
+.chat-page-header{display:flex;align-items:center;gap:12px;padding:14px 16px;background:#0F2E1D;color:#F6F2E9}
+.chat-page-back{width:36px;height:36px;border-radius:12px;background:rgba(246,242,233,.14);color:#F6F2E9;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;cursor:pointer;border:0}
+.chat-page-back:active{background:rgba(246,242,233,.24)}
+.chat-page-avatar{width:42px;height:42px;border-radius:50%;background:#1F6E4A;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;flex-shrink:0}
+.chat-page-info{line-height:1.28;min-width:0;flex:1}
+.chat-page-name{font-size:15.5px;font-weight:700}
+.chat-page-sub{font-size:11px;opacity:.75;margin-top:1px}
+.chat-page-messages{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 14px;display:flex;flex-direction:column;gap:9px;min-height:280px;max-height:420px}
+.chat-page-empty{margin:auto;text-align:center;color:#7b8495;font-size:12.5px;padding:20px;max-width:220px}
+.chat-page-row{display:flex}
+.chat-page-row.out{justify-content:flex-end}
+.chat-page-row.in{justify-content:flex-start}
+.chat-page-bubble-wrap{max-width:78%;display:flex;flex-direction:column}
+.chat-page-row.out .chat-page-bubble-wrap{align-items:flex-end}
+.chat-page-row.in .chat-page-bubble-wrap{align-items:flex-start}
+.chat-page-bubble{padding:10px 13px;border-radius:17px;font-size:13.5px;line-height:1.45;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap}
+.chat-page-row.out .chat-page-bubble{background:#1F6E4A;color:#fff;border-bottom-right-radius:4px}
+.chat-page-row.in .chat-page-bubble{background:#fff;color:#0F2E1D;border:1px solid rgba(15,46,29,.10);border-bottom-left-radius:4px}
+.chat-page-meta{font-size:10.5px;color:#8992a2;margin-top:4px;padding:0 2px}
+.chat-page-inputbar{display:flex;align-items:flex-end;gap:8px;padding:10px 12px;background:#F6F2E9;border-top:1px solid rgba(15,46,29,.10)}
+.chat-page-input{flex:1;resize:none;max-height:96px;min-height:42px;border:1px solid rgba(15,46,29,.14);border-radius:21px;padding:11px 16px;font-family:inherit;font-size:13.5px;background:#fff;color:#0F2E1D;line-height:1.3;outline:none}
+.chat-page-input:focus{border-color:#1F6E4A}
+.chat-page-sendbtn{width:42px;height:42px;border-radius:50%;flex-shrink:0;background:#1F6E4A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;border:0;cursor:pointer;transition:transform .1s ease}
+.chat-page-sendbtn:active{transform:scale(.93)}
+.chat-page-restrict{padding:12px 14px;background:#F6F2E9;border-top:1px solid rgba(15,46,29,.08);border-bottom:1px solid rgba(15,46,29,.08)}
+.chat-page-restrict input{background:#fff}
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -325,7 +354,7 @@ async function showMessagesPage(){
     renderInboxList(snap.docs);
   },err=>{
     const el=document.getElementById('inboxList');
-    if(el)el.innerHTML='ইনবক্স লোড করা যায়নি।';
+    if(el)el.innerHTML='ইনবক্স লোড করা যায়নি: '+(err&&err.message||err);
     console.error(err);
   });
 }
@@ -367,28 +396,39 @@ async function openUserThread(uid){
   const u=__inboxUsersMap[uid]||{};
   const name=`${u.firstName||''} ${u.lastName||''}`.trim()||'নাম নেই';
   const mobile=u.mobile||'—';
+  const avatarChar=(u.firstName||'').trim().charAt(0).toUpperCase()||'👤';
   showBack('Inbox');
   document.getElementById('pageTitle').textContent=name;
   const c=document.getElementById('dataPage');
   c.innerHTML=`
-<div class="form show" style="margin-bottom:14px">
-<button class="save" style="background:#eef1f6;color:#172033;margin-bottom:14px" onclick="showMessagesPage()">‹ ইনবক্সে ফিরুন</button>
-<h3>${escapeHtmlAdmin(name)}</h3>
-<div style="font-size:13px;color:#7b8495;margin-bottom:10px">মোবাইল: ${escapeHtmlAdmin(mobile)}</div>
-<div id="restrictionBox"></div>
+<div class="chat-page">
+  <div class="chat-page-header">
+    <button class="chat-page-back" onclick="showMessagesPage()">‹</button>
+    <div class="chat-page-avatar">${escapeHtmlAdmin(avatarChar)}</div>
+    <div class="chat-page-info">
+      <div class="chat-page-name">${escapeHtmlAdmin(name)}</div>
+      <div class="chat-page-sub">মোবাইল: ${escapeHtmlAdmin(mobile)}</div>
+    </div>
+  </div>
+  <div id="restrictionBox"></div>
+  <div class="chat-page-messages" id="threadMessages">লোড হচ্ছে...</div>
+  <div class="chat-page-inputbar">
+    <textarea class="chat-page-input" id="replyInput" placeholder="রিপ্লাই লিখুন..." rows="1"></textarea>
+    <button class="chat-page-sendbtn" onclick="sendAdminReply('${uid}')">➤</button>
+  </div>
 </div>
-<div class="form show" style="max-height:360px;overflow-y:auto" id="threadMessages">লোড হচ্ছে...</div>
-<div class="form show" style="margin-top:14px">
-<textarea id="replyInput" rows="3" placeholder="রিপ্লাই লিখুন..." style="width:100%;padding:13px;border:1px solid #e1e6ee;background:#f8fafc;border-radius:13px;font-size:15px;font-family:inherit;outline:none"></textarea>
-<button class="save" onclick="sendAdminReply('${uid}')">পাঠান</button>
-<div class="status" id="replyStatus"></div>
-</div>`;
+<div class="status" id="replyStatus" style="text-align:center;margin-top:10px"></div>`;
+  const replyInput=document.getElementById('replyInput');
+  if(replyInput){
+    replyInput.addEventListener('input',function(){replyInput.style.height='auto';replyInput.style.height=Math.min(replyInput.scrollHeight,96)+'px';});
+    replyInput.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAdminReply(uid);}});
+  }
   renderRestrictionBox(uid, Number(u.messageRestrictedUntil||0));
   __threadUnsub=db.collection('messages').where('uid','==',uid).orderBy('createdAt','asc').onSnapshot(snap=>{
     renderThreadMessages(snap.docs);
   },err=>{
     const el=document.getElementById('threadMessages');
-    if(el)el.innerHTML='মেসেজ লোড করা যায়নি।';
+    if(el)el.innerHTML='মেসেজ লোড করা যায়নি: '+(err&&err.message||err);
     console.error(err);
   });
 }
@@ -396,21 +436,25 @@ async function openUserThread(uid){
 function renderThreadMessages(docs){
   const wrap=document.getElementById('threadMessages');
   if(!wrap)return;
+  if(!docs.length){
+    wrap.innerHTML='<div class="chat-page-empty">এখনো কোনো মেসেজ নেই।</div>';
+    return;
+  }
   let html='';
   const toMarkSeen=[];
   docs.forEach(doc=>{
     const x=doc.data();
-    const isAdmin=x.sender==='admin';
+    const isAdminMsg=x.sender==='admin';
     const t=x.createdAt&&x.createdAt.toDate?x.createdAt.toDate().toLocaleString('bn-BD',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
-    html+=`<div style="display:flex;justify-content:${isAdmin?'flex-end':'flex-start'};margin:8px 0">
-<div style="max-width:75%;background:${isAdmin?'#20283a':'#eef1f6'};color:${isAdmin?'#fff':'#172033'};padding:10px 13px;border-radius:14px;font-size:14px">
-${escapeHtmlAdmin(x.text||x.message||'')}
-<div style="font-size:10px;opacity:.7;margin-top:4px;text-align:right">${t}</div>
+    html+=`<div class="chat-page-row ${isAdminMsg?'out':'in'}">
+<div class="chat-page-bubble-wrap">
+<div class="chat-page-bubble">${escapeHtmlAdmin(x.text||x.message||'')}</div>
+<div class="chat-page-meta">${t}</div>
 </div>
 </div>`;
-    if(!isAdmin&&x.status==='sent')toMarkSeen.push(doc.ref);
+    if(!isAdminMsg&&x.status==='sent')toMarkSeen.push(doc.ref);
   });
-  wrap.innerHTML=html||'কোনো মেসেজ নেই';
+  wrap.innerHTML=html;
   wrap.scrollTop=wrap.scrollHeight;
   toMarkSeen.forEach(ref=>ref.update({status:'seen'}).catch(()=>{}));
 }
@@ -433,6 +477,7 @@ async function sendAdminReply(uid){
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     input.value='';
+    input.style.height='';
     if(status)status.textContent='';
   }catch(e){
     if(status){status.textContent='পাঠানো যায়নি: '+(e&&e.message||e);status.style.color='#d93025';}
@@ -445,13 +490,13 @@ function renderRestrictionBox(uid, restrictedUntil){
   const now=Date.now();
   if(restrictedUntil>now){
     const untilStr=new Date(restrictedUntil).toLocaleString('bn-BD');
-    box.innerHTML=`<div style="background:#fdeaea;border-radius:12px;padding:12px;font-size:13px;color:#7a1f1f">
-এই ইউজার মেসেজ পাঠানো থেকে রেস্ট্রিক্টেড আছে।<br>মেয়াদ শেষ হবে: ${untilStr}
+    box.innerHTML=`<div class="chat-page-restrict" style="color:#7a1f1f">
+এই ইউজার মেসেজ পাঠানো থেকে রেস্ট্রিক্টেড আছে। মেয়াদ শেষ হবে: ${untilStr}
 <button class="save" style="margin-top:10px;background:linear-gradient(135deg,#1c6b3f,#0d3b29)" onclick="removeRestriction('${uid}')">রেস্ট্রিকশন তুলে নিন</button>
 </div>`;
   }else{
-    box.innerHTML=`<div style="background:#f8fafc;border-radius:12px;padding:12px">
-<div style="font-size:13px;color:#7b8495;margin-bottom:8px">এই ইউজারকে নির্দিষ্ট কিছুদিনের জন্য মেসেজ পাঠানো থেকে রেস্ট্রিক্ট করুন</div>
+    box.innerHTML=`<div class="chat-page-restrict">
+<div style="font-size:12.5px;color:#7b8495;margin-bottom:8px">এই ইউজারকে নির্দিষ্ট কিছুদিনের জন্য মেসেজ পাঠানো থেকে রেস্ট্রিক্ট করুন</div>
 <input id="restrictDays-${uid}" type="number" min="1" placeholder="কতদিনের জন্য (যেমন: ৭)" style="margin-bottom:10px">
 <button class="save" style="background:linear-gradient(135deg,#bd3030,#7a1f1f)" onclick="restrictUser('${uid}')">রেস্ট্রিক্ট করুন</button>
 </div>`;
