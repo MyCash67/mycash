@@ -32,15 +32,10 @@
     font-family:'Hind Siliguri', sans-serif;
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
-    height:100dvh;
+    min-height:100dvh;
     display:flex;
     justify-content:center;
     padding:28px 14px;
-    /* The outer page must never scroll on its own — otherwise, on short
-       mobile viewports, you get the "double scroll" feeling (the whole
-       page moves AND the SMS box scrolls). All scrolling should happen
-       inside .phone / the individual screen, never on body/document. */
-    overflow:hidden;
   }
 
   .display{ font-family:'Tiro Bangla', serif; font-weight:400; letter-spacing:-0.01em; }
@@ -53,15 +48,16 @@
     background:var(--paper);
     border-radius:34px;
     box-shadow:0 40px 80px -30px rgba(15,46,29,0.35), 0 0 0 1px rgba(15,46,29,0.06);
+    overflow:hidden;
     position:relative;
-    min-height:780px;
-    /* Cap the mockup to the real viewport height and let IT scroll
-       internally instead of the outer body. On short phone screens this
-       stops the whole page from scrolling along with the SMS box. */
-    max-height:100dvh;
-    overflow-y:auto;
-    overflow-x:hidden;
-    -webkit-overflow-scrolling:touch;
+    /* Auto-fit to whatever device this loads on, instead of a hardcoded
+       780px. Regular screens that need more room than one viewport still
+       grow taller and the page scrolls (topbar/bottom-nav stay fixed).
+       The contact/chat screen, which has no in-flow height of its own,
+       ends up exactly viewport-tall here -- so it never needs page-level
+       scroll on top of its own internal message scroll. */
+    min-height:100vh;
+    min-height:100dvh;
   }
 
   .status{
