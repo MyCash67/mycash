@@ -1349,7 +1349,16 @@
   padding:16px 14px 14px;
   display:flex;
   flex-direction:column;
-  justify-content:flex-end;
+  /* NOTE: intentionally NOT justify-content:flex-end here. On a scrollable
+     flex column, justify-content:flex-end pushes overflowing content off
+     the TOP of the box, and that overflow becomes permanently unreachable
+     by scrolling in most browsers (a well-known flexbox+overflow trap) --
+     this is why old messages could not be scrolled into view once the
+     thread got long. Messages are top-aligned instead, and JS
+     (scrollChatToBottom / the wasNearBottom check in
+     renderContactMessageHistory) scrolls to the latest message whenever
+     the chat opens or a new message arrives, so it still visually starts
+     at the newest message -- but every older message stays scrollable. */
   gap:9px;
   position:relative;
 }
