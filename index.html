@@ -3617,11 +3617,12 @@
   }
 
   // ---------- FIELD MESSAGES ----------
-  let fieldMessageTimer = null;
-
+  // এখানে আগে একটা setTimeout দিয়ে ১.৮ সেকেন্ড পর টোস্ট মেসেজ ও লাল বর্ডার
+  // জোর করে সরিয়ে দেওয়া হতো — যার কারণে ইউজার আসল সমস্যাটা (যেমন: ভুল নম্বর)
+  // ঠিক না করলেও বক্স আবার স্বাভাবিক (green) হয়ে যেত। এখন থেকে মেসেজ/লাল বর্ডার
+  // শুধু তখনই সরবে যখন ইউজার নিজে ওই নির্দিষ্ট ইনপুটে টাইপ করে সমস্যাটা ঠিক করার
+  // চেষ্টা করবে — সময় হলেই না।
   function showFieldMessage(inputId, messageId, message){
-    clearTimeout(fieldMessageTimer);
-
     document.querySelectorAll('.field-message.show').forEach(el => el.classList.remove('show'));
     document.querySelectorAll('.auth-input.input-error').forEach(el => el.classList.remove('input-error'));
 
@@ -3635,16 +3636,24 @@
     input.classList.add('input-error');
     input.focus();
 
-    fieldMessageTimer = setTimeout(() => {
-      box.classList.remove('show');
-      input.classList.remove('input-error');
-    }, 1800);
+    // ইউজার এই ইনপুটে টাইপ করলে (ঠিক করার চেষ্টা করলে) তবেই মেসেজ/লাল বর্ডার সরে যাবে।
+    if(!input.dataset.fieldMsgBound){
+      input.dataset.fieldMsgBound = '1';
+      input.addEventListener('input', function(){
+        box.classList.remove('show');
+        input.classList.remove('input-error');
+      });
+    }
   }
 
   function clearFieldMessages(){
-    clearTimeout(fieldMessageTimer);
     document.querySelectorAll('.field-message.show').forEach(el => el.classList.remove('show'));
     document.querySelectorAll('.auth-input.input-error').forEach(el => el.classList.remove('input-error'));
+  }
+
+  // মোবাইল নম্বর ঠিক আছে কিনা যাচাই করার হেল্পার — ১১ সংখ্যার এবং 01 দিয়ে শুরু হতে হবে।
+  function isValidBDMobile(mobile){
+    return /^01\d{9}$/.test(mobile);
   }
 
 
@@ -3668,6 +3677,14 @@
     }
     if(!mobile){
       showFieldMessage('register-mobile','register-mobile-message','মোবাইল নম্বর লিখুন।');
+      return;
+    }
+    if(mobile.length!==11){
+      showFieldMessage('register-mobile','register-mobile-message','মোবাইল নম্বর অবশ্যই ১১ সংখ্যার হতে হবে।');
+      return;
+    }
+    if(!mobile.startsWith('01')){
+      showFieldMessage('register-mobile','register-mobile-message','মোবাইল নম্বর অবশ্যই 01 দিয়ে শুরু হতে হবে।');
       return;
     }
     if(!password){
@@ -3695,6 +3712,14 @@
 
     if(!mobile){
       showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর লিখুন।');
+      return;
+    }
+    if(mobile.length!==11){
+      showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর অবশ্যই ১১ সংখ্যার হতে হবে।');
+      return;
+    }
+    if(!mobile.startsWith('01')){
+      showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর অবশ্যই 01 দিয়ে শুরু হতে হবে।');
       return;
     }
     if(!password){
@@ -4312,6 +4337,8 @@ body.logged-out .income-summary{display:none !important;}
     if(!firstName){showFieldMessage('register-first-name','register-first-message','প্রথম নাম লিখুন।');return;}
     if(!lastName){showFieldMessage('register-last-name','register-last-message','শেষ নাম লিখুন।');return;}
     if(!mobile){showFieldMessage('register-mobile','register-mobile-message','মোবাইল নম্বর লিখুন।');return;}
+    if(mobile.length!==11){showFieldMessage('register-mobile','register-mobile-message','মোবাইল নম্বর অবশ্যই ১১ সংখ্যার হতে হবে।');return;}
+    if(!mobile.startsWith('01')){showFieldMessage('register-mobile','register-mobile-message','মোবাইল নম্বর অবশ্যই 01 দিয়ে শুরু হতে হবে।');return;}
     if(!password){showFieldMessage('register-password','register-password-message','পাসওয়ার্ড লিখুন।');return;}
     if(password.length<6){showFieldMessage('register-password','register-password-message','পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।');return;}
     if(!repassword){showFieldMessage('register-repassword','register-repassword-message','পাসওয়ার্ড পুনরায় লিখুন।');return;}
@@ -4403,6 +4430,8 @@ body.logged-out .income-summary{display:none !important;}
     const password=document.getElementById('login-password').value.trim();
     clearFieldMessages();
     if(!mobile){showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর লিখুন।');return;}
+    if(mobile.length!==11){showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর অবশ্যই ১১ সংখ্যার হতে হবে।');return;}
+    if(!mobile.startsWith('01')){showFieldMessage('login-mobile','login-mobile-message','মোবাইল নম্বর অবশ্যই 01 দিয়ে শুরু হতে হবে।');return;}
     if(!password){showFieldMessage('login-password','login-password-message','পাসওয়ার্ড লিখুন।');return;}
     try{
       authFlowPending=true;
