@@ -3825,10 +3825,34 @@
   let pendingPackage = null;
   let selectedMethod = null;
 
+  // এই ডিফল্ট/প্লেসহোল্ডার নম্বরগুলো শুধু তখনই দেখা যাবে যদি এডমিন প্যানেল থেকে এখনো
+  // কোনো নম্বর সেভ করা না থাকে বা Firestore থেকে লোড করতে ব্যর্থ হয় (নেটওয়ার্ক সমস্যা)।
+  // নিচের loadPaymentNumbersFromFirestore() ফাংশন settings/public.paymentNumbers থেকে
+  // এডমিনের সেভ করা আসল নম্বর দিয়ে এই অবজেক্টটা আপডেট করে দেয়।
   const paymentNumbers = {
     bkash: '01711-000000',
     nagad: '01911-000000'
   };
+
+  // এডমিন প্যানেল (admin.html) থেকে বিকাশ/নগদ নম্বর settings/public ডকুমেন্টের
+  // paymentNumbers ফিল্ডে সেভ হয় — কিন্তু আগে এই ফাইলে সেটা কোথাও লোড করা হতো না,
+  // তাই "প্যাকেজ কিনুন" ফ্লোতে সবসময় উপরের হার্ডকোড করা প্লেসহোল্ডার নম্বরই দেখাত।
+  // এখন settings/public পাবলিকভাবে readable বলে লগইন অবস্থার জন্য অপেক্ষা না করেই
+  // পেজ লোড হওয়ার সাথে সাথে এটা লোড করে paymentNumbers অবজেক্টে বসিয়ে দেওয়া হচ্ছে —
+  // ঠিক social task links (loadSocialLinksFromFirestore) যেভাবে লোড হয় সেভাবেই।
+  async function loadPaymentNumbersFromFirestore(){
+    try{
+      const fb=window.myCashFirebase;
+      if(!fb || !fb.db) return;
+      const snap=await fb.db.collection('settings').doc('public').get();
+      const data=snap.exists ? (snap.data()||{}) : {};
+      const saved=data.paymentNumbers||{};
+      if(saved.bkash) paymentNumbers.bkash=saved.bkash;
+      if(saved.nagad) paymentNumbers.nagad=saved.nagad;
+    }catch(e){
+      console.error('Payment numbers load failed:', e);
+    }
+  }
 
   function openPaymentModal(price, name, days, income, id){
     pendingPackage = { price, name, days, income, id: id || null };
@@ -4245,6 +4269,9 @@ body.logged-out .income-summary{display:none !important;}
   // settings/public পাবলিক ডকুমেন্ট — লগইন অবস্থার জন্য অপেক্ষা না করেই সরাসরি লোড করা হচ্ছে,
   // যাতে লগইন করা না থাকলেও Social Task বাটনগুলো এডমিনের দেওয়া লিংক নিয়ে ঠিকভাবে কাজ করে।
   loadSocialLinksFromFirestore();
+  // একই কারণে বিকাশ/নগদ পেমেন্ট নম্বরও লগইনের জন্য অপেক্ষা না করেই লোড করা হচ্ছে,
+  // যাতে "প্যাকেজ কিনুন" ফ্লোতে এডমিনের সেভ করা আসল নম্বরই সবসময় দেখায়।
+  loadPaymentNumbersFromFirestore();
   let authFlowPending = false;
   // createUserWithEmailAndPassword() সফল হওয়া মাত্রই onAuthStateChanged ট্রিগার হয়ে যায় —
   // অথচ users/{uid} ডকুমেন্ট তখনো Firestore-এ লেখা শেষ হয়নি। এই সময়টুকুতে
