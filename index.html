@@ -1129,7 +1129,7 @@
   /* ---------- FIXED APP TOP BAR ---------- */
   /* My Cash / Login / Registration stays fixed on the screen while content scrolls.
      Login and Registration screens intentionally keep their own normal header. */
-  .screen:not(#login-screen):not(#register-screen) > .topbar{
+  .screen:not(#login-screen):not(#register-screen):not(#contact-screen) > .topbar{
     position:fixed;
     top:0;
     left:50%;
@@ -1141,7 +1141,7 @@
   }
 
   /* Keep page content below the fixed top bar. */
-  .screen:not(#login-screen):not(#register-screen) > .topbar + .content{
+  .screen:not(#login-screen):not(#register-screen):not(#contact-screen) > .topbar + .content{
     padding-top:58px;
   }
 
@@ -1303,6 +1303,142 @@
 }
 .contact-history-status.sent{background:rgba(120,120,120,.14);color:var(--muted)}
 .contact-history-status.seen{background:rgba(31,110,74,.14);color:var(--taka)}
+
+/* ---------- CONTACT SCREEN: FULLSCREEN MESSENGER-STYLE CHAT ---------- */
+#contact-screen{
+  padding:0 !important;
+}
+#contact-screen.visible{
+  display:flex;
+  flex-direction:column;
+  position:absolute;
+  inset:0;
+  z-index:400;
+  background:#EDE7D8;
+}
+#contact-screen .chat-header{
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  background:var(--ink);
+  color:var(--paper);
+}
+#contact-screen .chat-header.inner-page-topbar{ justify-content:flex-start; }
+#contact-screen .chat-header .page-back-btn{
+  background:rgba(246,242,233,0.14);
+  color:var(--paper);
+  box-shadow:none;
+}
+#contact-screen .chat-header .page-back-btn:active{ background:rgba(246,242,233,0.24); }
+.chat-header-avatar{
+  width:42px; height:42px; border-radius:50%; flex-shrink:0;
+  background:var(--taka);
+  display:flex; align-items:center; justify-content:center;
+  font-size:19px;
+}
+.chat-header-info{ line-height:1.28; min-width:0; }
+.chat-header-name{ font-size:15.5px; font-weight:700; }
+.chat-header-sub{ font-size:11px; opacity:.65; margin-top:1px; }
+
+.chat-messages{
+  flex:1 1 auto;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:16px 14px 14px;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  gap:9px;
+  position:relative;
+}
+.chat-empty{
+  margin:auto;
+  text-align:center;
+  color:var(--muted);
+  font-size:12.5px;
+  padding:20px;
+  max-width:220px;
+}
+.chat-day-sep{
+  text-align:center;
+  font-size:10.5px;
+  color:var(--muted);
+  margin:6px 0 2px;
+}
+.chat-row{ display:flex; }
+.chat-row.out{ justify-content:flex-end; }
+.chat-bubble-wrap{ max-width:78%; display:flex; flex-direction:column; align-items:flex-end; }
+.chat-bubble{
+  padding:10px 13px;
+  border-radius:17px;
+  font-size:13.5px;
+  line-height:1.45;
+  word-wrap:break-word;
+  overflow-wrap:break-word;
+  white-space:pre-wrap;
+}
+.chat-row.out .chat-bubble{
+  background:var(--taka);
+  color:#fff;
+  border-bottom-right-radius:4px;
+}
+.chat-meta{
+  display:flex; align-items:center; gap:4px;
+  margin-top:4px;
+  font-size:10px;
+  color:var(--muted);
+}
+.chat-meta .tick{ font-size:12px; color:var(--muted); letter-spacing:-2px; }
+.chat-meta .tick.seen{ color:var(--taka); }
+
+.chat-input-bar{
+  flex-shrink:0;
+  display:flex;
+  align-items:flex-end;
+  gap:8px;
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  background:var(--paper);
+  border-top:1px solid var(--line);
+  position:relative;
+}
+.chat-input{
+  flex:1;
+  resize:none;
+  max-height:96px;
+  min-height:42px;
+  border:1px solid var(--line);
+  border-radius:21px;
+  padding:11px 16px;
+  font-family:inherit;
+  font-size:13.5px;
+  background:#fff;
+  color:var(--ink);
+  line-height:1.3;
+}
+.chat-input:focus{ outline:none; border-color:var(--taka); }
+.chat-send-btn{
+  width:42px; height:42px; border-radius:50%; flex-shrink:0;
+  background:var(--taka); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:17px;
+  transition:opacity .15s ease, transform .1s ease;
+}
+.chat-send-btn:active{ transform:scale(.93); }
+.chat-send-btn:disabled{ opacity:.5; cursor:not-allowed; }
+.chat-status-toast{
+  position:absolute;
+  left:50%; top:-8px; transform:translate(-50%,-100%);
+  background:var(--ink); color:var(--paper);
+  font-size:11.5px; padding:7px 14px; border-radius:100px;
+  white-space:nowrap;
+  box-shadow:0 6px 18px rgba(15,46,29,.25);
+  opacity:0; pointer-events:none;
+  transition:opacity .2s ease, transform .2s ease;
+}
+.chat-status-toast.show{ opacity:1; transform:translate(-50%,-118%); }
+.chat-status-toast.error{ background:#C55A5A; }
 
 </style>
 
@@ -2040,26 +2176,18 @@
     </div>
   </div>
   <div class="screen" id="contact-screen">
-    <div class="topbar">
-      <div class="brand-logo">
-        <div class="brand-mark">৳</div>
-        <span>My Cash</span>
+    <div class="topbar chat-header">
+      <div class="chat-header-avatar">🎧</div>
+      <div class="chat-header-info">
+        <div class="chat-header-name">সাপোর্ট টিম</div>
+        <div class="chat-header-sub">আপনার মেসেজের উত্তর দ্রুত দেওয়া হবে</div>
       </div>
-      <div class="auth-actions" data-auth-actions><button class="auth-btn login" onclick="showScreen('login-screen')">লগইন</button><button class="auth-btn register" onclick="showScreen('register-screen')">রেজিস্ট্রেশন</button></div>
     </div>
-    <div class="content">
-      <div class="sec-head"><h2>যোগাযোগ করুন</h2></div>
-      <div class="sec-sub">আপনার মেসেজ লিখুন। আমরা যত দ্রুত সম্ভব উত্তর দেওয়ার চেষ্টা করবো।</div>
-      <div class="contact-direct-card">
-        <textarea class="contact-message-input" id="contact-page-message-input" placeholder="আপনার মেসেজ লিখুন..."></textarea>
-        <button type="button" class="contact-send-btn" onclick="sendContactPageMessage()">মেসেজ পাঠান</button>
-        <div class="contact-message-status" id="contact-page-message-status"></div>
-      </div>
-      <div class="contact-history-wrap">
-        <div class="contact-history-title">আপনার পাঠানো মেসেজ</div>
-        <div class="contact-history-sub">গত ২৪ ঘণ্টার মেসেজ এখানে দেখা যাবে, এরপর নিজে থেকেই মুছে যাবে।</div>
-        <div id="contact-message-history"></div>
-      </div>
+    <div class="chat-messages" id="contact-message-history"></div>
+    <div class="chat-input-bar">
+      <div class="chat-status-toast" id="contact-page-message-status"></div>
+      <textarea class="chat-input contact-message-input" id="contact-page-message-input" placeholder="মেসেজ লিখুন..." rows="1"></textarea>
+      <button type="button" class="chat-send-btn contact-send-btn" id="contact-page-send-btn" onclick="sendContactPageMessage()" aria-label="পাঠান">➤</button>
     </div>
   </div>
   <div class="screen" id="profile-screen">
@@ -3195,24 +3323,36 @@
     if(map[target]) showScreen(map[target]);
   }
 
+  function scrollChatToBottom(){
+    const wrap=document.getElementById('contact-message-history');
+    if(wrap) wrap.scrollTop=wrap.scrollHeight;
+  }
+
+  function showChatStatus(text, isError){
+    const status=document.getElementById('contact-page-message-status');
+    if(!status) return;
+    status.textContent=text;
+    status.className='chat-status-toast show'+(isError?' error':'');
+    clearTimeout(showChatStatus._t);
+    showChatStatus._t=setTimeout(function(){ status.classList.remove('show'); }, 2200);
+  }
+
   async function sendContactPageMessage(){
     const input=document.getElementById('contact-page-message-input');
-    const status=document.getElementById('contact-page-message-status');
     const message=(input?.value||'').trim();
     if(!message){
-      if(status){status.textContent='দয়া করে আপনার মেসেজ লিখুন।';status.className='contact-message-status error';}
+      showChatStatus('দয়া করে আপনার মেসেজ লিখুন।', true);
       input?.focus();
       return;
     }
     const fb=window.myCashFirebase;
     const u=fb && fb.auth.currentUser;
     if(!u){
-      if(status){status.textContent='মেসেজ পাঠাতে লগইন করুন।';status.className='contact-message-status error';}
+      showChatStatus('মেসেজ পাঠাতে লগইন করুন।', true);
       return;
     }
-    const sendBtn=document.querySelector('#contact-screen .contact-send-btn');
+    const sendBtn=document.getElementById('contact-page-send-btn');
     if(sendBtn) sendBtn.disabled=true;
-    if(status){status.textContent='পাঠানো হচ্ছে...';status.className='contact-message-status';}
     try{
       await fb.db.collection('contactMessages').add({
         uid:u.uid,
@@ -3220,16 +3360,16 @@
         status:'sent',
         createdAt:firebase.firestore.FieldValue.serverTimestamp()
       });
-      if(status){status.textContent='মেসেজ সফলভাবে পাঠানো হয়েছে।';status.className='contact-message-status success';}
-    if(input) input.value='';
+      if(input){ input.value=''; input.style.height=''; }
+      input?.focus();
     }catch(err){
-      if(status){status.textContent='মেসেজ পাঠানো যায়নি। আবার চেষ্টা করুন।';status.className='contact-message-status error';}
+      showChatStatus('মেসেজ পাঠানো যায়নি। আবার চেষ্টা করুন।', true);
     }finally{
       if(sendBtn) sendBtn.disabled=false;
     }
   }
 
-  // ---------- CONTACT MESSAGE HISTORY: recent messages with Sent/Seen status ----------
+  // ---------- CONTACT MESSAGE HISTORY: Messenger-style chat bubbles, sent-only, right-aligned ----------
   let contactMessagesUnsub=null;
 
   function escapeContactHtml(str){
@@ -3242,30 +3382,33 @@
     try{
       const date=ts && ts.toDate ? ts.toDate() : null;
       if(!date) return '';
-      return date.toLocaleString('bn-BD',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      return date.toLocaleString('bn-BD',{hour:'2-digit',minute:'2-digit'});
     }catch(e){ return ''; }
   }
 
   function renderContactMessageHistory(list){
     const wrap=document.getElementById('contact-message-history');
     if(!wrap) return;
+    const wasNearBottom = (wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight) < 120;
     if(!list.length){
-      wrap.innerHTML='<div class="contact-history-empty">এখনো কোনো মেসেজ নেই।</div>';
+      wrap.innerHTML='<div class="chat-empty">এখনো কোনো মেসেজ নেই। সাপোর্ট টিমকে মেসেজ পাঠিয়ে কথা বলুন।</div>';
       return;
     }
-    wrap.innerHTML=list.map(function(m){
-      const isSeen=m.status==='seen';
-      const label=isSeen?'Seen':'Sent';
-      const cls=isSeen?'seen':'sent';
-      const time=formatContactMessageTime(m.createdAt);
-      return '<div class="contact-history-item">'
-        +'<div class="contact-history-text">'+escapeContactHtml(m.text)+'</div>'
-        +'<div class="contact-history-meta">'
-          +'<span class="contact-history-time">'+time+'</span>'
-          +'<span class="contact-history-status '+cls+'">'+label+'</span>'
+    // list arrives newest-first; render oldest-first like a real chat thread.
+    const chronological = list.slice().reverse();
+    wrap.innerHTML = chronological.map(function(m){
+      const isSeen = m.status==='seen';
+      const tick = isSeen ? '✓✓' : '✓';
+      const tickCls = isSeen ? 'tick seen' : 'tick';
+      const time = formatContactMessageTime(m.createdAt);
+      return '<div class="chat-row out">'
+        +'<div class="chat-bubble-wrap">'
+          +'<div class="chat-bubble">'+escapeContactHtml(m.text)+'</div>'
+          +'<div class="chat-meta"><span class="chat-time">'+time+'</span><span class="'+tickCls+'">'+tick+'</span></div>'
         +'</div>'
       +'</div>';
     }).join('');
+    if(wasNearBottom) scrollChatToBottom();
   }
 
   function startContactMessagesListener(){
@@ -3304,6 +3447,22 @@
   window.startContactMessagesListener=startContactMessagesListener;
   window.stopContactMessagesListener=stopContactMessagesListener;
 
+  // ---------- CHAT INPUT UX: auto-grow textarea + Enter-to-send (Shift+Enter = new line) ----------
+  (function setupChatInputUX(){
+    const input=document.getElementById('contact-page-message-input');
+    if(!input) return;
+    input.addEventListener('input', function(){
+      input.style.height='auto';
+      input.style.height=Math.min(input.scrollHeight,96)+'px';
+    });
+    input.addEventListener('keydown', function(e){
+      if(e.key==='Enter' && !e.shiftKey){
+        e.preventDefault();
+        sendContactPageMessage();
+      }
+    });
+  })();
+
   function openContactModal(){
     const modal=document.getElementById('contact-message-modal');
     const input=document.getElementById('contact-message-input');
@@ -3341,7 +3500,7 @@
   function updateBottomNav(screenId){
     const nav=document.getElementById('bottom-nav');
     if(!nav)return;
-    const hidden=['login-screen','register-screen'];
+    const hidden=['login-screen','register-screen','contact-screen'];
     nav.style.display=hidden.includes(screenId)?'none':'flex';
     const active=screenId==='income-screen'?'income':screenId==='contact-screen'?'contact':screenId==='profile-screen'?'profile':'home';
     document.querySelectorAll('.bottom-nav-item').forEach(x=>x.classList.toggle('active',x.dataset.nav===active));
