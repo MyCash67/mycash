@@ -32,7 +32,6 @@
     font-family:'Hind Siliguri', sans-serif;
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
-    min-height:100dvh;
     display:flex;
     justify-content:center;
     padding:28px 14px;
@@ -50,14 +49,7 @@
     box-shadow:0 40px 80px -30px rgba(15,46,29,0.35), 0 0 0 1px rgba(15,46,29,0.06);
     overflow:hidden;
     position:relative;
-    /* Auto-fit to whatever device this loads on, instead of a hardcoded
-       780px. Regular screens that need more room than one viewport still
-       grow taller and the page scrolls (topbar/bottom-nav stay fixed).
-       The contact/chat screen, which has no in-flow height of its own,
-       ends up exactly viewport-tall here -- so it never needs page-level
-       scroll on top of its own internal message scroll. */
-    min-height:100vh;
-    min-height:100dvh;
+    min-height:780px;
   }
 
   .status{
@@ -1319,8 +1311,18 @@
 #contact-screen.visible{
   display:flex;
   flex-direction:column;
-  position:absolute;
-  inset:0;
+  /* Anchor to the real viewport (same trick as .topbar / .bottom-nav)
+     instead of stretching to fill .phone's box. This way the chat screen
+     always matches exactly what's visible on screen -- no page-level
+     scroll needed on top of the message list's own scroll. */
+  position:fixed;
+  top:0;
+  bottom:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(100%, 412px);
+  height:100vh;
+  height:100dvh;
   z-index:400;
   background:#EDE7D8;
 }
@@ -1462,6 +1464,7 @@
     .phone{width:min(100vw, 760px); max-width:760px; min-height:100vh; border-radius:0; box-shadow:none;}
     .content{max-width:760px; margin:0 auto;}
     .topbar{max-width:760px; margin:0 auto;}
+    #contact-screen.visible{width:min(100vw, 760px);}
   }
 
 </style>
