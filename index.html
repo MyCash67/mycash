@@ -32,9 +32,15 @@
     font-family:'Hind Siliguri', sans-serif;
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
+    height:100dvh;
     display:flex;
     justify-content:center;
     padding:28px 14px;
+    /* The outer page must never scroll on its own — otherwise, on short
+       mobile viewports, you get the "double scroll" feeling (the whole
+       page moves AND the SMS box scrolls). All scrolling should happen
+       inside .phone / the individual screen, never on body/document. */
+    overflow:hidden;
   }
 
   .display{ font-family:'Tiro Bangla', serif; font-weight:400; letter-spacing:-0.01em; }
@@ -47,9 +53,15 @@
     background:var(--paper);
     border-radius:34px;
     box-shadow:0 40px 80px -30px rgba(15,46,29,0.35), 0 0 0 1px rgba(15,46,29,0.06);
-    overflow:hidden;
     position:relative;
     min-height:780px;
+    /* Cap the mockup to the real viewport height and let IT scroll
+       internally instead of the outer body. On short phone screens this
+       stops the whole page from scrolling along with the SMS box. */
+    max-height:100dvh;
+    overflow-y:auto;
+    overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
   }
 
   .status{
@@ -1311,18 +1323,8 @@
 #contact-screen.visible{
   display:flex;
   flex-direction:column;
-  /* Anchor to the real viewport (same trick as .topbar / .bottom-nav)
-     instead of stretching to fill .phone's box. This way the chat screen
-     always matches exactly what's visible on screen -- no page-level
-     scroll needed on top of the message list's own scroll. */
-  position:fixed;
-  top:0;
-  bottom:0;
-  left:50%;
-  transform:translateX(-50%);
-  width:min(100%, 412px);
-  height:100vh;
-  height:100dvh;
+  position:absolute;
+  inset:0;
   z-index:400;
   background:#EDE7D8;
 }
@@ -1464,7 +1466,6 @@
     .phone{width:min(100vw, 760px); max-width:760px; min-height:100vh; border-radius:0; box-shadow:none;}
     .content{max-width:760px; margin:0 auto;}
     .topbar{max-width:760px; margin:0 auto;}
-    #contact-screen.visible{width:min(100vw, 760px);}
   }
 
 </style>
