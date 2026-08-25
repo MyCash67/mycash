@@ -2302,6 +2302,36 @@
     if(id !== 'contact-screen' && typeof window.stopContactMessagesListener === 'function'){
       window.stopContactMessagesListener();
     }
+    // ---- Contact/chat screen only: match the REAL device viewport height ----
+    // #contact-screen is position:absolute;inset:0 inside .phone, but .phone
+    // itself has no fixed height (only min-height:780px) once every other
+    // .screen is hidden. Without this, the chat screen was stuck around
+    // ~780px on every device instead of the phone's actual visible height —
+    // so on shorter/taller phones the whole page scrolled instead of just
+    // the message list, and older messages at the top stayed hidden. This
+    // sets an explicit pixel height on #contact-screen only, matching the
+    // real visible viewport (accounts for the on-screen keyboard via
+    // visualViewport), so only .chat-messages scrolls internally. Fully
+    // undone the moment the user leaves this screen — no effect elsewhere.
+    const contactScreenEl = document.getElementById('contact-screen');
+    if(id === 'contact-screen'){
+      document.body.style.overflow = 'hidden';
+      if(contactScreenEl){
+        const setContactScreenHeight = function(){
+          const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+          contactScreenEl.style.height = vh + 'px';
+        };
+        setContactScreenHeight();
+        window.addEventListener('resize', setContactScreenHeight);
+        if(window.visualViewport) window.visualViewport.addEventListener('resize', setContactScreenHeight);
+        window._contactScreenHeightHandler = setContactScreenHeight;
+      }
+    } else if(window._contactScreenHeightHandler){
+      window.removeEventListener('resize', window._contactScreenHeightHandler);
+      if(window.visualViewport) window.visualViewport.removeEventListener('resize', window._contactScreenHeightHandler);
+      window._contactScreenHeightHandler = null;
+      if(contactScreenEl) contactScreenEl.style.height = '';
+    }
     if(id === 'refer-screen' && typeof window.ensureReferralCode === 'function'){
       window.ensureReferralCode();
     }
