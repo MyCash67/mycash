@@ -132,7 +132,7 @@ function showMobilePage(){hidePages();document.getElementById('mobilePage').styl
 function showSocialPage(){hidePages();document.getElementById('socialPage').style.display='block';showBack('Social Task');loadSettings();}
 function showAdsPage(){hidePages();document.getElementById('adsPage').style.display='block';showBack('Ads');loadSettings();}
 function showHome(){hidePages();document.getElementById('homePage').style.display='block';document.getElementById('backBtn').style.display='none';document.getElementById('pageTitle').textContent='Premium Home';}
-function hidePages(){['homePage','mobilePage','socialPage','adsPage'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('dataPage').style.display='none';}
+function hidePages(){stopInboxListener();stopThreadListener();['homePage','mobilePage','socialPage','adsPage'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('dataPage').style.display='none';}
 function showBack(title){document.getElementById('backBtn').style.display='block';document.getElementById('pageTitle').textContent=title;}
 function selectMethod(type){selectedMethod=type;document.getElementById('numberForm').classList.add('show');document.getElementById('bkashBtn').classList.toggle('active',type==='bkash');document.getElementById('nagadBtn').classList.toggle('active',type==='nagad');document.getElementById('formTitle').textContent=type==='bkash'?'bKash Number':'Nagad Number';loadSettings();}
 async function saveNumber(){const number=document.getElementById('numberInput').value.trim(),status=document.getElementById('status');if(!/^01\d{9}$/.test(number)){status.textContent='Please enter a valid 11-digit mobile number.';status.style.color='#d93025';return;}try{await db.collection('settings').doc('public').set({paymentNumbers:{[selectedMethod]:number}},{merge:true});status.textContent='Number saved to Firebase ✓';status.style.color='#16834b';}catch(e){status.textContent='Save failed';status.style.color='#d93025';}}
@@ -140,7 +140,7 @@ async function saveSocialLinks(){try{await db.collection('settings').doc('public
 async function saveAdsLinks(){const ads={};for(let i=1;i<=10;i++)ads['ads'+i]=document.getElementById('ads'+i+'Link').value.trim();try{await db.collection('settings').doc('public').set({ads},{merge:true});const s=document.getElementById('adsStatus');s.textContent='Ads saved to Firebase ✓';s.style.color='#16834b';}catch(e){document.getElementById('adsStatus').textContent='Save failed';}}
 async function loadSettings(){try{const s=(await db.collection('settings').doc('public').get()).data()||{};const p=s.paymentNumbers||{};document.getElementById('numberInput').value=selectedMethod?(p[selectedMethod]||''):'';const social=s.social||{};['youtube','telegram','facebook'].forEach(k=>{const el=document.getElementById(k+'Link');if(el)el.value=social[k]||''});const ads=s.ads||{};for(let i=1;i<=10;i++){const el=document.getElementById('ads'+i+'Link');if(el)el.value=ads['ads'+i]||''}}catch(e){console.warn(e)}}
 async function adminLogin(){const email=document.getElementById('adminEmail').value.trim().toLowerCase(),pass=document.getElementById('adminPassword').value;const st=document.getElementById('adminAuthStatus');if(email!==ADMIN_EMAIL){st.textContent='Admin email must be admin@mycash.com';return;}try{await auth.signInWithEmailAndPassword(email,pass);}catch(e){st.textContent='Login failed. Firebase Authentication-এ admin@mycash.com user তৈরি আছে কিনা দেখুন.';}}
-async function adminLogout(){stopUserCountListener();await auth.signOut();}
+async function adminLogout(){stopUserCountListener();stopInboxListener();stopThreadListener();await auth.signOut();}
 let __userCountUnsub=null;
 let __activeTickTimer=null;
 let __liveUsersCache=[];
@@ -300,7 +300,190 @@ if(p.status!=='pending')return;
 await pref.update({status,reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
 showPackageOrdersPage();
 }
-async function showMessagesPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Inbox');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Inbox</h3><div id="msgList">Loading...</div></div>';const snap=await db.collection('messages').orderBy('createdAt','desc').get();let html='';const toMarkSeen=[];snap.forEach(d=>{const x=d.data();const t=x.createdAt&&x.createdAt.toDate?x.createdAt.toDate().toLocaleString():'';html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>${x.mobile||'User'}</b><p style="margin-top:6px">${x.message||''}</p><div style="font-size:11px;color:#9aa4b2;margin-top:6px">${t}</div></div>`;if(x.status==='sent')toMarkSeen.push(d.ref);});document.getElementById('msgList').innerHTML=html||'No messages';toMarkSeen.forEach(ref=>ref.update({status:'seen'}).catch(()=>{}));}
+// ---------- INBOX: প্রতি ইউজারের সর্বশেষ মেসেজ অনুযায়ী রো, ক্লিক করলে থ্রেড + রিপ্লাই + রেস্ট্রিকশন ----------
+let __inboxUnsub=null;
+let __threadUnsub=null;
+let __inboxUsersMap={};
+function escapeHtmlAdmin(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function stopInboxListener(){if(__inboxUnsub){__inboxUnsub();__inboxUnsub=null;}}
+function stopThreadListener(){if(__threadUnsub){__threadUnsub();__threadUnsub=null;}}
+
+async function showMessagesPage(){
+  if(!requireAdmin())return;
+  hidePages();
+  document.getElementById('homePage').style.display='none';
+  showBack('Inbox');
+  const c=document.getElementById('dataPage');
+  c.style.display='block';
+  c.innerHTML='<div class="form show"><h3>Inbox</h3><div id="inboxList">Loading...</div></div>';
+  try{
+    const usersSnap=await db.collection('users').get();
+    __inboxUsersMap={};
+    usersSnap.forEach(d=>{__inboxUsersMap[d.id]=d.data();});
+  }catch(e){console.warn('users load failed',e);}
+  __inboxUnsub=db.collection('messages').orderBy('createdAt','desc').onSnapshot(snap=>{
+    renderInboxList(snap.docs);
+  },err=>{
+    const el=document.getElementById('inboxList');
+    if(el)el.innerHTML='ইনবক্স লোড করা যায়নি।';
+    console.error(err);
+  });
+}
+
+function renderInboxList(docs){
+  const listEl=document.getElementById('inboxList');
+  if(!listEl)return;
+  const seenUid=new Set();
+  let html='';
+  docs.forEach(doc=>{
+    const x=doc.data();
+    const uid=x.uid;
+    if(!uid||seenUid.has(uid))return; // desc order-এ প্রথম যেটা পাওয়া যায় সেটাই ঐ ইউজারের সর্বশেষ মেসেজ
+    seenUid.add(uid);
+    const u=__inboxUsersMap[uid]||{};
+    const name=`${u.firstName||''} ${u.lastName||''}`.trim()||'নাম নেই';
+    const mobile=x.mobile||u.mobile||'—';
+    const t=x.createdAt&&x.createdAt.toDate?x.createdAt.toDate().toLocaleString('bn-BD'):'';
+    const rawPreview=(x.text||x.message||'').slice(0,90);
+    const preview=escapeHtmlAdmin(rawPreview)||'(কোনো টেক্সট নেই)';
+    const unseen=x.status==='sent'&&x.sender!=='admin';
+    const restrictedUntil=Number(u.messageRestrictedUntil||0);
+    const isRestricted=restrictedUntil>Date.now();
+    html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0;cursor:pointer;position:relative" onclick="openUserThread('${uid}')">
+${unseen?'<span style="position:absolute;top:14px;right:14px;width:9px;height:9px;border-radius:50%;background:#ee7515"></span>':''}
+<b>${escapeHtmlAdmin(name)}</b>${isRestricted?' <span style="font-size:11px;color:#bd3030;background:#fdeaea;padding:2px 8px;border-radius:100px;margin-left:6px">রেস্ট্রিক্টেড</span>':''}
+<div style="font-size:12px;color:#7b8495;margin-top:3px">মোবাইল: ${escapeHtmlAdmin(mobile)}</div>
+<div style="font-size:13px;margin-top:6px;color:#3a4356">${x.sender==='admin'?'<span style="color:#7b8495">আপনি: </span>':''}${preview}</div>
+<div style="font-size:11px;color:#9aa4b2;margin-top:6px">${t}</div>
+</div>`;
+  });
+  listEl.innerHTML=html||'কোনো মেসেজ নেই';
+}
+
+async function openUserThread(uid){
+  if(!requireAdmin())return;
+  stopInboxListener();
+  stopThreadListener();
+  const u=__inboxUsersMap[uid]||{};
+  const name=`${u.firstName||''} ${u.lastName||''}`.trim()||'নাম নেই';
+  const mobile=u.mobile||'—';
+  showBack('Inbox');
+  document.getElementById('pageTitle').textContent=name;
+  const c=document.getElementById('dataPage');
+  c.innerHTML=`
+<div class="form show" style="margin-bottom:14px">
+<button class="save" style="background:#eef1f6;color:#172033;margin-bottom:14px" onclick="showMessagesPage()">‹ ইনবক্সে ফিরুন</button>
+<h3>${escapeHtmlAdmin(name)}</h3>
+<div style="font-size:13px;color:#7b8495;margin-bottom:10px">মোবাইল: ${escapeHtmlAdmin(mobile)}</div>
+<div id="restrictionBox"></div>
+</div>
+<div class="form show" style="max-height:360px;overflow-y:auto" id="threadMessages">লোড হচ্ছে...</div>
+<div class="form show" style="margin-top:14px">
+<textarea id="replyInput" rows="3" placeholder="রিপ্লাই লিখুন..." style="width:100%;padding:13px;border:1px solid #e1e6ee;background:#f8fafc;border-radius:13px;font-size:15px;font-family:inherit;outline:none"></textarea>
+<button class="save" onclick="sendAdminReply('${uid}')">পাঠান</button>
+<div class="status" id="replyStatus"></div>
+</div>`;
+  renderRestrictionBox(uid, Number(u.messageRestrictedUntil||0));
+  __threadUnsub=db.collection('messages').where('uid','==',uid).orderBy('createdAt','asc').onSnapshot(snap=>{
+    renderThreadMessages(snap.docs);
+  },err=>{
+    const el=document.getElementById('threadMessages');
+    if(el)el.innerHTML='মেসেজ লোড করা যায়নি।';
+    console.error(err);
+  });
+}
+
+function renderThreadMessages(docs){
+  const wrap=document.getElementById('threadMessages');
+  if(!wrap)return;
+  let html='';
+  const toMarkSeen=[];
+  docs.forEach(doc=>{
+    const x=doc.data();
+    const isAdmin=x.sender==='admin';
+    const t=x.createdAt&&x.createdAt.toDate?x.createdAt.toDate().toLocaleString('bn-BD',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+    html+=`<div style="display:flex;justify-content:${isAdmin?'flex-end':'flex-start'};margin:8px 0">
+<div style="max-width:75%;background:${isAdmin?'#20283a':'#eef1f6'};color:${isAdmin?'#fff':'#172033'};padding:10px 13px;border-radius:14px;font-size:14px">
+${escapeHtmlAdmin(x.text||x.message||'')}
+<div style="font-size:10px;opacity:.7;margin-top:4px;text-align:right">${t}</div>
+</div>
+</div>`;
+    if(!isAdmin&&x.status==='sent')toMarkSeen.push(doc.ref);
+  });
+  wrap.innerHTML=html||'কোনো মেসেজ নেই';
+  wrap.scrollTop=wrap.scrollHeight;
+  toMarkSeen.forEach(ref=>ref.update({status:'seen'}).catch(()=>{}));
+}
+
+async function sendAdminReply(uid){
+  if(!requireAdmin())return;
+  const input=document.getElementById('replyInput');
+  const status=document.getElementById('replyStatus');
+  const text=(input.value||'').trim();
+  if(!text)return;
+  const u=__inboxUsersMap[uid]||{};
+  try{
+    await db.collection('messages').add({
+      uid,
+      mobile:u.mobile||'',
+      message:text,
+      text:text,
+      sender:'admin',
+      status:'sent',
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    input.value='';
+    if(status)status.textContent='';
+  }catch(e){
+    if(status){status.textContent='পাঠানো যায়নি: '+(e&&e.message||e);status.style.color='#d93025';}
+  }
+}
+
+function renderRestrictionBox(uid, restrictedUntil){
+  const box=document.getElementById('restrictionBox');
+  if(!box)return;
+  const now=Date.now();
+  if(restrictedUntil>now){
+    const untilStr=new Date(restrictedUntil).toLocaleString('bn-BD');
+    box.innerHTML=`<div style="background:#fdeaea;border-radius:12px;padding:12px;font-size:13px;color:#7a1f1f">
+এই ইউজার মেসেজ পাঠানো থেকে রেস্ট্রিক্টেড আছে।<br>মেয়াদ শেষ হবে: ${untilStr}
+<button class="save" style="margin-top:10px;background:linear-gradient(135deg,#1c6b3f,#0d3b29)" onclick="removeRestriction('${uid}')">রেস্ট্রিকশন তুলে নিন</button>
+</div>`;
+  }else{
+    box.innerHTML=`<div style="background:#f8fafc;border-radius:12px;padding:12px">
+<div style="font-size:13px;color:#7b8495;margin-bottom:8px">এই ইউজারকে নির্দিষ্ট কিছুদিনের জন্য মেসেজ পাঠানো থেকে রেস্ট্রিক্ট করুন</div>
+<input id="restrictDays-${uid}" type="number" min="1" placeholder="কতদিনের জন্য (যেমন: ৭)" style="margin-bottom:10px">
+<button class="save" style="background:linear-gradient(135deg,#bd3030,#7a1f1f)" onclick="restrictUser('${uid}')">রেস্ট্রিক্ট করুন</button>
+</div>`;
+  }
+}
+
+async function restrictUser(uid){
+  if(!requireAdmin())return;
+  const daysInput=document.getElementById('restrictDays-'+uid);
+  const days=Number(daysInput&&daysInput.value);
+  if(!days||days<=0){alert('সঠিক দিনসংখ্যা দিন');return;}
+  const until=Date.now()+days*24*60*60*1000;
+  try{
+    await db.collection('users').doc(uid).update({messageRestrictedUntil:until});
+    if(__inboxUsersMap[uid])__inboxUsersMap[uid].messageRestrictedUntil=until;
+    renderRestrictionBox(uid, until);
+  }catch(e){
+    alert('ব্যর্থ: '+(e&&e.message||e));
+  }
+}
+
+async function removeRestriction(uid){
+  if(!requireAdmin())return;
+  if(!confirm('রেস্ট্রিকশন তুলে নেবেন?'))return;
+  try{
+    await db.collection('users').doc(uid).update({messageRestrictedUntil:0});
+    if(__inboxUsersMap[uid])__inboxUsersMap[uid].messageRestrictedUntil=0;
+    renderRestrictionBox(uid, 0);
+  }catch(e){
+    alert('ব্যর্থ: '+(e&&e.message||e));
+  }
+}
 
 // ---------- PACKAGE LIST (add / edit / delete packages shown to users) ----------
 // index.html-এর "প্যাকেজ বেছে নিন" সেকশন এখন এই packages কালেকশন থেকেই
