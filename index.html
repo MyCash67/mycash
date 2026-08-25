@@ -4571,11 +4571,16 @@ body.logged-out .income-summary{display:none !important;}
     if(submitBtn) submitBtn.disabled=true;
     setAuthLoading(true,'পেমেন্ট রিকোয়েস্ট পাঠানো হচ্ছে...');
     try{
-      // একই ট্রানজেকশন আইডি (একই ইউজার অথবা ভিন্ন ইউজার) দিয়ে একাধিকবার
-      // সাবমিট আটকানোর জন্য আগে চেক করা হচ্ছে এই আইডি দিয়ে আগে কোনো
-      // পেমেন্ট রিকোয়েস্ট জমা পড়েছে কিনা।
-      const dupSnap = await db.collection('payments').where('transactionId','==',transactionId).limit(1).get();
-      if(!dupSnap.empty){
+      // একই ট্রানজেকশন আইডি (একই ইউজার অথবা ভিন্ন ইউজার) দিয়ে একাধিকবার সাবমিট
+      // আটকানোর জন্য, আগে paymentTxnIds/{transactionId} ডকুমেন্টটা create করার
+      // চেষ্টা করা হচ্ছে। এই আইডি দিয়ে ডকুমেন্ট আগে থেকেই থাকলে Firestore Rules
+      // এটাকে "create" হিসেবে গণ্য করবে না (কারণ ডকুমেন্টটা already exists), তাই
+      // rules নিজে থেকেই লিখতে দেবে না — আর সেই এরর ধরেই আমরা বুঝব এটা duplicate।
+      // এভাবে কোনো broad/list query ছাড়াই, আর কারো অন্য ডেটা না দেখেই নিরাপদে
+      // ইউনিকনেস নিশ্চিত করা যায়।
+      try{
+        await db.collection('paymentTxnIds').doc(transactionId).set({uid:u.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      }catch(dupErr){
         alert('এই ট্রানজেকশন আইডি দিয়ে ইতিমধ্যে একটি রিকোয়েস্ট জমা দেওয়া হয়েছে। একটি ট্রানজেকশন আইডি শুধুমাত্র একবারই ব্যবহার করা যাবে।');
         return;
       }
