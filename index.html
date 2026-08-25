@@ -1497,6 +1497,19 @@
         // ব্রাউজারে আগে থেকে অন্য কোনো অ্যাকাউন্ট লগইন থাকলে সেটা দিয়ে সরাসরি
         // হোমে না ঢুকিয়ে, সাইন-আউট করে রেজিস্ট্রেশন পেজ দেখানোর জন্য এই ফ্ল্যাগ।
         window.myCashForceRegisterFromRef = true;
+        // গুরুত্বপূর্ণ ফিক্স: ?ref=CODE আগে ব্রাউজারের ঠিকানায় (URL) স্থায়ীভাবে থেকে
+        // যেত, তাই রেজিস্ট্রেশন করে হোমে আসার পরও refresh দিলে এই একই কোড আবার
+        // পড়া হতো এবং আবার জোর করে sign-out + register-screen দেখানো হতো।
+        // রেফার কোডটা এতক্ষণে localStorage-এ (mycash_pending_ref) সংরক্ষিত হয়ে
+        // গেছে -- রেজিস্ট্রেশনের সময় এখান থেকেই পড়া হয় (দেখুন PENDING_REF_KEY) --
+        // তাই এখনই URL থেকে ?ref= মুছে ফেলা নিরাপদ, রেফারেল ক্রেডিট ঠিকই কাজ করবে,
+        // কিন্তু refresh দিলে আর বারবার লগআউট/রেজিস্ট্রেশনে ফেরত যাবে না।
+        try{
+          if(window.history && window.history.replaceState){
+            const cleanUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        }catch(e){}
       }
     }catch(e){}
   })();
