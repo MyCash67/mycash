@@ -343,6 +343,10 @@ async function updateWithdrawalNumber(id){
     alert('Error: '+(e.message||e));
   }
 }
+// নোট: withdraw request সাবমিট করার সময়েই ইউজারের balance থেকে amount টা
+// কেটে নেওয়া হয় (তাই balance না থাকলে সাবমিটই হয় না)। তাই:
+//  - Approve করলে balance থেকে আর কিছু কাটা লাগবে না, শুধু status বদলাতে হবে।
+//  - Reject করলে আগে কাটা টাকাটা ইউজারকে ফেরত (balance-এ যোগ) দিতে হবে।
 async function setWithdrawalStatus(id,status){
  if(!requireAdmin())return;
  try{
@@ -351,18 +355,17 @@ async function setWithdrawalStatus(id,status){
    const w=ws.data();
    if(w.status && w.status!=='pending'){alert('This request is already '+w.status);return;}
    if(status==='approved'){
+     await wref.update({status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
+   }else{
      const uref=db.collection('users').doc(w.uid);
      await db.runTransaction(async tx=>{
        const us=await tx.get(uref);
-       if(!us.exists)throw new Error('User not found (userId: '+w.uid+')');
+       if(!us.exists)throw new Error('User not found (uid: '+w.uid+')');
        const current=Number(us.data().balance||0);
        const amount=Number(w.amount||0);
-       if(current<amount)throw new Error('Insufficient balance: user has ৳'+current+' but withdrawal is ৳'+amount);
-       tx.update(uref,{balance:current-amount});
-       tx.update(wref,{status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
+       tx.update(uref,{balance:current+amount});
+       tx.update(wref,{status:'rejected',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
      });
-   }else{
-     await wref.update({status:'rejected',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
    }
    showWithdrawalsPage();
  }catch(e){
