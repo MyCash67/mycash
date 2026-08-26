@@ -336,6 +336,12 @@
     background:var(--taka-soft); color:var(--taka-deep);
     padding:3px 7px; border-radius:100px;
   }
+  /* এই স্প্যানটাকে জোর করে পরের লাইনে নিয়ে যাওয়া হয়েছে, বক্সের প্যাডিং/সাইজ অপরিবর্তিত থাকে */
+  .status-row-meta span.status-row-total{
+    flex-basis:100%; margin-top:2px;
+    background:transparent; color:var(--taka-deep); font-weight:800;
+    padding:0; border-radius:0;
+  }
   .status-row.c2 .status-row-meta span{ background:rgba(212,167,58,0.16); color:#8a641f; }
   .status-row.c3 .status-row-meta span{ background:rgba(40,167,232,0.14); color:#1a6c93; }
   .status-row.c4 .status-row-meta span{ background:rgba(226,102,79,0.14); color:#a3402c; }
@@ -2624,6 +2630,7 @@
         const dailyIncome = Number(p.dailyIncome||0);
         const durationDays = Number(p.durationDays||0);
         const amount = Number(p.amount||0);
+        const totalReturn = dailyIncome * durationDays;
         const approvedAt = Number(p.approvedAt||0);
         // approvedDateKey না থাকলে (পুরোনো ডকুমেন্ট) approvedAt থেকে তারিখ বের করে নেওয়া হয়।
         const approvedDateKey = p.approvedDateKey || (approvedAt ? dateKeyFromMs(approvedAt) : todayKey);
@@ -2661,6 +2668,7 @@
               <span>${durationDays} দিনের</span>
               <span>•</span>
               <span>বাকি ${remainingDays} দিন</span>
+              <span class="status-row-total">মোট পাবেন ৳${formatMoneyBn(totalReturn)}</span>
             </div>
           </div>
           <div class="status-row-action">${btnHtml}</div>
