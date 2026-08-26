@@ -536,7 +536,9 @@
   .sheet-header{ margin-bottom:18px; }
   .sheet-title{ font-size:17px; font-weight:700; margin-bottom:4px; }
   .sheet-sub{ font-size:13px; color:var(--muted); }
+  .sheet-sub + .sheet-sub{ margin-top:3px; }
   .sheet-sub span{ font-family:'JetBrains Mono','Hind Siliguri',monospace; font-weight:700; color:var(--taka-deep); }
+  .sheet-sub #pm-pkg-return{ color:var(--taka); }
 
   .pm-options{ display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
   .pm-option{
@@ -2137,7 +2139,8 @@
       <div id="payment-step-method">
         <div class="sheet-header">
           <div class="sheet-title">পেমেন্ট মেথড বেছে নিন</div>
-          <div class="sheet-sub">প্যাকেজ: <span id="pm-pkg-price">৳১০০</span></div>
+          <div class="sheet-sub"><span id="pm-pkg-name">প্যাকেজ</span> — <span id="pm-pkg-price">৳১০০</span></div>
+          <div class="sheet-sub">মোট ফেরত পাবেন: <span id="pm-pkg-return">৳০</span></div>
         </div>
 
         <div class="pm-options">
@@ -3517,7 +3520,7 @@
     const daysStr = `${formatMoneyBn(durationDays)} দিন বাকি`;
     const nameStr = `${title} একটিভ`;
 
-    const onclickAttr = `openPaymentModal('${escJsStr(priceStr)}','${escJsStr(nameStr)}','${escJsStr(daysStr)}','${escJsStr(incomeStr)}','${escJsStr(id)}')`;
+    const onclickAttr = `openPaymentModal('${escJsStr(priceStr)}','${escJsStr(nameStr)}','${escJsStr(daysStr)}','${escJsStr(incomeStr)}','${escJsStr(id)}','${escJsStr(title)}','${escJsStr('৳'+formatMoneyBn(totalReturn))}')`;
 
     return `
       <div class="pkg-card${p.popular?' popular':''}">
@@ -3994,11 +3997,13 @@
     }
   }
 
-  function openPaymentModal(price, name, days, income, id){
-    pendingPackage = { price, name, days, income, id: id || null };
+  function openPaymentModal(price, name, days, income, id, title, totalReturn){
+    pendingPackage = { price, name, days, income, id: id || null, title: title || '', totalReturn: totalReturn || '' };
     selectedMethod = null;
 
     document.getElementById('pm-pkg-price').textContent = price;
+    document.getElementById('pm-pkg-name').textContent = title || 'প্যাকেজ';
+    document.getElementById('pm-pkg-return').textContent = totalReturn || '৳০';
     document.getElementById('pm-bkash').classList.remove('selected');
     document.getElementById('pm-nagad').classList.remove('selected');
     document.getElementById('pm-confirm').disabled = true;
