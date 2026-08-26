@@ -4414,11 +4414,9 @@
     box.classList.add('show');
     input.classList.add('withdraw-input-error');
     input.focus();
-
-    withdrawalMessageTimer = setTimeout(() => {
-      box.classList.remove('show');
-      input.classList.remove('withdraw-input-error');
-    }, 1800);
+    // এখানে আগে ১৮০০ms পর অটো-হাইড করে দেওয়া হতো, যার ফলে ইউজার সমস্যাটা ঠিক না করা
+    // সত্ত্বেও কিছুক্ষণ পর বক্স আবার সবুজ হয়ে যেত। এখন ইউজার নিজে টাইপ করে ইনপুট পরিবর্তন
+    // না করা পর্যন্ত (নিচের input listener দেখুন) মেসেজ ও লাল বর্ডার থেকেই যাবে।
   }
 
   function clearWithdrawalMessages(){
@@ -4426,6 +4424,18 @@
     document.querySelectorAll('.withdrawal-field-message.show').forEach(el => el.classList.remove('show'));
     document.querySelectorAll('.withdraw-input.withdraw-input-error').forEach(el => el.classList.remove('withdraw-input-error'));
   }
+
+  // number ও amount বক্সে এরর মেসেজ/লাল বর্ডার এখন আর সময় হলে নিজে থেকে চলে যাবে না —
+  // ইউজার আসলেই ভ্যালু পরিবর্তন (টাইপ) করলে তবেই সেই নির্দিষ্ট বক্সের এরর সরে যাবে।
+  ['withdraw-number','withdraw-amount'].forEach(function(inputId){
+    const input = document.getElementById(inputId);
+    const box = document.getElementById(inputId + '-message');
+    if(!input) return;
+    input.addEventListener('input', function(){
+      if(box) box.classList.remove('show');
+      input.classList.remove('withdraw-input-error');
+    });
+  });
 
   let withdrawToastTimer = null;
   function showWithdrawalToast(){
@@ -4987,7 +4997,7 @@ body.logged-out .income-summary{display:none !important;}
       if(userMaxLevel < requiredLevel){
         const msg = requiredLevel <= 1
           ? 'উত্তোলনের জন্য যেকোনো একটি প্যাকেজ কিনতে হবে।'
-          : `উত্তোলনের জন্য কমপক্ষে ${formatMoneyBn(requiredLevel)} নম্বর প্যাকেজ কিনতে হবে।`;
+          : `উত্তোলনের জন্য ${formatMoneyBn(requiredLevel)} নম্বর প্যাকেজ কিনতে হবে।`;
         showPackageRequiredToast(msg);
         return;
       }
@@ -4996,6 +5006,9 @@ body.logged-out .income-summary{display:none !important;}
     }
     const submitBtn=document.querySelector('.withdraw-submit');
     if(submitBtn) submitBtn.disabled=true;
+    // ক্লিক করার সাথে সাথেই লোডিং spinner/overlay দেখানো হচ্ছে, যাতে রিকোয়েস্ট প্রসেস
+    // হওয়ার সময় ইউজার বুঝতে পারে কিছু একটা হচ্ছে এবং বারবার ক্লিক না করে।
+    setAuthLoading(true,'উত্তোলন রিকোয়েস্ট পাঠানো হচ্ছে...');
     try{
       // রিকোয়েস্ট সফলভাবে Firestore-এ সেভ হওয়ার সাথে সাথেই মূল ব্যালেন্স (mainBalance)
       // থেকে টাকাটা কেটে সেভ করা হচ্ছে — আগে এখানে ব্যালেন্স আপডেট করা হতো না,
@@ -5005,7 +5018,7 @@ body.logged-out .income-summary{display:none !important;}
       saveMainBalance();
       closeWithdrawModal(); showWithdrawalHistory(); showWithdrawalToast();
     }catch(err){alert('উত্তোলন রিকোয়েস্ট পাঠানো যায়নি। Firebase Rules/connection পরীক্ষা করুন।');}
-    finally{ if(submitBtn) submitBtn.disabled=false; }
+    finally{ setAuthLoading(false); if(submitBtn) submitBtn.disabled=false; }
   };
 
   function updateLoggedInHeader(user, profileData){
