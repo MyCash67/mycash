@@ -4954,59 +4954,6 @@ body.logged-out .income-summary{display:none !important;}
     return snap.size + 1;
   }
 
-  // ---------- Rejected withdrawal অটো-রিফান্ড ----------
-  // request দেওয়ার সাথে সাথেই mainBalance থেকে টাকা কেটে নেওয়া হয় (উপরে দেখুন),
-  // কিন্তু admin সেই request পরে "reject" করলে আগে কোথাও সেই টাকা আর ফেরত দেওয়া হতো
-  // না — ফলে বারবার reject হতে থাকলে balance টেনে negative-এ চলে যেত। এখন
-  // withdrawals কালেকশনে real-time listener বসিয়ে, status:'rejected' হওয়া মাত্রই
-  // (এবং প্রতিটি ডকুমেন্টে সর্বোচ্চ একবারই) টাকাটা transaction দিয়ে নিরাপদে ফেরত দেওয়া হয়।
-  let __withdrawalRefundUnsub = null;
-  function startWithdrawalRefundListener(uid){
-    stopWithdrawalRefundListener();
-    __withdrawalRefundUnsub = db.collection('withdrawals')
-      .where('uid','==',uid)
-      .where('status','==','rejected')
-      .onSnapshot(function(snap){
-        snap.docChanges().forEach(function(change){
-          if(change.type!=='added' && change.type!=='modified') return;
-          const data = change.doc.data();
-          if(data.refunded) return; // ইতিমধ্যে ফেরত দেওয়া হয়ে গেছে
-          refundRejectedWithdrawal(change.doc.id, data, uid);
-        });
-      }, function(err){ console.error('Withdrawal refund listener failed:', err); });
-  }
-  function stopWithdrawalRefundListener(){
-    if(__withdrawalRefundUnsub){ __withdrawalRefundUnsub(); __withdrawalRefundUnsub=null; }
-  }
-  async function refundRejectedWithdrawal(withdrawalId, data, uid){
-    const amount = Number(data.amount||0);
-    if(!amount || amount<=0) return;
-    const withdrawRef = db.collection('withdrawals').doc(withdrawalId);
-    const userRef = db.collection('users').doc(uid);
-    try{
-      let refundedAmount = 0;
-      await db.runTransaction(async function(tx){
-        const freshDoc = await tx.get(withdrawRef);
-        const freshData = freshDoc.data()||{};
-        // ডাবল-রিফান্ড আটকাতে transaction-এর ভেতরেই আবার নিশ্চিত করে চেক করা হচ্ছে
-        if(freshData.refunded || freshData.status!=='rejected') return;
-        const userSnap = await tx.get(userRef);
-        const currentServerBalance = Number((userSnap.data()||{}).balance||0);
-        tx.update(withdrawRef, {refunded:true, refundedAt:firebase.firestore.FieldValue.serverTimestamp()});
-        tx.set(userRef, {balance:currentServerBalance+amount}, {merge:true});
-        refundedAmount = amount;
-      });
-      // এই ইউজার তখনো লগইন/একই ট্যাবে থাকলে UI-ও সাথে সাথে আপডেট করা হচ্ছে
-      if(refundedAmount && auth.currentUser && auth.currentUser.uid===uid){
-        mainBalance = Number(mainBalance||0) + refundedAmount;
-        saveMainBalance();
-        updateMainBalanceUI();
-      }
-    }catch(e){
-      console.error('Refund failed for withdrawal', withdrawalId, e);
-    }
-  }
-
   const oldSubmitWithdrawal=window.submitWithdrawal;
   window.submitWithdrawal=async function(){
     const number=document.getElementById('withdraw-number').value.trim();
@@ -5146,7 +5093,6 @@ body.logged-out .income-summary{display:none !important;}
     updateLoggedInHeader(user, user ? getProfile() : null);
     if(!user){
       stopHeartbeat();
-      stopWithdrawalRefundListener();
       // Firebase নিজে থেকে user=null পাঠালেই সেটা সবসময় real/ইচ্ছাকৃত logout নয়।
       // দীর্ঘক্ষণ ব্যাকগ্রাউন্ডে থাকা ট্যাব, in-app browser, বা দুর্বল/পরিবর্তিত নেটওয়ার্কে
       // অনেক সময় Firebase Auth নিজেই আগের session সঠিকভাবে restore করতে ব্যর্থ হয় —
@@ -5369,7 +5315,6 @@ body.logged-out .income-summary{display:none !important;}
       document.body.classList.add('logged-in');
       document.body.classList.remove('logged-out');
       startHeartbeat(user.uid);
-      startWithdrawalRefundListener(user.uid);
       if(document.getElementById('login-screen')?.classList.contains('visible')) showScreen('home-screen');
       if(document.getElementById('package-screen')?.classList.contains('visible')) loadActivePackagesFromFirestore();
       if(authFlowPending){
@@ -5477,7 +5422,6 @@ body.logged-out .income-summary{display:none !important;}
     try{
       setAuthLoading(true,'লগআউট হচ্ছে...');
       stopHeartbeat();
-      stopWithdrawalRefundListener();
       const started=Date.now();
       // signOut()-এর আগেই PROFILE_KEY/LAST_UID_KEY মুছে ফেলা হচ্ছে — এতে signOut() সম্পন্ন
       // হয়ে onAuthStateChanged(null) ট্রিগার হওয়ার সময় সেই handler ভুল করে এই স্বাভাবিক,
