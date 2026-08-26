@@ -256,6 +256,7 @@ html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10p
 <div style="font-size:12px;color:#7b8495">UID: ${d}</div>
 <div style="font-size:13px;margin-top:6px"><b>প্যাকেজ:</b> ${packagesHtml}${pendingCount?` <span style="color:#ee7515">(${pendingCount}টি pending)</span>`:''}</div>
 <div style="font-size:13px;margin-top:4px"><b>মোট Withdraw (approved):</b> ৳${totalWithdrawn}</div>
+<div style="font-size:13px;margin-top:4px"><b>রেফার করেছে:</b> ${Number(u.referralCount||0)} জন</div>
 <input id="bal-${d}" type="number" value="${Number(u.balance||0)}" style="margin-top:8px">
 <button class="save" onclick="updateUserBalance('${d}')">Update Balance</button>
 <button class="save" style="margin-top:8px;background:linear-gradient(135deg,#bd3030,#7a1f1f)" onclick="deleteUserDoc('${d}')">Delete User Data</button>
