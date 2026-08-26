@@ -374,6 +374,8 @@ async function setWithdrawalStatus(id,status){
    alert('Error: '+(e.message||e));
  }
 }
+let __packageOrdersCache=[];
+let __packageOrdersUserMap={};
 async function showPackageOrdersPage(){
 if(!requireAdmin())return;
 hidePages();
@@ -381,33 +383,43 @@ document.getElementById('homePage').style.display='none';
 showBack('Package Order');
 const c=document.getElementById('dataPage');
 c.style.display='block';
-c.innerHTML='<div class="form show"><h3>Package Orders</h3><div id="packageOrderList">Loading...</div></div>';
+c.innerHTML='<div class="form show"><h3>Package Orders</h3><input id="pkgOrderSearchInput" type="text" placeholder="ইউনিক কোড দিয়ে সার্চ করুন (যেমন: PKG-000123)" style="margin-bottom:14px" oninput="renderPackageOrdersList(this.value)"><div id="packageOrderList">Loading...</div></div>';
 const [paymentsSnap,usersSnap]=await Promise.all([
 db.collection('payments').get(),
 db.collection('users').get()
 ]);
-const userMap={};
-usersSnap.forEach(d=>{userMap[d.id]=d.data();});
+__packageOrdersUserMap={};
+usersSnap.forEach(d=>{__packageOrdersUserMap[d.id]=d.data();});
 const docs=paymentsSnap.docs.slice().sort((a,b)=>{
 const ta=a.data().createdAt&&a.data().createdAt.toMillis?a.data().createdAt.toMillis():0;
 const tb=b.data().createdAt&&b.data().createdAt.toMillis?b.data().createdAt.toMillis():0;
 return tb-ta;
 });
+__packageOrdersCache=docs.map(d=>({id:d.id,...d.data()}));
+renderPackageOrdersList('');
+}
+function renderPackageOrdersList(filterText){
+const q=(filterText||'').trim().toLowerCase();
+const filtered=__packageOrdersCache.filter(x=>{
+if(!q)return true;
+const code=(x.orderCode||'').toLowerCase();
+return code.includes(q);
+});
 let html='';
-docs.forEach(d=>{
-const x=d.data();
+filtered.forEach(x=>{
 const methodName=x.method==='bkash'?'বিকাশ':x.method==='nagad'?'নগদ':(x.method||'');
-const u=userMap[x.uid]||{};
+const u=__packageOrdersUserMap[x.uid]||{};
 const userLabel=`${u.firstName||''} ${u.lastName||''}`.trim()||'(নাম নেই)';
 html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0">
+<div style="font-size:11px;font-weight:800;letter-spacing:.3px;color:#1f6e4a;font-family:monospace;margin-bottom:4px">${x.orderCode||'—'}</div>
 <b>${x.packageName||'প্যাকেজ'} — ৳${Number(x.amount||0)}</b>
 <div style="font-size:12px;color:#7b8495">${userLabel} · ${u.mobile||'মোবাইল নেই'}</div>
 <div style="font-size:12px;color:#7b8495">${methodName} · TXN: ${x.transactionId||''}</div>
 <div style="font-size:12px;color:#7b8495">Status: ${x.status||'pending'}</div>
-${x.status==='pending'?`<button class="save" onclick="setPackageOrderStatus('${d.id}','approved')">Approve</button><button class="save" style="margin-top:8px;background:linear-gradient(135deg,#bd3030,#7a1f1f)" onclick="setPackageOrderStatus('${d.id}','rejected')">Reject</button>`:''}
+${x.status==='pending'?`<button class="save" onclick="setPackageOrderStatus('${x.id}','approved')">Approve</button><button class="save" style="margin-top:8px;background:linear-gradient(135deg,#bd3030,#7a1f1f)" onclick="setPackageOrderStatus('${x.id}','rejected')">Reject</button>`:''}
 </div>`;
 });
-document.getElementById('packageOrderList').innerHTML=html||'কোনো প্যাকেজ অর্ডার নেই';
+document.getElementById('packageOrderList').innerHTML=html||'কোনো প্যাকেজ অর্ডার পাওয়া যায়নি';
 }
 async function setPackageOrderStatus(id,status){
 if(!requireAdmin())return;
