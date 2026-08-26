@@ -4437,9 +4437,11 @@
   }
 
   let withdrawPackageToastTimer = null;
-  function showPackageRequiredToast(){
+  function showPackageRequiredToast(message){
     const toast = document.getElementById('withdraw-package-toast');
     if(!toast) return;
+    const textEl = document.getElementById('withdraw-package-toast-text');
+    if(textEl && message) textEl.textContent = message;
     clearTimeout(withdrawPackageToastTimer);
     toast.classList.add('show');
     withdrawPackageToastTimer = setTimeout(() => toast.classList.remove('show'), 5000);
@@ -4911,32 +4913,82 @@ body.logged-out .income-summary{display:none !important;}
     finally{setAuthLoading(false); if(submitBtn) submitBtn.disabled=false;}
   };
 
+  // ---------- উত্তোলনের শর্ত: প্যাকেজ "নম্বর" বের করার হেল্পার ----------
+  // packages কালেকশন price অনুযায়ী ascending সাজানো থাকে (দেখুন buildPackageCardHtml এর
+  // কাছে collection('packages').orderBy('price','asc'))। "১ নম্বর প্যাকেজ" মানে সবচেয়ে
+  // সস্তা প্যাকেজ, "১০ নম্বর প্যাকেজ" মানে সবচেয়ে দামি — এই ক্রম অনুযায়ীই র‍্যাংক বসানো হয়।
+  async function getOrderedPackageIds(){
+    const snap = await db.collection('packages').orderBy('price','asc').get();
+    return snap.docs.map(d => d.id);
+  }
+
+  // ইউজারের approved পেমেন্টগুলো থেকে সবচেয়ে বড় প্যাকেজ-নম্বর (র‍্যাংক) বের করা হচ্ছে —
+  // একাধিক প্যাকেজ কেনা থাকলে সবচেয়ে উঁচুটাই ধরা হয়, কারণ উঁচু প্যাকেজ থাকলে নিচেরগুলোর
+  // শর্তও এমনিতেই পূরণ হয়ে যায়।
+  async function getUserMaxPackageLevel(uid, orderedIds){
+    const snap = await db.collection('payments').where('uid','==',uid).where('status','==','approved').get();
+    let maxLevel = 0;
+    snap.forEach(doc=>{
+      const pkgId = doc.data().packageId;
+      const idx = orderedIds.indexOf(pkgId);
+      if(idx !== -1) maxLevel = Math.max(maxLevel, idx + 1);
+    });
+    return maxLevel;
+  }
+
+  // এই ইউজার আগে কতবার উত্তোলনের অনুরোধ করেছে (status যাই হোক) তা গুনে বর্তমান
+  // অনুরোধটা কত নম্বর উত্তোলন সেটা বের করা হচ্ছে — অনুরোধ জমা দেওয়ার সাথে সাথেই
+  // ব্যালেন্স কাটা হয়, তাই pending/approved/rejected সবই এই গণনায় ধরা হয়।
+  async function getWithdrawalNumberFor(uid){
+    const snap = await db.collection('withdrawals').where('uid','==',uid).get();
+    return snap.size + 1;
+  }
+
   const oldSubmitWithdrawal=window.submitWithdrawal;
   window.submitWithdrawal=async function(){
     const number=document.getElementById('withdraw-number').value.trim();
     const amount=Number(document.getElementById('withdraw-amount').value);
     clearWithdrawalMessages();
     if(!number){showWithdrawalMessage('withdraw-number','মোবাইল নাম্বার দিন।');return;}
+    // ১ম শর্ত: প্রতিবার উত্তোলনেই প্রযোজ্য — সর্বনিম্ন ৳১,০০০, সর্বোচ্চ ৳২৫,০০০
     if(!amount||amount<1000){showWithdrawalMessage('withdraw-amount','সর্বনিম্ন উত্তোলনের পরিমাণ ৳১,০০০।');return;}
     if(amount>25000){showWithdrawalMessage('withdraw-amount','সর্বোচ্চ উত্তোলনের পরিমাণ ৳২৫,০০০।');return;}
     if(amount>Number(mainBalance||0)){showWithdrawalMessage('withdraw-amount','আপনার ব্যালেন্সের চেয়ে বেশি উত্তোলন করা যাবে না।');return;}
-    // ১ম শর্ত: ব্যালেন্স কমপক্ষে ৳১,০০০ থাকতে হবে
     if(Number(mainBalance||0) < 1000){
       showWithdrawalMessage('withdraw-amount','উত্তোলনের জন্য আপনার ব্যালেন্স কমপক্ষে ৳১,০০০ থাকতে হবে।');
       return;
     }
-    // ২য় শর্ত (১ম শর্ত পূরণ হলে তবেই দেখানো হবে): কমপক্ষে ৮ জন রেফার থাকতে হবে
-    if(Number(currentReferralCount||0) < 8){
+    const u=auth.currentUser;if(!u){showScreen('login-screen');return;}
+
+    let withdrawalNumber = 1;
+    try{
+      withdrawalNumber = await getWithdrawalNumberFor(u.uid);
+    }catch(numErr){
+      console.error('Withdrawal number check failed:', numErr);
+    }
+
+    // ২য় শর্ত: কমপক্ষে ৮ জন রেফার — শুধুমাত্র ১ম উত্তোলনেই লাগবে। এই শর্ত একবার
+    // পূরণ হয়ে ১ম উত্তোলন সম্পন্ন হয়ে গেলে, ২য় উত্তোলন থেকে আর নতুন করে চেক হবে না।
+    if(withdrawalNumber === 1 && Number(currentReferralCount||0) < 8){
       showWithdrawalMessage('withdraw-amount','উত্তোলনের জন্য কমপক্ষে ৮ জন রেফার প্রয়োজন। আপনার বর্তমান রেফার: '+Number(currentReferralCount||0)+' জন।');
       return;
     }
-    const u=auth.currentUser;if(!u){showScreen('login-screen');return;}
-    // ৩য় শর্ত (১ম ও ২য় শর্ত পূরণ হলে তবেই দেখানো হবে): কমপক্ষে একটি প্যাকেজ কিনতে হবে
-    // (অ্যাক্টিভ/মেয়াদোত্তীর্ণ যাই হোক না কেন — approved থাকলেই যথেষ্ট)
+
+    // ৩য় শর্ত: প্যাকেজ কেনা থাকতে হবে — কিন্তু উত্তোলন নম্বর যত বাড়ে, প্রয়োজনীয়
+    // প্যাকেজের "নম্বর"ও তত বাড়ে (১ম উত্তোলনে যেকোনো প্যাকেজ যথেষ্ট, ২য় উত্তোলনে অন্তত
+    // ২ নম্বর প্যাকেজ লাগবে, ইত্যাদি)। তবে ইউজারের কাছে আগে থেকেই তার চেয়ে উঁচু নম্বরের
+    // প্যাকেজ থাকলে (যেমন ৭ নম্বর প্যাকেজ থাকলে ৭তম উত্তোলন পর্যন্ত), নতুন করে কিনতে হবে না —
+    // আর সবচেয়ে উঁচু (শেষ) প্যাকেজ থাকলে ভবিষ্যতের সব উত্তোলনেই এই শর্ত এমনিতেই পূরণ থাকবে।
     try{
-      const pkgSnap = await db.collection('payments').where('uid','==',u.uid).where('status','==','approved').limit(1).get();
-      if(pkgSnap.empty){
-        showPackageRequiredToast();
+      const orderedIds = await getOrderedPackageIds();
+      const totalPackages = orderedIds.length;
+      const requiredLevel = totalPackages > 0 ? Math.min(withdrawalNumber, totalPackages) : withdrawalNumber;
+      const userMaxLevel = await getUserMaxPackageLevel(u.uid, orderedIds);
+      if(userMaxLevel < requiredLevel){
+        const msg = requiredLevel <= 1
+          ? 'উত্তোলনের জন্য যেকোনো একটি প্যাকেজ কিনতে হবে।'
+          : `উত্তোলনের জন্য কমপক্ষে ${formatMoneyBn(requiredLevel)} নম্বর প্যাকেজ কিনতে হবে।`;
+        showPackageRequiredToast(msg);
         return;
       }
     }catch(pkgErr){
