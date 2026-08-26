@@ -771,6 +771,14 @@
     flex-shrink:0;
   }
   .history-row-body{ flex:1; min-width:0; }
+  .history-row-code{
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:.3px;
+    color:var(--taka);
+    font-family:'JetBrains Mono','Hind Siliguri',monospace;
+    margin-bottom:2px;
+  }
   .history-row-title{ font-size:13.5px; font-weight:700; }
   .history-row-meta{
     font-size:10.5px;
@@ -4166,6 +4174,7 @@
           <div class="history-row ${statusClass}">
             <div class="history-row-icon">📦</div>
             <div class="history-row-body">
+              <div class="history-row-code">${p.orderCode||'—'}</div>
               <div class="history-row-title">${title}</div>
               <div class="history-row-meta">${methodName} · TXN: ${p.transactionId||''}</div>
             </div>
@@ -4780,6 +4789,23 @@ body.logged-out .income-summary{display:none !important;}
     if(u) db.collection('users').doc(u.uid).set({balance:Number(mainBalance),todayAdIncome:Number(todayAdIncome||0),todayIncome:Number(todayTotalIncome||0)},{merge:true}).catch(()=>{});
   };
 
+  // ---------- UNIQUE ORDER CODE ----------
+  // প্রতিটি প্যাকেজ অর্ডারের জন্য একটি ইউনিক কোড লাগবে (main app + admin panel
+  // দুই জায়গাতেই দেখানো হবে)। এটা counters/packageOrders ডকুমেন্টে একটা সংখ্যা
+  // Firestore transaction দিয়ে atomically বাড়িয়ে বানানো হয় — তাই একই সময়ে
+  // অনেক ইউজার অর্ডার করলেও (race condition) কখনো ডুপ্লিকেট কোড তৈরি হবে না।
+  async function getNextOrderCode(db){
+    const counterRef = db.collection('counters').doc('packageOrders');
+    const next = await db.runTransaction(async (t)=>{
+      const snap = await t.get(counterRef);
+      const current = snap.exists ? Number(snap.data().value||0) : 0;
+      const value = current + 1;
+      t.set(counterRef, {value}, {merge:true});
+      return value;
+    });
+    return 'PKG-' + String(next).padStart(6,'0');
+  }
+
   const oldSubmitPayment=window.submitPayment;
   window.submitPayment=async function(){
     if(!pendingPackage||!selectedMethod)return;
@@ -4807,7 +4833,9 @@ body.logged-out .income-summary{display:none !important;}
         alert('এই ট্রানজেকশন আইডি দিয়ে ইতিমধ্যে একটি রিকোয়েস্ট জমা দেওয়া হয়েছে। একটি ট্রানজেকশন আইডি শুধুমাত্র একবারই ব্যবহার করা যাবে।');
         return;
       }
+      const orderCode = await getNextOrderCode(db);
       await db.collection('payments').add({
+        orderCode,
         uid:u.uid,
         packageId:pendingPackage.id||null,
         packageName:pendingPackage.name||'',
