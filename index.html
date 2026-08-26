@@ -396,6 +396,26 @@
   .withdraw-toast{position:fixed;left:50%;top:50%;bottom:auto;transform:translate(-50%,calc(-50% + 20px));background:#0D3B29;color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;z-index:9999;white-space:nowrap;}
   .withdraw-toast.show{opacity:1;transform:translate(-50%,-50%);}
 
+  .withdraw-package-toast{
+    position:fixed; left:50%; top:50%; bottom:auto;
+    transform:translate(-50%,calc(-50% + 20px));
+    background:#0D3B29; color:#fff;
+    padding:16px 18px; border-radius:14px;
+    font-size:13px; font-weight:700;
+    box-shadow:0 8px 24px rgba(0,0,0,.18);
+    opacity:0; pointer-events:none;
+    transition:opacity .2s ease,transform .2s ease;
+    z-index:10000; max-width:86vw; text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .withdraw-package-toast.show{opacity:1; transform:translate(-50%,-50%); pointer-events:auto;}
+  .withdraw-package-toast button{
+    background:var(--gold); color:#fff; border:none;
+    padding:9px 18px; border-radius:100px;
+    font-size:12.5px; font-weight:700; cursor:pointer;
+    white-space:nowrap;
+  }
+
   .withdraw-backdrop{
     position:fixed; inset:0; z-index:99999;
     background:rgba(15,46,29,0.45);
@@ -2020,6 +2040,11 @@
   <div class="profile-modal-backdrop" id="change-password-modal" onclick="closeChangePasswordOnBackdrop(event)"><div class="profile-modal" onclick="event.stopPropagation()"><button type="button" class="profile-modal-close" onclick="closeChangePassword()">×</button><div class="profile-modal-title">পাসওয়ার্ড পরিবর্তন</div><div class="profile-modal-sub">নিরাপত্তার জন্য আপনার বর্তমান পাসওয়ার্ড দিন।</div><label class="auth-field-label">বর্তমান পাসওয়ার্ড</label><input class="auth-input" id="current-password" type="password" placeholder="বর্তমান পাসওয়ার্ড"><label class="auth-field-label">নতুন পাসওয়ার্ড</label><input class="auth-input" id="new-password" type="password" placeholder="নতুন পাসওয়ার্ড"><label class="auth-field-label">নতুন পাসওয়ার্ড আবার লিখুন</label><input class="auth-input" id="confirm-new-password" type="password" placeholder="নতুন পাসওয়ার্ড আবার লিখুন"><div class="profile-modal-message" id="password-message"></div><button type="button" class="auth-login-submit" onclick="changePassword()">পাসওয়ার্ড পরিবর্তন করুন</button></div></div>
 
 <div class="withdraw-toast" id="withdraw-toast">২৪ ঘন্টার মধ্যে পেমেন্ট সম্পন্ন হবে</div>
+
+<div class="withdraw-package-toast" id="withdraw-package-toast">
+  <span id="withdraw-package-toast-text">উত্তোলনের জন্য যেকোনো একটি প্যাকেজ কিনতে হবে।</span>
+  <button type="button" onclick="goToPackageScreenFromWithdraw()">প্যাকেজ কিনুন</button>
+</div>
 
 <div class="withdraw-backdrop" id="withdraw-modal" onclick="closeWithdrawModalOnBackdrop(event)">
     <div class="withdraw-sheet" onclick="event.stopPropagation()">
@@ -4314,6 +4339,25 @@
     withdrawToastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
   }
 
+  let withdrawPackageToastTimer = null;
+  function showPackageRequiredToast(){
+    const toast = document.getElementById('withdraw-package-toast');
+    if(!toast) return;
+    clearTimeout(withdrawPackageToastTimer);
+    toast.classList.add('show');
+    withdrawPackageToastTimer = setTimeout(() => toast.classList.remove('show'), 5000);
+  }
+  function hidePackageRequiredToast(){
+    clearTimeout(withdrawPackageToastTimer);
+    const toast = document.getElementById('withdraw-package-toast');
+    if(toast) toast.classList.remove('show');
+  }
+  function goToPackageScreenFromWithdraw(){
+    hidePackageRequiredToast();
+    closeWithdrawModal();
+    showScreen('package-screen');
+  }
+
   function submitWithdrawal(){
     const number = document.getElementById('withdraw-number').value.trim();
     const amount = Number(document.getElementById('withdraw-amount').value);
@@ -4770,6 +4814,17 @@ body.logged-out .income-summary{display:none !important;}
       return;
     }
     const u=auth.currentUser;if(!u){showScreen('login-screen');return;}
+    // ৩য় শর্ত (১ম ও ২য় শর্ত পূরণ হলে তবেই দেখানো হবে): কমপক্ষে একটি প্যাকেজ কিনতে হবে
+    // (অ্যাক্টিভ/মেয়াদোত্তীর্ণ যাই হোক না কেন — approved থাকলেই যথেষ্ট)
+    try{
+      const pkgSnap = await db.collection('payments').where('uid','==',u.uid).where('status','==','approved').limit(1).get();
+      if(pkgSnap.empty){
+        showPackageRequiredToast();
+        return;
+      }
+    }catch(pkgErr){
+      console.error('Package check failed:', pkgErr);
+    }
     const submitBtn=document.querySelector('.withdraw-submit');
     if(submitBtn) submitBtn.disabled=true;
     try{
