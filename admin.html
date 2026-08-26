@@ -274,7 +274,36 @@ const idx=__usersCache.findIndex(u=>u.id===uid);
 if(idx>-1)__usersCache[idx].balance=amount;
 alert('Balance updated ✓');
 }
-async function showWithdrawalsPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Withdraw History');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Withdraw Requests</h3><div id="withdrawList">Loading...</div></div>';const snap=await db.collection('withdrawals').orderBy('createdAt','desc').get();let html='';snap.forEach(d=>{const x=d.data();html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>৳${x.amount||0} — ${x.method||''}</b><div style="font-size:12px">${x.number||''} | ${x.mobile||''}</div><div style="font-size:12px;color:#7b8495">Status: ${x.status||'pending'}</div>${(x.status||'pending')==='pending'?`<button class="save" onclick="setWithdrawalStatus('${d.id}','approved')">Approve</button><button class="save" style="margin-top:8px" onclick="setWithdrawalStatus('${d.id}','rejected')">Reject</button>`:''}</div>`});document.getElementById('withdrawList').innerHTML=html||'No requests';}
+async function showWithdrawalsPage(){
+if(!requireAdmin())return;
+hidePages();
+document.getElementById('homePage').style.display='none';
+showBack('Withdraw History');
+const c=document.getElementById('dataPage');
+c.style.display='block';
+c.innerHTML='<div class="form show"><h3>Withdraw Requests</h3><div id="withdrawList">Loading...</div></div>';
+const [snap,usersSnap]=await Promise.all([
+  db.collection('withdrawals').orderBy('createdAt','desc').get(),
+  db.collection('users').get()
+]);
+const userMap={};
+usersSnap.forEach(d=>{userMap[d.id]=d.data();});
+let html='';
+snap.forEach(d=>{
+  const x=d.data();
+  const u=userMap[x.uid]||{};
+  const userName=`${u.firstName||''} ${u.lastName||''}`.trim()||'অজানা ইউজার';
+  const userMobile=u.mobile||'—';
+  html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0">
+<b>৳${x.amount||0} — ${x.method||''}</b>
+<div style="font-size:12px">${x.number||''} | ${x.mobile||''}</div>
+<div style="font-size:12px;color:#1a56db;margin-top:4px"><b>ইউজার:</b> ${userName} (${userMobile})</div>
+<div style="font-size:12px;color:#7b8495">Status: ${x.status||'pending'}</div>
+${(x.status||'pending')==='pending'?`<button class="save" onclick="setWithdrawalStatus('${d.id}','approved')">Approve</button><button class="save" style="margin-top:8px" onclick="setWithdrawalStatus('${d.id}','rejected')">Reject</button>`:''}
+</div>`;
+});
+document.getElementById('withdrawList').innerHTML=html||'No requests';
+}
 async function setWithdrawalStatus(id,status){
  if(!requireAdmin())return;
  try{
