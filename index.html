@@ -2893,6 +2893,22 @@
   let adStates = {};
   // এডমিন প্যানেল থেকে সেভ করা প্রতিটি এডের আসল লিংক এখানে থাকবে (ads1..ads10)।
   let adLinks = {};
+  // এডমিন প্যানেলে লিংক কপি-পেস্ট করার সময় (Messenger/WhatsApp/Facebook থেকে) মাঝে মাঝে
+  // চোখে না দেখা যাওয়া invisible ইউনিকোড ক্যারেক্টার (LRM/RLM/zero-width space ইত্যাদি)
+  // লিংকের শুরুতে ঢুকে যায়। এর ফলে "https://..." কে ব্রাউজার সম্পূর্ণ URL হিসেবে না বুঝে
+  // relative path ধরে নেয়, আর নিজের সাইটের পেছনে জুড়ে দিয়ে 404 দেখায়। তাই Firestore থেকে
+  // লিংক লোড করার সময়ই এই invisible ক্যারেক্টারগুলো ও আশেপাশের স্পেস মুছে ফেলা হচ্ছে।
+  function sanitizeAdLink(url){
+    if(!url) return url;
+    let cleaned = String(url)
+      .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '') // invisible/bidi/zero-width chars
+      .trim();
+    // যদি কোনো কারণে http/https স্কিম ছাড়া লিংক সেভ হয়ে থাকে, সেটাকেও ঠিক করে দেওয়া হচ্ছে
+    if(cleaned && !/^https?:\/\//i.test(cleaned)){
+      cleaned = 'https://' + cleaned.replace(/^\/+/, '');
+    }
+    return cleaned;
+  }
   // settings/public পাবলিকভাবে readable, তাই লগইনের জন্য অপেক্ষা না করেই এড লিংকগুলো
   // লোড করে নেওয়া হচ্ছে — এতে এড বাটনে ক্লিক করলে এডমিনের দেওয়া আসল লিংকটাই খোলে।
   async function loadAdLinksFromFirestore(){
@@ -2901,7 +2917,11 @@
       if(!fb || !fb.db) return;
       const snap=await fb.db.collection('settings').doc('public').get();
       const data=snap.exists ? (snap.data()||{}) : {};
-      adLinks=Object.assign({}, data.ads||{});
+      const rawAds=Object.assign({}, data.ads||{});
+      adLinks={};
+      for(const key in rawAds){
+        adLinks[key]=sanitizeAdLink(rawAds[key]);
+      }
     }catch(e){
       console.error('Ad links load failed:', e);
     }
@@ -3155,7 +3175,7 @@
     }
     // এডমিন প্যানেল থেকে সেভ করা এই এডের আসল লিংকটা নতুন ট্যাবে খোলা হচ্ছে —
     // আগে এই লিংকটা কোথাও ব্যবহারই হতো না, তাই ক্লিক করলে এড দেখা যেত না।
-    const link=adLinks['ads'+adNumber];
+    const link=sanitizeAdLink(adLinks['ads'+adNumber]);
     if(!link){
       if(preOpenedTab) preOpenedTab.close();
       alert('এই এডের লিংক এখনো যোগ করা হয়নি। একটু পরে আবার চেষ্টা করুন।');
