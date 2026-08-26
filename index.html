@@ -3138,25 +3138,38 @@
     countdownIntervals[adNumber]=setInterval(update,1000);
   }
 
-  function watchAd(adNumber, reward){
+  function watchAd(adNumber, reward, preOpenedTab){
     const card=document.querySelector(`.ad-card[data-ad="${adNumber}"]`);
     const btn=card?.querySelector('.ad-watch-btn');
-    if(!card || !btn) return;
+    if(!card || !btn){ if(preOpenedTab) preOpenedTab.close(); return; }
     const state=adStates[adNumber];
     // ১৫ সেকেন্ড শেষ হলে একই বাটনেই ক্লেইম করা যাবে।
     if(state?.ready && !state.claimed){
+      if(preOpenedTab) preOpenedTab.close();
       claimAd(adNumber,reward);
       return;
     }
-    if(state?.cooldownUntil && state.cooldownUntil>Date.now()) return;
+    if(state?.cooldownUntil && state.cooldownUntil>Date.now()){
+      if(preOpenedTab) preOpenedTab.close();
+      return;
+    }
     // এডমিন প্যানেল থেকে সেভ করা এই এডের আসল লিংকটা নতুন ট্যাবে খোলা হচ্ছে —
     // আগে এই লিংকটা কোথাও ব্যবহারই হতো না, তাই ক্লিক করলে এড দেখা যেত না।
     const link=adLinks['ads'+adNumber];
     if(!link){
+      if(preOpenedTab) preOpenedTab.close();
       alert('এই এডের লিংক এখনো যোগ করা হয়নি। একটু পরে আবার চেষ্টা করুন।');
       return;
     }
-    window.open(link, '_blank', 'noopener');
+    // preOpenedTab থাকলে (মানে ক্লিকের সাথে সাথেই আগে থেকে ট্যাব খোলা হয়েছিল)
+    // সেটার location সেট করা হচ্ছে — কারণ requireLogin()-এর await এর কারণে এই
+    // মুহূর্তে window.open() সরাসরি কল করলে অনেক মোবাইল ব্রাউজার popup blocker
+    // দিয়ে চুপচাপ আটকে দেয় (লিংক খোলে না, কোনো error-ও দেখায় না)।
+    if(preOpenedTab && !preOpenedTab.closed){
+      preOpenedTab.location = link;
+    }else{
+      window.open(link, '_blank', 'noopener');
+    }
     adStates[adNumber]={ startedAt:Date.now(), ready:false, claimed:false, cooldownUntil:0 };
     saveAdStates();
     startWatchCountdown(adNumber,reward);
@@ -5268,9 +5281,17 @@ body.logged-out .income-summary{display:none !important;}
   };
 
   const originalWatchAd = window.watchAd;
-  window.watchAd = async function(){
-    if(!(await requireLogin())) return;
-    return originalWatchAd.apply(this, arguments);
+  window.watchAd = async function(adNumber, reward){
+    // ক্লিকের সাথে সাথেই (এখনো কোনো await হওয়ার আগেই) একটা খালি ট্যাব খুলে
+    // রাখা হচ্ছে — নাহলে নিচের await requireLogin()-এর কারণে window.open()
+    // click event-এর সরাসরি call stack থেকে এক ধাপ পিছিয়ে যায়, আর মোবাইল
+    // ব্রাউজার/in-app browser সেটাকে popup ধরে নিয়ে ব্লক করে দেয়।
+    const preOpenedTab = auth.currentUser ? window.open('', '_blank') : null;
+    if(!(await requireLogin())){
+      if(preOpenedTab) preOpenedTab.close();
+      return;
+    }
+    return originalWatchAd.apply(this, [adNumber, reward, preOpenedTab]);
   };
 
   const originalSendContactPageMessage = window.sendContactPageMessage;
