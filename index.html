@@ -785,6 +785,8 @@
   .withdrawal-history-meta{font-size:10.5px;color:var(--muted);margin-top:2px;font-family:'JetBrains Mono','Hind Siliguri',monospace;}
   .withdrawal-history-amount{font-family:'JetBrains Mono','Hind Siliguri',monospace;font-size:13px;font-weight:700;color:var(--taka);white-space:nowrap;}
   .withdrawal-history-status{display:inline-block;margin-top:10px;padding:5px 9px;border-radius:100px;background:rgba(212,167,58,0.16);color:#8A6815;font-size:10.5px;font-weight:700;}
+  .withdrawal-history-status.approved{background:rgba(23,107,59,0.14);color:#176B3B;}
+  .withdrawal-history-status.rejected{background:rgba(189,48,48,0.14);color:#BD3030;}
 
 
   #active-packages-list{
@@ -4246,8 +4248,9 @@
         const date = dateObj.toLocaleDateString('bn-BD');
         const time = dateObj.toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'});
         let statusText = 'অপেক্ষমাণ';
-        if(w.status === 'approved') statusText = 'সম্পন্ন ✓';
-        else if(w.status === 'rejected') statusText = 'বাতিল হয়েছে';
+        let statusClass = '';
+        if(w.status === 'approved'){ statusText = 'সম্পন্ন ✓'; statusClass = 'approved'; }
+        else if(w.status === 'rejected'){ statusText = 'বাতিল হয়েছে'; statusClass = 'rejected'; }
         html += `
           <div class="withdrawal-history-row">
             <div class="withdrawal-history-top">
@@ -4258,7 +4261,7 @@
               </div>
               <div class="withdrawal-history-amount">৳${Number(w.amount||0).toLocaleString('bn-BD')}</div>
             </div>
-            <div class="withdrawal-history-status">${statusText}</div>
+            <div class="withdrawal-history-status ${statusClass}">${statusText}</div>
           </div>`;
       });
       list.innerHTML = html;
