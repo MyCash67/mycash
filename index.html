@@ -1620,42 +1620,20 @@
 <script>
   // রেফার লিংক দিয়ে কেউ এলে (?ref=CODE), সেই কোডটা রেজিস্ট্রেশন হওয়া পর্যন্ত
   // localStorage-এ মনে রাখা হচ্ছে — যাতে ইউজার সাথে সাথে রেজিস্টার না করে
-  // অন্য পেজ ঘুরে এসেও রেফারারকে ঠিকভাবে ক্রেডিট দেওয়া যায়।
+  // অন্য পেজ ঘুরে এসেও রেফারারকে ঠিকভাবে ক্রেডিট দেওয়া যায়। ব্রাউজারে আগে থেকে
+  // কোনো অ্যাকাউন্ট লগইন থাকলে সেটাকে এখন আর জোর করে সাইন-আউট করা হয় না —
+  // শুধু রেফার কোডটা সংরক্ষণ করা হয়, বাকিটা অপরিবর্তিত থাকে।
   (function(){
     try{
       const params = new URLSearchParams(window.location.search);
       const refCode = (params.get('ref') || '').trim().toUpperCase();
       if(refCode){
         localStorage.setItem('mycash_pending_ref', refCode);
-        // এই লোডেই URL-এ ?ref= ছিল — মানে এটা একটা তাজা রেফার-লিংক ভিজিট।
-        // ব্রাউজারে আগে থেকে অন্য কোনো অ্যাকাউন্ট লগইন থাকলে সেটা দিয়ে সরাসরি
-        // হোমে না ঢুকিয়ে, সাইন-আউট করে রেজিস্ট্রেশন পেজ দেখানোর জন্য এই ফ্ল্যাগ।
-        //
-        // গুরুত্বপূর্ণ ফিক্স (account intermittently তৈরি না হওয়ার বাগ): এই ফ্ল্যাগ
-        // শুধুমাত্র পেজ-লোডের সময় একবারই "আগে থেকে লগইন করা স্টেল সেশন" চেক করার
-        // জন্য — এরপর auth.onAuthStateChanged প্রথমবার রান হওয়ার সাথে সাথেই এটা
-        // অবশ্যই false করে দিতে হবে (দেখুন নিচে auth.onAuthStateChanged)। আগে এটা
-        // false করা হতো শুধু তখনই যখন প্রথম চেকে সত্যিই একটা স্টেল ইউজার পাওয়া যেত;
-        // কেউ যদি আগে থেকে লগইন না থেকে থাকে (সবচেয়ে সাধারণ কেস — নতুন ইউজার
-        // রেফার লিংকে প্রথমবার আসছে), তাহলে ফ্ল্যাগটা true হয়েই থেকে যেত। তারপর
-        // ইউজার ফর্ম পূরণ করে "রেজিস্ট্রেশন" চাপলে createUserWithEmailAndPassword()
-        // নিজেই নতুন অ্যাকাউন্টে সাইন-ইন করিয়ে দেয় — যেটা onAuthStateChanged(user)
-        // ট্রিগার করে, আর তখন পুরনো true ফ্ল্যাগটা ভুলভাবে ম্যাচ করে নতুন-তৈরি
-        // অ্যাকাউন্টকেই "স্টেল সেশন" ভেবে জোর করে সাইন-আউট করে দিত — ঠিক তখনই যখন
-        // handleRegistration() Firestore-এ প্রোফাইল লেখার চেষ্টা করছিল। রেসের টাইমিং
-        // অনুযায়ী কখনো Firestore লেখা আগে শেষ হয়ে যেত (অ্যাকাউন্ট তৈরি হতো), কখনো
-        // সাইন-আউট আগে হয়ে যেত (permission হারিয়ে Firestore লেখা ব্যর্থ হতো, আর
-        // handleRegistration নিজেই তখন সদ্য-তৈরি Auth ইউজারটা delete করে পুরো
-        // রেজিস্ট্রেশন বাতিল করে দিত) — এটাই "মাঝেমধ্যে হয়, মাঝেমধ্যে হয় না" বাগের
-        // আসল কারণ।
-        window.myCashForceRegisterFromRef = true;
-        // গুরুত্বপূর্ণ ফিক্স: ?ref=CODE আগে ব্রাউজারের ঠিকানায় (URL) স্থায়ীভাবে থেকে
-        // যেত, তাই রেজিস্ট্রেশন করে হোমে আসার পরও refresh দিলে এই একই কোড আবার
-        // পড়া হতো এবং আবার জোর করে sign-out + register-screen দেখানো হতো।
-        // রেফার কোডটা এতক্ষণে localStorage-এ (mycash_pending_ref) সংরক্ষিত হয়ে
-        // গেছে -- রেজিস্ট্রেশনের সময় এখান থেকেই পড়া হয় (দেখুন PENDING_REF_KEY) --
-        // তাই এখনই URL থেকে ?ref= মুছে ফেলা নিরাপদ, রেফারেল ক্রেডিট ঠিকই কাজ করবে,
-        // কিন্তু refresh দিলে আর বারবার লগআউট/রেজিস্ট্রেশনে ফেরত যাবে না।
+        // ?ref=CODE আগে ব্রাউজারের ঠিকানায় (URL) স্থায়ীভাবে থেকে যেত, তাই রেজিস্ট্রেশন
+        // করে হোমে আসার পরও refresh দিলে এই একই কোড আবার পড়া হতো। রেফার কোডটা
+        // এতক্ষণে localStorage-এ (mycash_pending_ref) সংরক্ষিত হয়ে গেছে -- রেজিস্ট্রেশনের
+        // সময় এখান থেকেই পড়া হয় (দেখুন PENDING_REF_KEY) -- তাই এখনই URL থেকে ?ref=
+        // মুছে ফেলা নিরাপদ, রেফারেল ক্রেডিট ঠিকই কাজ করবে।
         try{
           if(window.history && window.history.replaceState){
             const cleanUrl = window.location.pathname + window.location.hash;
@@ -4745,10 +4723,6 @@ body.logged-out .income-summary{display:none !important;}
   function setMessage(id,msg){ const el=document.getElementById(id); if(el){el.textContent=msg;el.className='profile-modal-message error';} }
 
   window.handleRegistration = async function(){
-    // অতিরিক্ত নিরাপত্তা: রেজিস্ট্রেশন শুরু হওয়ার সাথে সাথেই এই ফ্ল্যাগ disarm করে
-    // দেওয়া হচ্ছে, যাতে createUserWithEmailAndPassword() থেকে আসা auth-state
-    // ইভেন্টকে ভুলভাবে "স্টেল রেফার-সেশন" ভেবে নতুন অ্যাকাউন্ট সাইন-আউট না হয়ে যায়।
-    window.myCashForceRegisterFromRef = false;
     const firstName=document.getElementById('register-first-name').value.trim();
     const lastName=document.getElementById('register-last-name').value.trim();
     const mobile=document.getElementById('register-mobile').value.trim();
@@ -4855,10 +4829,6 @@ body.logged-out .income-summary{display:none !important;}
   };
 
   window.handleLogin = async function(){
-    // একই নিরাপত্তা: রেফার লিংকে আসা ইউজার যদি রেজিস্ট্রেশনের বদলে সরাসরি লগইন করেন
-    // (আগে থেকেই অ্যাকাউন্ট আছে), তাহলেও এই ফ্ল্যাগ যেন লগইন সফল হওয়ার পর ভুলভাবে
-    // সাইন-আউট না ঘটায়।
-    window.myCashForceRegisterFromRef = false;
     const mobile=document.getElementById('login-mobile').value.trim();
     const password=document.getElementById('login-password').value.trim();
     clearFieldMessages();
@@ -5154,37 +5124,19 @@ body.logged-out .income-summary{display:none !important;}
   }
 
   document.body.classList.add('logged-out');
-  // এই ফ্ল্যাগ নিশ্চিত করে যে myCashForceRegisterFromRef চেকটা শুধু পেজ-লোডের পর
-  // প্রথম auth-state কলব্যাকেই কাজ করবে — তারপর তা যা-ই হোক (স্টেল সেশন পাওয়া
-  // গেছে বা যায়নি) ফ্ল্যাগটা চিরতরে disarm হয়ে যাবে। এটা ছাড়া, রেফার লিংকে আসা
-  // একজন নতুন (আগে থেকে লগইন-না-থাকা) ইউজার রেজিস্ট্রেশন ফর্ম সাবমিট করলে
-  // createUserWithEmailAndPassword() থেকে আসা পরবর্তী auth-state ইভেন্টকেই
-  // ভুলভাবে "স্টেল সেশন" ধরে নিয়ে সদ্য-তৈরি অ্যাকাউন্টটাকে জোর করে সাইন-আউট করে
-  // দিত — এটাই ছিল "মাঝেমধ্যে অ্যাকাউন্ট হয়, মাঝেমধ্যে হয় না" বাগের আসল কারণ।
-  let refFlagCheckDone = false;
+  // ফিক্স: আগে রেফার লিংক (?ref=CODE) দিয়ে ঢোকার সময় ব্রাউজারে আগে থেকে লগইন করা
+  // থাকলে সেই সেশন জোর করে সাইন-আউট করে দেওয়া হতো। এটা দুইটা সমস্যা তৈরি করছিল:
+  // ১) ইউজারের ইচ্ছা ছাড়াই তার browser-এ থাকা account লগআউট হয়ে যেত।
+  // ২) এই signOut() কলটা async (IndexedDB write ইত্যাদির কারণে সময় লাগে), আর ইউজার
+  //    যদি এর মধ্যেই রেজিস্ট্রেশন ফর্ম সাবমিট করে ফেলত, নতুন অ্যাকাউন্ট সাইন-ইন হওয়ার
+  //    পরপরই এই "পুরনো" signOut() call resolve হয়ে নতুন অ্যাকাউন্টটাকেই সাইন-আউট করে
+  //    দিত (যেহেতু auth object একটাই — কে বর্তমানে signed-in সেটা না জেনেই signOut()
+  //    কাজ করে) — ফলে রেজিস্ট্রেশন আসলে সফল হলেও ইউজারকে logged-out অবস্থায় home
+  //    screen-এ দেখানো হতো, বোঝার উপায় থাকত না account হয়েছে কিনা।
+  // এখন: রেফার লিংকে ঢোকার সময় আগের কোনো সেশন থাকলে সেটাকে একেবারেই স্পর্শ করা হয়
+  // না — রেফার কোডটা শুধু localStorage-এ (mycash_pending_ref) জমা থাকে, এবং কেউ
+  // নতুন করে রেজিস্ট্রেশন করলে সেই কোড থেকেই রেফারার ক্রেডিট পান (দেখুন handleRegistration)।
   auth.onAuthStateChanged(async function(user){
-    if(!refFlagCheckDone){
-      refFlagCheckDone = true;
-      if(user && window.myCashForceRegisterFromRef){
-        // রেফার লিংক (?ref=) দিয়ে ঢোকার সময় ব্রাউজারে আগের কোনো অ্যাকাউন্ট লগইন
-        // অবস্থায় থেকে গেলে, সেটা দিয়ে সরাসরি হোম/লগইন অবস্থায় না ঢুকিয়ে বরং
-        // সাইন-আউট করে দেওয়া হচ্ছে — যাতে নিচের null-user কোড রেজিস্ট্রেশন পেজ
-        // দেখাতে পারে এবং referred user সবসময় নতুন অ্যাকাউন্ট তৈরির ফর্ম পায়।
-        window.myCashForceRegisterFromRef = false;
-        window.myCashShowRegisterOnLogout = true;
-        try{
-          localStorage.removeItem(PROFILE_KEY);
-          localStorage.removeItem(LAST_UID_KEY);
-        }catch(e){}
-        try{ await auth.signOut(); }catch(e){}
-        return;
-      }
-      // প্রথম চেকে স্টেল সেশন পাওয়া না গেলেও (যেমন: নতুন ইউজার রেফার লিংকে প্রথমবার
-      // আসছে, তখনো লগইন করেনি) ফ্ল্যাগটা এখনই disarm করে দেওয়া হচ্ছে, যাতে পরবর্তী
-      // কোনো auth-state event (যেমন এই ইউজারেরই রেজিস্ট্রেশন/লগইন সফল হওয়া) এসে
-      // ভুলভাবে এই "force sign-out" লজিকে আটকে না যায়।
-      window.myCashForceRegisterFromRef = false;
-    }
     updateLoggedInHeader(user, user ? getProfile() : null);
     if(!user){
       stopHeartbeat();
@@ -5213,11 +5165,7 @@ body.logged-out .income-summary{display:none !important;}
       localStorage.setItem(scopedKey(AD_INCOME_KEY_BASE),'0');
       localStorage.setItem(scopedKey(TOTAL_INCOME_KEY_BASE),'0');
       updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary(); updateReferUI();
-      if(window.myCashShowRegisterOnLogout || window.myCashForceRegisterFromRef){
-        window.myCashShowRegisterOnLogout = false;
-        window.myCashForceRegisterFromRef = false;
-        showScreen('register-screen');
-      }else if(!document.getElementById('home-screen')?.classList.contains('visible')){
+      if(!document.getElementById('home-screen')?.classList.contains('visible')){
         showScreen('home-screen');
       }
       if(authFlowPending){
