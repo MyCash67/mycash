@@ -4755,6 +4755,16 @@ body.logged-out .income-summary{display:none !important;}
     const number=document.getElementById('withdraw-number').value.trim();
     const amount=Number(document.getElementById('withdraw-amount').value);
     clearWithdrawalMessages();
+    // ১ম শর্ত: ব্যালেন্স কমপক্ষে ৳১,০০০ থাকতে হবে
+    if(Number(mainBalance||0) < 1000){
+      showWithdrawalMessage('withdraw-amount','উত্তোলনের জন্য আপনার ব্যালেন্স কমপক্ষে ৳১,০০০ থাকতে হবে।');
+      return;
+    }
+    // ২য় শর্ত (১ম শর্ত পূরণ হলে তবেই দেখানো হবে): কমপক্ষে ৮ জন রেফার থাকতে হবে
+    if(Number(currentReferralCount||0) < 8){
+      showWithdrawalMessage('withdraw-amount','উত্তোলনের জন্য কমপক্ষে ৮ জন রেফার প্রয়োজন। আপনার বর্তমান রেফার: '+Number(currentReferralCount||0)+' জন।');
+      return;
+    }
     if(!number){showWithdrawalMessage('withdraw-number','মোবাইল নাম্বার দিন।');return;}
     if(!amount||amount<1000){showWithdrawalMessage('withdraw-amount','সর্বনিম্ন উত্তোলনের পরিমাণ ৳১,০০০।');return;}
     if(amount>25000){showWithdrawalMessage('withdraw-amount','সর্বোচ্চ উত্তোলনের পরিমাণ ৳২৫,০০০।');return;}
