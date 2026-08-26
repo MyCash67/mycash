@@ -2891,6 +2891,21 @@
   let mainBalance = 0;
   let countdownIntervals = {};
   let adStates = {};
+  // এডমিন প্যানেল থেকে সেভ করা প্রতিটি এডের আসল লিংক এখানে থাকবে (ads1..ads10)।
+  let adLinks = {};
+  // settings/public পাবলিকভাবে readable, তাই লগইনের জন্য অপেক্ষা না করেই এড লিংকগুলো
+  // লোড করে নেওয়া হচ্ছে — এতে এড বাটনে ক্লিক করলে এডমিনের দেওয়া আসল লিংকটাই খোলে।
+  async function loadAdLinksFromFirestore(){
+    try{
+      const fb=window.myCashFirebase;
+      if(!fb || !fb.db) return;
+      const snap=await fb.db.collection('settings').doc('public').get();
+      const data=snap.exists ? (snap.data()||{}) : {};
+      adLinks=Object.assign({}, data.ads||{});
+    }catch(e){
+      console.error('Ad links load failed:', e);
+    }
+  }
   loadAccountState();
   resetDailyIncomeIfNeeded();
   // Firebase load হওয়ার জন্য অপেক্ষা না করেই, localStorage-এ যা ক্যাশ আছে তা দিয়ে
@@ -3134,6 +3149,14 @@
       return;
     }
     if(state?.cooldownUntil && state.cooldownUntil>Date.now()) return;
+    // এডমিন প্যানেল থেকে সেভ করা এই এডের আসল লিংকটা নতুন ট্যাবে খোলা হচ্ছে —
+    // আগে এই লিংকটা কোথাও ব্যবহারই হতো না, তাই ক্লিক করলে এড দেখা যেত না।
+    const link=adLinks['ads'+adNumber];
+    if(!link){
+      alert('এই এডের লিংক এখনো যোগ করা হয়নি। একটু পরে আবার চেষ্টা করুন।');
+      return;
+    }
+    window.open(link, '_blank', 'noopener');
     adStates[adNumber]={ startedAt:Date.now(), ready:false, claimed:false, cooldownUntil:0 };
     saveAdStates();
     startWatchCountdown(adNumber,reward);
@@ -4555,6 +4578,9 @@ body.logged-out .income-summary{display:none !important;}
   // settings/public পাবলিক ডকুমেন্ট — লগইন অবস্থার জন্য অপেক্ষা না করেই সরাসরি লোড করা হচ্ছে,
   // যাতে লগইন করা না থাকলেও Social Task বাটনগুলো এডমিনের দেওয়া লিংক নিয়ে ঠিকভাবে কাজ করে।
   loadSocialLinksFromFirestore();
+  // এড লিংকও একইভাবে আগে থেকেই লোড করে রাখা হচ্ছে, যাতে "এড দেখুন" বাটনে ক্লিক
+  // করার সাথে সাথেই এডমিনের দেওয়া আসল লিংকটা খুলে যায়।
+  loadAdLinksFromFirestore();
   // একই কারণে বিকাশ/নগদ পেমেন্ট নম্বরও লগইনের জন্য অপেক্ষা না করেই লোড করা হচ্ছে,
   // যাতে "প্যাকেজ কিনুন" ফ্লোতে এডমিনের সেভ করা আসল নম্বরই সবসময় দেখায়।
   loadPaymentNumbersFromFirestore();
