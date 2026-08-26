@@ -1629,6 +1629,11 @@
       const refCode = (params.get('ref') || '').trim().toUpperCase();
       if(refCode){
         localStorage.setItem('mycash_pending_ref', refCode);
+        // এই পেজ-লোডেই URL-এ তাজা ?ref= ছিল — এই ফ্ল্যাগ দিয়ে পরে (auth অবস্থা জানার
+        // পর) বোঝা যাবে কেউ আগে থেকে লগইন করা না থাকলে (একদম নতুন visitor) তাকে
+        // সরাসরি রেজিস্ট্রেশন স্ক্রিন দেখাতে হবে কিনা। আগে থেকে লগইন থাকলে এই ফ্ল্যাগ
+        // ব্যবহারই হবে না — সেই সেশনে কোনো হাত দেওয়া হয় না।
+        window.myCashFreshRefVisit = true;
         // ?ref=CODE আগে ব্রাউজারের ঠিকানায় (URL) স্থায়ীভাবে থেকে যেত, তাই রেজিস্ট্রেশন
         // করে হোমে আসার পরও refresh দিলে এই একই কোড আবার পড়া হতো। রেফার কোডটা
         // এতক্ষণে localStorage-এ (mycash_pending_ref) সংরক্ষিত হয়ে গেছে -- রেজিস্ট্রেশনের
@@ -5165,7 +5170,15 @@ body.logged-out .income-summary{display:none !important;}
       localStorage.setItem(scopedKey(AD_INCOME_KEY_BASE),'0');
       localStorage.setItem(scopedKey(TOTAL_INCOME_KEY_BASE),'0');
       updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary(); updateReferUI();
-      if(!document.getElementById('home-screen')?.classList.contains('visible')){
+      // নতুন ফিচার: একদম নতুন visitor (কোনো session-ই নেই) যদি তাজা রেফার লিংক
+      // (?ref=CODE) দিয়ে আসেন, তাহলে তাকে সরাসরি রেজিস্ট্রেশন স্ক্রিন দেখানো হচ্ছে —
+      // কোনো logout ছাড়াই, শুধু স্ক্রিন সুইচ (window.myCashFreshRefVisit ফ্ল্যাগ
+      // একবারই true থাকে, ব্যবহারের পর সাথে সাথে false করে দেওয়া হয় যাতে পরবর্তী
+      // কোনো auth-state event এ আবার ভুলভাবে register-screen এ ফেরত না পাঠায়)।
+      if(window.myCashFreshRefVisit){
+        window.myCashFreshRefVisit = false;
+        showScreen('register-screen');
+      }else if(!document.getElementById('home-screen')?.classList.contains('visible')){
         showScreen('home-screen');
       }
       if(authFlowPending){
@@ -5175,6 +5188,11 @@ body.logged-out .income-summary{display:none !important;}
       return;
     }
     try{
+      // এই ট্যাবে ইউজার আসলে লগইন অবস্থায় আছে বলে নিশ্চিত হওয়া গেছে — তাই এখন থেকে
+      // window.myCashFreshRefVisit ফ্ল্যাগ (যদি সেট থাকে) আর প্রাসঙ্গিক নয়; disarm করে
+      // দেওয়া হচ্ছে যাতে ইউজার পরে সচেতনভাবে লগআউট করলে ভুলবশত register-screen
+      // দেখানো না হয়।
+      window.myCashFreshRefVisit = false;
       // পরের বার পেজ লোড হওয়ার সময় (Firebase রেডি হওয়ার আগেই) ক্যাশ করা তথ্য দেখানোর
       // জন্য এই uid-টা মনে রাখা হচ্ছে — দেখুন bestKnownUid()/LAST_UID_KEY এর কমেন্ট।
       localStorage.setItem(LAST_UID_KEY, user.uid);
