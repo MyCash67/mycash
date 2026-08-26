@@ -688,42 +688,61 @@
 
 
   .package-history-card{
+    width:100%;
     margin:16px auto 0;
-    background:var(--card);
+    background:linear-gradient(135deg, var(--card) 60%, rgba(31,110,74,0.04));
+    border:1px solid var(--line);
     border-radius:18px;
-    padding:14px 18px;
-    box-shadow:0 1px 2px rgba(15,46,29,0.05);
+    padding:15px 16px;
+    box-shadow:0 6px 16px -10px rgba(15,46,29,0.20);
     display:flex;
     align-items:center;
-    gap:12px;
+    gap:13px;
     cursor:pointer;
-    transition:transform .16s ease, box-shadow .16s ease;
+    text-align:left;
+    transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;
   }
   .package-history-card:hover{
     transform:translateY(-2px);
-    box-shadow:0 10px 20px -8px rgba(15,46,29,0.18);
+    box-shadow:0 12px 22px -10px rgba(15,46,29,0.22);
+    border-color:rgba(31,110,74,0.22);
   }
+  .package-history-card:active{ transform:scale(.99); }
   .package-history-icon{
     width:44px;
     height:44px;
     border-radius:13px;
-    background:var(--taka-soft);
+    background:linear-gradient(150deg, var(--taka), var(--taka-deep));
+    color:#fff;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:21px;
+    font-size:19px;
     flex-shrink:0;
+    box-shadow:0 4px 10px -3px rgba(31,110,74,0.5);
   }
   .package-history-body{ flex:1; min-width:0; }
-  .package-history-title{ font-size:14px; font-weight:700; }
+  .package-history-title{ font-size:14.5px; font-weight:800; color:var(--ink); letter-spacing:.1px; }
   .package-history-sub{
     font-size:11.5px;
     color:var(--muted);
-    margin-top:2px;
+    margin-top:3px;
+    font-weight:500;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
   .package-history-arrow{
-    color:var(--taka);
-    font-size:20px;
+    flex-shrink:0;
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    background:var(--taka-soft);
+    color:var(--taka-deep);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:17px;
     font-weight:700;
   }
   .history-list{
@@ -1956,16 +1975,6 @@
 
     <div class="content">
 
-      <!-- PACKAGE HISTORY BOX -->
-      <button class="package-history-card" onclick="showPackageHistory()">
-        <div class="package-history-icon">🧾</div>
-        <div class="package-history-body">
-          <div class="package-history-title">প্যাকেজ ইতিহাস</div>
-          <div class="package-history-sub">আপনার আগের সব প্যাকেজ ও পেমেন্ট দেখুন</div>
-        </div>
-        <div class="package-history-arrow">›</div>
-      </button>
-
       <!-- PACKAGE STATUS: row list. Each purchased package is one row; if none
            purchased, a single "no package" row is shown instead. -->
       <div class="status-row-list" id="package-status-list">
@@ -1981,6 +1990,16 @@
         <!-- active packages: multiple package status rows appear here -->
         <div id="active-packages-list"></div>
       </div>
+
+      <!-- PACKAGE HISTORY BOX -->
+      <button class="package-history-card" onclick="showPackageHistory()">
+        <div class="package-history-icon">🧾</div>
+        <div class="package-history-body">
+          <div class="package-history-title">প্যাকেজ ইতিহাস</div>
+          <div class="package-history-sub">আপনার আগের সব প্যাকেজ ও পেমেন্ট দেখুন</div>
+        </div>
+        <div class="package-history-arrow">›</div>
+      </button>
 
       <div class="sec-head" id="packages"><h2>প্যাকেজ বেছে নিন</h2></div>
       <div class="sec-sub">প্যাকেজ একটিভ করলে প্রতিদিন নির্দিষ্ট পরিমাণ টাকা আপনার ব্যালেন্সে জমা হবে</div>
