@@ -4791,19 +4791,17 @@ body.logged-out .income-summary{display:none !important;}
 
   // ---------- UNIQUE ORDER CODE ----------
   // প্রতিটি প্যাকেজ অর্ডারের জন্য একটি ইউনিক কোড লাগবে (main app + admin panel
-  // দুই জায়গাতেই দেখানো হবে)। এটা counters/packageOrders ডকুমেন্টে একটা সংখ্যা
-  // Firestore transaction দিয়ে atomically বাড়িয়ে বানানো হয় — তাই একই সময়ে
-  // অনেক ইউজার অর্ডার করলেও (race condition) কখনো ডুপ্লিকেট কোড তৈরি হবে না।
-  async function getNextOrderCode(db){
-    const counterRef = db.collection('counters').doc('packageOrders');
-    const next = await db.runTransaction(async (t)=>{
-      const snap = await t.get(counterRef);
-      const current = snap.exists ? Number(snap.data().value||0) : 0;
-      const value = current + 1;
-      t.set(counterRef, {value}, {merge:true});
-      return value;
-    });
-    return 'PKG-' + String(next).padStart(6,'0');
+  // দুই জায়গাতেই দেখানো হবে)। এটা এখানে, ডকুমেন্ট তৈরি হওয়ার আগেই, ক্লায়েন্ট-সাইডে
+  // বানানো হয় (বর্তমান সময় + র‍্যান্ডম অংশ মিশিয়ে), যাতে .add() কলের সাথে সরাসরি
+  // ফিল্ড হিসেবে পাঠানো যায় — ডকুমেন্ট তৈরির *পরে* আলাদা update() করার দরকার হয় না
+  // (Firestore Rules payments ডকুমেন্টে create-এর পর খুব সীমিত ফিল্ডই update করতে
+  // দেয়, তাই আলাদা update করলে rules সেটা block করে দিত)। সময় (মিলিসেকেন্ড) ও
+  // র‍্যান্ডম অংশ একসাথে মেলার সম্ভাবনা কার্যত শূন্য, তাই হাজার হাজার অর্ডারেও
+  // কোনো দুইটা কোড কখনো একই হবে না।
+  function generateOrderCode(){
+    const ts = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).slice(2,8).toUpperCase();
+    return 'PKG-' + ts + rand;
   }
 
   const oldSubmitPayment=window.submitPayment;
@@ -4833,7 +4831,7 @@ body.logged-out .income-summary{display:none !important;}
         alert('এই ট্রানজেকশন আইডি দিয়ে ইতিমধ্যে একটি রিকোয়েস্ট জমা দেওয়া হয়েছে। একটি ট্রানজেকশন আইডি শুধুমাত্র একবারই ব্যবহার করা যাবে।');
         return;
       }
-      const orderCode = await getNextOrderCode(db);
+      const orderCode = generateOrderCode();
       await db.collection('payments').add({
         orderCode,
         uid:u.uid,
