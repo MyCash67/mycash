@@ -5458,10 +5458,23 @@ body.logged-out .income-summary{display:none !important;}
       // ---- Firestore-এর socialTasksClaimed দিয়ে লোকাল socialTaskStates সিঙ্ক করা ----
       // এটাও ওয়ানটাইম টাস্ক — সার্ভারে claimed:true থাকলে সেটাই আসল সত্য, অন্য
       // ডিভাইস/ব্রাউজারে গেলেও আগে থেকে ক্লেইম করা টাস্ক আবার দেখাবে না।
+      //
+      // বাগ-ফিক্স: আগে socialTaskStates শুধু পেজ প্রথমবার লোড হওয়ার সময় (auth resolve
+      // হওয়ার আগেই, তাই ভুলভাবে "guest" key থেকে) একবারই লোড হতো, প্রতিটা লগইনে
+      // নতুন uid অনুযায়ী রিলোড হতো না। ফলে একই ব্রাউজারে এক অ্যাকাউন্ট থেকে লগআউট
+      // করে অন্য অ্যাকাউন্টে (পেজ রিলোড ছাড়াই) লগইন করলে, আগের অ্যাকাউন্টের "claimed"
+      // স্টেট মেমোরিতে থেকে যেত আর নতুন অ্যাকাউন্টেও ভুলভাবে সাবস্ক্রাইব/ফলো/জয়েন
+      // বাটন লুকিয়ে "সম্পন্ন" দেখাত। এখন প্রতিটা লগইনে সঠিক uid দিয়ে রিলোড করা হচ্ছে।
+      loadSocialLocalCache();
       const serverSocialClaims=d.socialTasksClaimed||{};
       SOCIAL_PLATFORMS.forEach(function(platform){
         if(serverSocialClaims[platform]){
           socialTaskStates[platform]={ startedAt:(socialTaskStates[platform]||{}).startedAt||Date.now(), ready:false, claimed:true };
+        }else if(socialTaskStates[platform] && socialTaskStates[platform].claimed){
+          // সার্ভারে claimed না থাকলে লোকাল/ক্যাশে থাকা ভুল "claimed" স্টেট মুছে
+          // দেওয়া হচ্ছে — এটাই মূল বাগ-ফিক্স, যাতে নতুন/অন্য অ্যাকাউন্টে আগের
+          // অ্যাকাউন্টের রেখে যাওয়া ভুল ডেটার কারণে বাটন হারিয়ে না যায়।
+          delete socialTaskStates[platform];
         }
       });
       saveSocialTaskStates();
@@ -5596,6 +5609,11 @@ body.logged-out .income-summary{display:none !important;}
       await auth.signOut();
       mainBalance=0;
       todayTotalIncome=0;
+      // লগআউটের সময় সোশ্যাল টাস্কের ইন-মেমোরি স্টেট রিসেট করে দেওয়া হচ্ছে, যাতে
+      // এই একই ব্রাউজারে পরে অন্য অ্যাকাউন্টে লগইন করলে আগের অ্যাকাউন্টের
+      // "claimed" স্টেট ভুলভাবে বহন হয়ে না যায় (auth listener-এও আলাদা করে
+      // সঠিক uid দিয়ে রিলোড হয়, কিন্তু এটা একটা বাড়তি সুরক্ষা)।
+      socialTaskStates={};
       resetDailyIncomeIfNeeded();
       updateLoggedInHeader(null); updateProfileUI(); updateMainBalanceUI(); updateIncomeSummary();
       showScreen('home-screen');
