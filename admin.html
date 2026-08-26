@@ -219,12 +219,15 @@ showBack('Users');
 const c=document.getElementById('dataPage');
 c.style.display='block';
 c.innerHTML='<div class="form show"><h3>Users</h3><input id="userSearchInput" type="text" placeholder="নাম বা মোবাইল দিয়ে সার্চ করুন" style="margin-bottom:14px" oninput="renderUsersList(this.value)"><div id="usersList">Loading...</div></div>';
-const [usersSnap,paymentsSnap]=await Promise.all([
+const [usersSnap,paymentsSnap,withdrawalsSnap]=await Promise.all([
 db.collection('users').orderBy('createdAt','desc').get(),
-db.collection('payments').get()
+db.collection('payments').get(),
+db.collection('withdrawals').get()
 ]);
 __paymentsByUid={};
 paymentsSnap.forEach(d=>{const p=d.data();if(!p.uid)return;(__paymentsByUid[p.uid]=__paymentsByUid[p.uid]||[]).push(p);});
+__withdrawTotalByUid={};
+withdrawalsSnap.forEach(d=>{const w=d.data();if(!w.uid||w.status!=='approved')return;__withdrawTotalByUid[w.uid]=(__withdrawTotalByUid[w.uid]||0)+Number(w.amount||0);});
 __usersCache=[];
 usersSnap.forEach(d=>__usersCache.push({id:d.id,...d.data()}));
 renderUsersList('');
@@ -245,12 +248,14 @@ const purchases=__paymentsByUid[d]||[];
 const approved=purchases.filter(p=>p.status==='approved');
 const packagesHtml=approved.length?approved.map(p=>`${p.packageName||'প্যাকেজ'} (৳${Number(p.amount||0)})`).join(', '):'কোনো প্যাকেজ কেনা হয়নি';
 const pendingCount=purchases.filter(p=>p.status==='pending').length;
+const totalWithdrawn=__withdrawTotalByUid[d]||0;
 html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0">
 <b>${u.firstName||''} ${u.lastName||''}</b>
 <div style="font-size:12px;color:#7b8495">মোবাইল: ${u.mobile||'—'}</div>
 <div style="font-size:12px;color:#7b8495">যোগ দিয়েছেন: ${joined}</div>
 <div style="font-size:12px;color:#7b8495">UID: ${d}</div>
 <div style="font-size:13px;margin-top:6px"><b>প্যাকেজ:</b> ${packagesHtml}${pendingCount?` <span style="color:#ee7515">(${pendingCount}টি pending)</span>`:''}</div>
+<div style="font-size:13px;margin-top:4px"><b>মোট Withdraw (approved):</b> ৳${totalWithdrawn}</div>
 <input id="bal-${d}" type="number" value="${Number(u.balance||0)}" style="margin-top:8px">
 <button class="save" onclick="updateUserBalance('${d}')">Update Balance</button>
 <button class="save" style="margin-top:8px;background:linear-gradient(135deg,#bd3030,#7a1f1f)" onclick="deleteUserDoc('${d}')">Delete User Data</button>
@@ -288,14 +293,31 @@ const [snap,usersSnap]=await Promise.all([
 ]);
 const userMap={};
 usersSnap.forEach(d=>{userMap[d.id]=d.data();});
+// প্রতিটা ইউজারের withdraw request গুলোকে সময় অনুযায়ী (পুরনো থেকে নতুন) সাজিয়ে
+// সিরিয়াল নাম্বার বসানো হচ্ছে — কততম withdraw সেটা বের করতে
+const allDocsAsc=snap.docs.slice().sort((a,b)=>{
+  const ta=a.data().createdAt&&a.data().createdAt.toMillis?a.data().createdAt.toMillis():0;
+  const tb=b.data().createdAt&&b.data().createdAt.toMillis?b.data().createdAt.toMillis():0;
+  return ta-tb;
+});
+const serialByDocId={},runningCountByUid={};
+allDocsAsc.forEach(docSnap=>{
+  const w=docSnap.data();
+  if(!w.uid)return;
+  runningCountByUid[w.uid]=(runningCountByUid[w.uid]||0)+1;
+  serialByDocId[docSnap.id]=runningCountByUid[w.uid];
+});
 let html='';
 snap.forEach(d=>{
   const x=d.data();
   const u=userMap[x.uid]||{};
   const userName=`${u.firstName||''} ${u.lastName||''}`.trim()||'অজানা ইউজার';
   const userMobile=u.mobile||'—';
+  const serial=serialByDocId[d.id]||1;
+  const totalCount=runningCountByUid[x.uid]||1;
   html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0">
 <div style="font-size:13px;color:#1a56db"><b>ইউজার:</b> ${userName} (${userMobile})</div>
+<div style="font-size:12px;color:#7b8495">এটি এই ইউজারের <b>${serial}${serial===1?'ম':'তম'}</b> withdraw (মোট ${totalCount}টি withdraw দিয়েছেন)</div>
 <b>৳${x.amount||0} — ${x.method||''}</b>
 <div style="font-size:12px">${x.mobile||''}</div>
 <div style="font-size:12px;color:#7b8495;margin-top:6px">যে নম্বরে টাকা পাঠানো হবে:</div>
