@@ -274,17 +274,33 @@ const idx=__usersCache.findIndex(u=>u.id===uid);
 if(idx>-1)__usersCache[idx].balance=amount;
 alert('Balance updated ✓');
 }
-async function showWithdrawalsPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Withdraw History');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Withdraw Requests</h3><div id="withdrawList">Loading...</div></div>';const snap=await db.collection('withdrawals').orderBy('createdAt','desc').get();let html='';snap.forEach(d=>{const x=d.data();html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>৳${x.amount||0} — ${x.method||''}</b><div style="font-size:12px">${x.number||''} | ${x.mobile||''}</div><div style="font-size:12px;color:#7b8495">Status: ${x.status||'pending'}</div>${x.status==='pending'?`<button class="save" onclick="setWithdrawalStatus('${d.id}','approved')">Approve</button><button class="save" style="margin-top:8px" onclick="setWithdrawalStatus('${d.id}','rejected')">Reject</button>`:''}</div>`});document.getElementById('withdrawList').innerHTML=html||'No requests';}
+async function showWithdrawalsPage(){if(!requireAdmin())return;hidePages();document.getElementById('homePage').style.display='none';showBack('Withdraw History');const c=document.getElementById('dataPage');c.style.display='block';c.innerHTML='<div class="form show"><h3>Withdraw Requests</h3><div id="withdrawList">Loading...</div></div>';const snap=await db.collection('withdrawals').orderBy('createdAt','desc').get();let html='';snap.forEach(d=>{const x=d.data();html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0"><b>৳${x.amount||0} — ${x.method||''}</b><div style="font-size:12px">${x.number||''} | ${x.mobile||''}</div><div style="font-size:12px;color:#7b8495">Status: ${x.status||'pending'}</div>${(x.status||'pending')==='pending'?`<button class="save" onclick="setWithdrawalStatus('${d.id}','approved')">Approve</button><button class="save" style="margin-top:8px" onclick="setWithdrawalStatus('${d.id}','rejected')">Reject</button>`:''}</div>`});document.getElementById('withdrawList').innerHTML=html||'No requests';}
 async function setWithdrawalStatus(id,status){
  if(!requireAdmin())return;
- const wref=db.collection('withdrawals').doc(id);
- const ws=await wref.get(); if(!ws.exists)return; const w=ws.data();
- if(w.status!=='pending')return;
- if(status==='approved'){
-   const uref=db.collection('users').doc(w.userId);
-   await db.runTransaction(async tx=>{const us=await tx.get(uref);if(!us.exists)throw new Error('User not found');const current=Number(us.data().balance||0);const amount=Number(w.amount||0);if(current<amount)throw new Error('Insufficient balance');tx.update(uref,{balance:current-amount});tx.update(wref,{status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});});
- }else{await wref.update({status:'rejected',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});}
- showWithdrawalsPage();
+ try{
+   const wref=db.collection('withdrawals').doc(id);
+   const ws=await wref.get(); if(!ws.exists){alert('Request not found (deleted?)');return;}
+   const w=ws.data();
+   if(w.status && w.status!=='pending'){alert('This request is already '+w.status);return;}
+   if(status==='approved'){
+     const uref=db.collection('users').doc(w.userId);
+     await db.runTransaction(async tx=>{
+       const us=await tx.get(uref);
+       if(!us.exists)throw new Error('User not found (userId: '+w.userId+')');
+       const current=Number(us.data().balance||0);
+       const amount=Number(w.amount||0);
+       if(current<amount)throw new Error('Insufficient balance: user has ৳'+current+' but withdrawal is ৳'+amount);
+       tx.update(uref,{balance:current-amount});
+       tx.update(wref,{status:'approved',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
+     });
+   }else{
+     await wref.update({status:'rejected',reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});
+   }
+   showWithdrawalsPage();
+ }catch(e){
+   console.error('setWithdrawalStatus error:',e);
+   alert('Error: '+(e.message||e));
+ }
 }
 async function showPackageOrdersPage(){
 if(!requireAdmin())return;
