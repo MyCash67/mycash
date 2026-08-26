@@ -295,14 +295,31 @@ snap.forEach(d=>{
   const userName=`${u.firstName||''} ${u.lastName||''}`.trim()||'অজানা ইউজার';
   const userMobile=u.mobile||'—';
   html+=`<div style="background:#f8fafc;border-radius:14px;padding:13px;margin:10px 0">
+<div style="font-size:13px;color:#1a56db"><b>ইউজার:</b> ${userName} (${userMobile})</div>
 <b>৳${x.amount||0} — ${x.method||''}</b>
-<div style="font-size:12px">${x.number||''} | ${x.mobile||''}</div>
-<div style="font-size:12px;color:#1a56db;margin-top:4px"><b>ইউজার:</b> ${userName} (${userMobile})</div>
-<div style="font-size:12px;color:#7b8495">Status: ${x.status||'pending'}</div>
+<div style="font-size:12px">${x.mobile||''}</div>
+<div style="font-size:12px;color:#7b8495;margin-top:6px">যে নম্বরে টাকা পাঠানো হবে:</div>
+<div style="display:flex;gap:6px;margin-top:4px">
+<input id="wnum-${d.id}" type="text" value="${x.number||''}" style="flex:1">
+<button class="save" style="width:auto;padding:0 14px;margin-top:0" onclick="updateWithdrawalNumber('${d.id}')">Save</button>
+</div>
+<div style="font-size:12px;color:#7b8495;margin-top:6px">Status: ${x.status||'pending'}</div>
 ${(x.status||'pending')==='pending'?`<button class="save" onclick="setWithdrawalStatus('${d.id}','approved')">Approve</button><button class="save" style="margin-top:8px" onclick="setWithdrawalStatus('${d.id}','rejected')">Reject</button>`:''}
 </div>`;
 });
 document.getElementById('withdrawList').innerHTML=html||'No requests';
+}
+async function updateWithdrawalNumber(id){
+  if(!requireAdmin())return;
+  const val=document.getElementById('wnum-'+id).value.trim();
+  if(!val){alert('নম্বর খালি রাখা যাবে না');return;}
+  try{
+    await db.collection('withdrawals').doc(id).update({number:val});
+    alert('নম্বর আপডেট হয়েছে ✓');
+  }catch(e){
+    console.error('updateWithdrawalNumber error:',e);
+    alert('Error: '+(e.message||e));
+  }
 }
 async function setWithdrawalStatus(id,status){
  if(!requireAdmin())return;
