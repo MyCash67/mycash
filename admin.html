@@ -283,10 +283,10 @@ async function setWithdrawalStatus(id,status){
    const w=ws.data();
    if(w.status && w.status!=='pending'){alert('This request is already '+w.status);return;}
    if(status==='approved'){
-     const uref=db.collection('users').doc(w.userId);
+     const uref=db.collection('users').doc(w.uid);
      await db.runTransaction(async tx=>{
        const us=await tx.get(uref);
-       if(!us.exists)throw new Error('User not found (userId: '+w.userId+')');
+       if(!us.exists)throw new Error('User not found (userId: '+w.uid+')');
        const current=Number(us.data().balance||0);
        const amount=Number(w.amount||0);
        if(current<amount)throw new Error('Insufficient balance: user has ৳'+current+' but withdrawal is ৳'+amount);
