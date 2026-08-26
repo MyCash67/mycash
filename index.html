@@ -4679,10 +4679,16 @@ body.logged-out .income-summary{display:none !important;}
 
   // Refer স্ক্রিন খোলার সময় কল হয়। লগইন করা ইউজারের যদি আগে থেকেই রেফার কোড
   // সেট করা না থাকে (পুরনো অ্যাকাউন্ট), তাহলে একবারই বানিয়ে Firestore-এ সেভ করা হয়।
+  //
+  // ফিক্স: আগে currentReferralCode একবার সেট হয়ে গেলে (যেমন রেজিস্ট্রেশন/লগইনের সময়ই
+  // হয়ে যায়) এই ফাংশন referralCount/referralEarnings আর কখনো নতুন করে সার্ভার থেকে
+  // আনত না — পুরনো cached সংখ্যাই দেখাত। ফলে কাউকে রেফার করার পর, পেজ reload না করে
+  // refer screen খুললে, "মোট রেফার" সংখ্যা আপডেট হতো না। এখন কোড থাকুক বা না থাকুক,
+  // স্ক্রিন খোলার সময় সবসময়ই count/earnings ফ্রেশভাবে Firestore থেকে আনা হচ্ছে —
+  // শুধু কোড generate/save করার অংশটাই একবারই হয় (কোড না থাকলে)।
   async function ensureReferralCode(){
     const u = auth.currentUser;
     if(!u) return;
-    if(currentReferralCode){ updateReferUI(); return; }
     try{
       const snap = await db.collection('users').doc(u.uid).get();
       const d = snap.data() || {};
@@ -4690,7 +4696,7 @@ body.logged-out .income-summary{display:none !important;}
       currentReferralEarnings = Number(d.referralEarnings || 0);
       if(d.referralCode){
         currentReferralCode = d.referralCode;
-      }else{
+      }else if(!currentReferralCode){
         const p = getProfile() || {};
         currentReferralCode = generateReferralCode(u.uid, p.firstName);
         // users doc-এ কোড সেভ + লুকআপযোগ্য referralCodes/{code} ম্যাপিং তৈরি —
@@ -4699,7 +4705,7 @@ body.logged-out .income-summary{display:none !important;}
         await db.collection('referralCodes').doc(currentReferralCode).set({uid: u.uid});
       }
     }catch(e){
-      console.error('রেফার কোড লোড/তৈরি করা যায়নি:', e);
+      console.error('রেফার কোড/সংখ্যা লোড করা যায়নি:', e);
     }
     updateReferUI();
   }
