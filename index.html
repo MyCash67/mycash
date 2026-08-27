@@ -4878,7 +4878,7 @@ body.logged-out .income-summary{display:none !important;}
         console.error('রেফারার খুঁজে পাওয়া যায়নি:', refLookupErr);
       }
       try{
-        const data={uid:cred.user.uid,firstName,lastName,mobile,balance:0,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),todayIncome:0,todayIncomeDate:getBangladeshDateKey(),referralCode:ownReferralCode,referredBy:referredByUid,referralCount:0,referralEarnings:0,referralPendingIncome:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+        const data={uid:cred.user.uid,firstName,lastName,mobile,balance:100,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),todayIncome:0,todayIncomeDate:getBangladeshDateKey(),referralCode:ownReferralCode,referredBy:referredByUid,referralCount:0,referralEarnings:0,referralPendingIncome:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
         await db.collection('users').doc(cred.user.uid).set(data,{merge:true});
         await db.collection('referralCodes').doc(ownReferralCode).set({uid: cred.user.uid});
         // users/{uid} ডকুমেন্ট এখন সার্ভারে লেখা হয়ে গেছে — এখন থেকে onAuthStateChanged
