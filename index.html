@@ -2270,6 +2270,12 @@
       <div class="sec-head"><h2>এড দেখে আয় করুন</h2></div>
       <div class="sec-sub">নিচের এডগুলো দেখুন এবং প্রতিটি এড সম্পূর্ণ করলে রিওয়ার্ড পান।</div>
 
+      <div id="inapp-browser-banner" style="display:none; margin-top:14px; background:#FDECEA; border:1px solid #F3B8AF; border-radius:14px; padding:13px 14px;">
+        <div style="font-size:13px; font-weight:700; color:#7A2418; margin-bottom:4px;">⚠️ সতর্কতা</div>
+        <div style="font-size:12.5px; color:#7A2418; line-height:1.5; margin-bottom:10px;">আপনি এখন Facebook/Messenger/Instagram-এর ভেতরের ব্রাউজারে আছেন। এই অবস্থায় এড দেখতে গেলে অ্যাপ থেকে সম্পূর্ণ বের হয়ে যেতে পারেন। এড দেখার আগে নিচের বাটনে ক্লিক করে Chrome-এ খুলে নিন।</div>
+        <button type="button" onclick="openInChromeFromBanner()" style="border:0; background:#C0392B; color:#fff; border-radius:10px; padding:9px 13px; font-size:12.5px; font-weight:800; cursor:pointer;">Chrome-এ খুলুন</button>
+      </div>
+
       <div class="income-summary">
         <div><div class="income-summary-label">এড আয়</div><div class="income-summary-value">৳০</div></div>
         <div class="income-summary-count">০/১০ এড দেখা হয়েছে</div>
@@ -5684,6 +5690,109 @@ body.logged-out .income-summary{display:none !important;}
       alert('লগআউট করা যায়নি। আবার চেষ্টা করুন।');
     }
   };
+})();
+</script>
+
+<script id="inapp-browser-ad-warning">
+// ================= IN-APP BROWSER AD WARNING =================
+// এটা একটা সম্পূর্ণ আলাদা, স্বনির্ভর স্ক্রিপ্ট ব্লক — উপরের কোনো ফাংশন এডিট করা
+// হয়নি, শুধু window.showScreen ও window.watchAd-কে (আগে থেকে যেভাবে র‍্যাপ করা
+// হয়েছিল ঠিক সেই একই প্যাটার্নে) আরেকবার র‍্যাপ করা হয়েছে।
+// উদ্দেশ্য: Facebook/Messenger/Instagram ইত্যাদির ভেতরের in-app browser-এ
+// window.open() নতুন ট্যাব না খুলে বর্তমান পেজকেই রিপ্লেস করে ফেলে — ফলে ইউজার
+// অ্যাপ থেকে "বের হয়ে" যায়। এটা ঠেকানো সম্পূর্ণ সম্ভব না (in-app browser-এর
+// নিজস্ব সীমাবদ্ধতা), তাই শুধুমাত্র "এড দেখুন" স্ক্রিনে ও এড ক্লিকের সময় ইউজারকে
+// আগে থেকে সতর্ক করা হচ্ছে।
+(function(){
+  function isInAppBrowser(){
+    const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+    return /FBAN|FBAV|FB_IAB|FBSV|Instagram|Line\/|MicroMessenger|Messenger|TikTok|musical_ly|Snapchat|Pinterest|LinkedInApp|WhatsApp/i.test(ua);
+  }
+
+  // ব্যানারটা শুধুমাত্র "এড দেখে আয় করুন" (income-screen) স্ক্রিনে দেখানো হয় —
+  // অন্য কোনো স্ক্রিনে এটা কখনোই visible হবে না।
+  function updateInAppBrowserBanner(){
+    const banner = document.getElementById('inapp-browser-banner');
+    if(!banner) return;
+    const incomeScreen = document.getElementById('income-screen');
+    const onIncomeScreen = !!(incomeScreen && incomeScreen.classList.contains('visible'));
+    banner.style.display = (onIncomeScreen && isInAppBrowser()) ? 'block' : 'none';
+  }
+
+  window.openInChromeFromBanner = function(){
+    const url = window.location.href;
+    const ua = navigator.userAgent || '';
+    if(/android/i.test(ua)){
+      const stripped = url.replace(/^https?:\/\//,'');
+      window.location.href = 'intent://' + stripped + '#Intent;scheme=https;package=com.android.chrome;end';
+    }else{
+      // iOS/অন্য প্ল্যাটফর্মে জোর করে Chrome খোলা যায় না — সাধারণভাবে খোলার চেষ্টা করা হচ্ছে।
+      window.open(url, '_blank');
+    }
+  };
+
+  function showInAppAdWarningModal(){
+    return new Promise(function(resolve){
+      let modal = document.getElementById('inapp-ad-warning-modal');
+      if(!modal){
+        modal = document.createElement('div');
+        modal.id = 'inapp-ad-warning-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,46,29,0.55);display:none;align-items:center;justify-content:center;z-index:99999;padding:20px;';
+        modal.innerHTML =
+          '<div style="background:#FFFFFF;border-radius:18px;padding:20px;max-width:340px;width:100%;font-family:\'Hind Siliguri\',sans-serif;">' +
+            '<div style="font-size:15px;font-weight:800;color:#0F2E1D;margin-bottom:8px;">⚠️ সতর্কতা</div>' +
+            '<div style="font-size:13px;color:#333;line-height:1.55;margin-bottom:16px;">এই ব্রাউজারে এড দেখতে গেলে অ্যাপ থেকে সম্পূর্ণ বের হয়ে যেতে পারেন। এড দেখার আগে Chrome-এ খুলে নেওয়ার পরামর্শ দেওয়া হচ্ছে।</div>' +
+            '<div style="display:flex; flex-direction:column; gap:8px;">' +
+              '<button type="button" id="inapp-modal-chrome-btn" style="border:0;background:#1F6E4A;color:#fff;border-radius:10px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">Chrome-এ খুলুন</button>' +
+              '<button type="button" id="inapp-modal-continue-btn" style="border:0;background:#EEEEEE;color:#333;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">তাও এড দেখব</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(modal);
+      }
+      modal.style.display = 'flex';
+      const chromeBtn = document.getElementById('inapp-modal-chrome-btn');
+      const continueBtn = document.getElementById('inapp-modal-continue-btn');
+      function cleanup(result){
+        modal.style.display = 'none';
+        chromeBtn.onclick = null;
+        continueBtn.onclick = null;
+        resolve(result);
+      }
+      chromeBtn.onclick = function(){ cleanup('chrome'); };
+      continueBtn.onclick = function(){ cleanup('continue'); };
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', updateInAppBrowserBanner);
+
+  // showScreen-কে আগের কোনো কোড স্পর্শ না করে, শুধু আরেকটা লেয়ার হিসেবে র‍্যাপ করা হচ্ছে।
+  if(typeof window.showScreen === 'function'){
+    const __origShowScreen = window.showScreen;
+    window.showScreen = function(){
+      const result = __origShowScreen.apply(this, arguments);
+      updateInAppBrowserBanner();
+      return result;
+    };
+  }
+
+  // watchAd ইতিমধ্যেই একবার র‍্যাপ করা আছে (লগইন-গার্ড + preOpenedTab-এর জন্য) —
+  // সেই ভার্সনটাকেই এখানে আরেক লেয়ার হিসেবে র‍্যাপ করা হচ্ছে, ভেতরের কোনো লজিক
+  // পরিবর্তন না করেই।
+  if(typeof window.watchAd === 'function'){
+    const __origWatchAd = window.watchAd;
+    window.watchAd = async function(adNumber, reward){
+      if(isInAppBrowser()){
+        const choice = await showInAppAdWarningModal();
+        if(choice === 'chrome'){
+          window.openInChromeFromBanner();
+          return;
+        }
+        // choice === 'continue' হলে নিচে আগের মতোই এড লজিক চলবে —
+        // ব্যবহারকারী জেনেশুনেই এগিয়েছেন।
+      }
+      return __origWatchAd.apply(this, arguments);
+    };
+  }
 })();
 </script>
 
