@@ -4616,9 +4616,15 @@ body.logged-out .income-summary{display:none !important;}
   window.myCashFirebase = {db, auth};
 
   // ---- Presence heartbeat: admin panel-এ "এখন অ্যাক্টিভ" ইউজার কাউন্ট দেখানোর জন্য ----
-  // প্রতি ২০ সেকেন্ডে users/{uid}.lastActive সার্ভার-টাইমস্ট্যাম্প দিয়ে আপডেট হয়, শুধু
-  // ট্যাব visible/foreground থাকা অবস্থায়। Admin panel ৬০ সেকেন্ডের বেশি পুরনো হলে
-  // সেই ইউজারকে আর "অ্যাক্টিভ" গণনা করে না।
+  // প্রতি ৪৫ সেকেন্ডে users/{uid}.lastActive সার্ভার-টাইমস্ট্যাম্প দিয়ে আপডেট হয়, শুধু
+  // ট্যাব visible/foreground থাকা অবস্থায়। আগে এটা প্রতি ২০ সেকেন্ডে হতো — কিন্তু এত
+  // ঘন ঘন write (এবং সেই সাথে সংশ্লিষ্ট read) Firestore-এর ফ্রি প্ল্যানের দৈনিক কোটার
+  // একটা বড় অংশ শুধু "কে অনলাইনে আছে" ট্র্যাক করতেই খরচ করে ফেলছিল, অথচ admin panel-এ
+  // এত নিখুঁত (সেকেন্ড-লেভেল) নির্ভুলতার আসলে দরকার নেই। ৪৫ সেকেন্ড করায় write সংখ্যা
+  // প্রায় অর্ধেকের বেশি কমে যাবে, "কে অ্যাক্টিভ" এই তথ্য প্রায় একই রকম নির্ভুল থাকবে।
+  // যদি আপনার admin panel-এ আলাদা কোথাও "৬০ সেকেন্ডের পুরনো হলে অফলাইন" এই ধরনের
+  // hardcoded threshold থাকে, সেটা এই ৪৫ সেকেন্ডের সাথে সামঞ্জস্যপূর্ণ (অন্তত ৯০-১২০
+  // সেকেন্ড) করে নেওয়া ভালো, নাহলে মাঝেমধ্যে অ্যাক্টিভ ইউজারকেও ভুলভাবে "অফলাইন" দেখাতে পারে।
   let __heartbeatTimer=null;
   function heartbeatTick(uid){
     if(document.visibilityState!=='visible') return; // ট্যাব ব্যাকগ্রাউন্ডে থাকলে আপডেট দরকার নেই
@@ -4630,7 +4636,7 @@ body.logged-out .income-summary{display:none !important;}
   function startHeartbeat(uid){
     stopHeartbeat();
     heartbeatTick(uid);
-    __heartbeatTimer=setInterval(function(){ heartbeatTick(uid); },20000);
+    __heartbeatTimer=setInterval(function(){ heartbeatTick(uid); },45000);
   }
   function stopHeartbeat(){
     if(__heartbeatTimer){ clearInterval(__heartbeatTimer); __heartbeatTimer=null; }
