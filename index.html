@@ -4740,6 +4740,19 @@ body.logged-out .income-summary{display:none !important;}
   // যতক্ষণ না রেজিস্ট্রেশন সম্পন্ন হয়ে referredBy সেট করা হয়।
   const PENDING_REF_KEY = 'mycash_pending_ref';
   const REFERRAL_BONUS = 50; // প্রতি সফল রেফারে রেফারারকে যত টাকা বোনাস দেওয়া হবে
+
+  // রেফার-বোনাস দেওয়ার চেষ্টা কোনো কারণে ব্যর্থ/স্কিপ হলে, সেটা শুধু কনসোলে লগ না করে
+  // Firestore-এ (referralDebugLogs) আলাদা করে রেকর্ড রাখা হয় — যাতে ভবিষ্যতে কোনো
+  // ইউজার "রেফার কাজ করেনি" বললে, আন্দাজ না করে সরাসরি Firebase Console-এ গিয়ে আসল
+  // কারণটা (কোড খুঁজে পাওয়া যায়নি, নাকি write ব্যর্থ হয়েছে, নাকি অন্য কিছু) দেখা যায়।
+  // এই লগিং নিজে ব্যর্থ হলেও (নেটওয়ার্ক ইত্যাদি) রেজিস্ট্রেশন ফ্লো কোনোভাবে আটকাবে না।
+  function logReferralIssue(details){
+    try{
+      db.collection('referralDebugLogs').add(Object.assign({}, details, {
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      })).catch(function(e){ console.warn('referralDebugLogs write failed:', e); });
+    }catch(e){ console.warn('referralDebugLogs write failed:', e); }
+  }
   let currentReferralCode = '';
   let currentReferralCount = 0;
   let currentReferralEarnings = 0;
@@ -4872,10 +4885,16 @@ body.logged-out .income-summary{display:none !important;}
           const codeSnap = await db.collection('referralCodes').doc(pendingRef).get();
           if(codeSnap.exists && codeSnap.data().uid !== cred.user.uid){
             referredByUid = codeSnap.data().uid;
+          }else if(!codeSnap.exists){
+            // কোডটা localStorage-এ আছে, কিন্তু referralCodes কালেকশনে এমন কোনো কোড
+            // খুঁজে পাওয়া যায়নি (ভুল/মেয়াদোত্তীর্ণ/টাইপো কোড) — এটাও রেফার-ব্যর্থতার
+            // একটা সম্ভাব্য কারণ, তাই আলাদা করে লগ রাখা হচ্ছে (দেখুন referralDebugLogs)।
+            logReferralIssue({ type:'code-not-found', pendingRef, referredUid: cred.user.uid });
           }
         }
       }catch(refLookupErr){
         console.error('রেফারার খুঁজে পাওয়া যায়নি:', refLookupErr);
+        logReferralIssue({ type:'lookup-error', referredUid: cred.user.uid, error: String(refLookupErr && refLookupErr.message || refLookupErr) });
       }
       try{
         const data={uid:cred.user.uid,firstName,lastName,mobile,balance:100,todayAdIncome:0,todayAdIncomeDate:getBangladeshDateKey(),todayIncome:0,todayIncomeDate:getBangladeshDateKey(),referralCode:ownReferralCode,referredBy:referredByUid,referralCount:0,referralEarnings:0,referralPendingIncome:0,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
@@ -4934,6 +4953,16 @@ body.logged-out .income-summary{display:none !important;}
           await batch.commit();
         }catch(bonusErr){
           console.error('রেফারার বোনাস দেওয়া যায়নি:', bonusErr);
+          // আসল কারণটা (permission-denied / network / অন্য কিছু) এখানে সেভ করে
+          // রাখা হচ্ছে — যাতে "রেফার হয়নি" রিপোর্ট এলে আন্দাজ না করে সরাসরি
+          // Firebase Console-এ গিয়ে referralDebugLogs কালেকশনে আসল error দেখা যায়।
+          logReferralIssue({
+            type:'bonus-write-failed',
+            referrerUid: referredByUid,
+            referredUid: cred.user.uid,
+            error: String(bonusErr && bonusErr.message || bonusErr),
+            errorCode: (bonusErr && bonusErr.code) || null
+          });
         }
       }
       try{ localStorage.removeItem(PENDING_REF_KEY); }catch(e){}
