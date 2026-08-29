@@ -5741,25 +5741,21 @@ body.logged-out .income-summary{display:none !important;}
         modal.innerHTML =
           '<div style="background:#FFFFFF;border-radius:18px;padding:20px;max-width:340px;width:100%;font-family:\'Hind Siliguri\',sans-serif;">' +
             '<div style="font-size:15px;font-weight:800;color:#0F2E1D;margin-bottom:8px;">⚠️ সতর্কতা</div>' +
-            '<div style="font-size:13px;color:#333;line-height:1.55;margin-bottom:16px;">এই ব্রাউজারে এড দেখতে গেলে অ্যাপ থেকে সম্পূর্ণ বের হয়ে যেতে পারেন। এড দেখার আগে Chrome-এ খুলে নেওয়ার পরামর্শ দেওয়া হচ্ছে।</div>' +
+            '<div style="font-size:13px;color:#333;line-height:1.55;margin-bottom:16px;">এই ব্রাউজারে এড দেখা যাবে না, কারণ এড দেখতে গেলে অ্যাপ থেকে সম্পূর্ণ বের হয়ে যেতে পারে। এড দেখতে হলে অবশ্যই Chrome-এ খুলে নিতে হবে।</div>' +
             '<div style="display:flex; flex-direction:column; gap:8px;">' +
               '<button type="button" id="inapp-modal-chrome-btn" style="border:0;background:#1F6E4A;color:#fff;border-radius:10px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">Chrome-এ খুলুন</button>' +
-              '<button type="button" id="inapp-modal-continue-btn" style="border:0;background:#EEEEEE;color:#333;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">তাও এড দেখব</button>' +
             '</div>' +
           '</div>';
         document.body.appendChild(modal);
       }
       modal.style.display = 'flex';
       const chromeBtn = document.getElementById('inapp-modal-chrome-btn');
-      const continueBtn = document.getElementById('inapp-modal-continue-btn');
       function cleanup(result){
         modal.style.display = 'none';
         chromeBtn.onclick = null;
-        continueBtn.onclick = null;
         resolve(result);
       }
       chromeBtn.onclick = function(){ cleanup('chrome'); };
-      continueBtn.onclick = function(){ cleanup('continue'); };
     });
   }
 
@@ -5782,13 +5778,11 @@ body.logged-out .income-summary{display:none !important;}
     const __origWatchAd = window.watchAd;
     window.watchAd = async function(adNumber, reward){
       if(isInAppBrowser()){
-        const choice = await showInAppAdWarningModal();
-        if(choice === 'chrome'){
-          window.openInChromeFromBanner();
-          return;
-        }
-        // choice === 'continue' হলে নিচে আগের মতোই এড লজিক চলবে —
-        // ব্যবহারকারী জেনেশুনেই এগিয়েছেন।
+        // in-app browser-এ এড কখনোই সরাসরি খোলা হবে না — শুধু Chrome-এ
+        // পাঠিয়ে দেওয়া হচ্ছে। এখান থেকে এড শুরুই হবে না।
+        await showInAppAdWarningModal();
+        window.openInChromeFromBanner();
+        return;
       }
       return __origWatchAd.apply(this, arguments);
     };
