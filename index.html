@@ -4632,12 +4632,12 @@ body.logged-out .income-summary{display:none !important;}
   // hardcoded threshold থাকে, সেটা এই ৪৫ সেকেন্ডের সাথে সামঞ্জস্যপূর্ণ (অন্তত ৯০-১২০
   // সেকেন্ড) করে নেওয়া ভালো, নাহলে মাঝেমধ্যে অ্যাক্টিভ ইউজারকেও ভুলভাবে "অফলাইন" দেখাতে পারে।
   let __heartbeatTimer=null;
+  // "এখন কতজন অ্যাক্টিভ" ফিচারটা বন্ধ করে দেওয়া হয়েছে (অ্যাডমিনের অনুরোধে) —
+  // এই write গুলোই Firestore-এর read/write quota-র বড় অংশ খরচ করছিল। ফাংশনটা
+  // ইচ্ছাকৃতভাবে খালি রাখা হয়েছে (কোনো লেখা হয় না), startHeartbeat/stopHeartbeat
+  // এর বাকি সব কল-সাইট অক্ষত রাখার জন্য ফাংশনগুলো মুছে ফেলা হয়নি, শুধু no-op করা হয়েছে।
   function heartbeatTick(uid){
-    if(document.visibilityState!=='visible') return; // ট্যাব ব্যাকগ্রাউন্ডে থাকলে আপডেট দরকার নেই
-    db.collection('users').doc(uid).set(
-      {lastActive:firebase.firestore.FieldValue.serverTimestamp()},
-      {merge:true}
-    ).catch(function(){});
+    return;
   }
   function startHeartbeat(uid){
     stopHeartbeat();
@@ -4918,6 +4918,17 @@ body.logged-out .income-summary{display:none !important;}
         // এই ডিভাইস/আইপি এখন থেকে "ব্যবহৃত" হিসেবে রেকর্ড করা হচ্ছে — এটা ব্যর্থ হলেও
         // (নেটওয়ার্ক সমস্যা ইত্যাদি) অ্যাকাউন্ট তৈরি আটকাবে না, শুধু রক্ষা-স্তরটা দুর্বল থাকবে।
         try{ await recordDeviceForUser(cred.user.uid); }catch(deviceRecordErr){ console.warn('Device record failed:', deviceRecordErr); }
+        // মোট ইউজার সংখ্যা গণনার জন্য পুরো users collection বার বার read করার বদলে,
+        // একটা ছোট counter ডকুমেন্টে (stats/counters.totalUsers) প্রতি নতুন
+        // রেজিস্ট্রেশনে +1 করে দেওয়া হচ্ছে — এতে admin panel-এ এই সংখ্যা দেখাতে
+        // মাত্র 1 read লাগবে, পুরো collection scan করার দরকার নেই। এই write ব্যর্থ
+        // হলেও (নেটওয়ার্ক সমস্যা ইত্যাদি) রেজিস্ট্রেশন আটকাবে না।
+        try{
+          await db.collection('stats').doc('counters').set(
+            {totalUsers:firebase.firestore.FieldValue.increment(1)},
+            {merge:true}
+          );
+        }catch(counterErr){ console.warn('Total user counter update failed:', counterErr); }
       }catch(profileErr){
         registrationWriteInProgress=false;
         // Never leave a half-created account: if the profile save fails,
