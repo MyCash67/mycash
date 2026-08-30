@@ -4894,7 +4894,19 @@ body.logged-out .income-summary{display:none !important;}
       try{
         const pendingRef = (localStorage.getItem(PENDING_REF_KEY) || '').trim().toUpperCase();
         if(pendingRef){
-          const codeSnap = await db.collection('referralCodes').doc(pendingRef).get();
+          // নেট স্লো/সাময়িক বিচ্ছিন্ন থাকলে এই lookup প্রথমবারেই ব্যর্থ হয়ে referral
+          // miss হয়ে যাচ্ছিল (দেখুন referralDebugLogs -> type: 'lookup-error',
+          // error: "client is offline")। তাই এখানে একবার ব্যর্থ হলে ২ সেকেন্ড পর
+          // আরেকবার চেষ্টা করা হচ্ছে — এই retry ব্যর্থ হলেও (আগের মতোই) নিচের বাইরের
+          // catch(refLookupErr) ধরে ফেলবে, registration কোনোভাবেই আটকাবে না।
+          let codeSnap;
+          try{
+            codeSnap = await db.collection('referralCodes').doc(pendingRef).get();
+          }catch(firstAttemptErr){
+            console.warn('রেফার কোড lookup প্রথমবার ব্যর্থ, ২ সেকেন্ড পর আবার চেষ্টা হচ্ছে:', firstAttemptErr);
+            await wait(2000);
+            codeSnap = await db.collection('referralCodes').doc(pendingRef).get();
+          }
           if(codeSnap.exists && codeSnap.data().uid !== cred.user.uid){
             referredByUid = codeSnap.data().uid;
           }else if(!codeSnap.exists){
