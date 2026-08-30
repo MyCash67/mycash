@@ -173,7 +173,11 @@ async function adminLogout(){stopUserCountListener();stopInboxListener();stopThr
 let __userCountUnsub=null;
 let __activeTickTimer=null;
 let __liveUsersCache=[];
-const ACTIVE_THRESHOLD_MS=60*1000; // heartbeat প্রতি ~20 সেকেন্ডে; ৬০ সেকেন্ড ধরে কোনো আপডেট না এলে অফলাইন গণ্য হবে
+const ACTIVE_THRESHOLD_MS=110*1000; // heartbeat এখন প্রতি ~45 সেকেন্ডে (আগে ২০ সেকেন্ড ছিল,
+// Firestore read/write কোটা বাঁচাতে কমানো হয়েছে — দেখুন index.html-এর startHeartbeat)।
+// থ্রেশহোল্ড অন্তত ২×heartbeat-ইন্টারভাল+বাফার রাখা দরকার, নাহলে নেটওয়ার্ক সামান্য দেরি
+// হলেই সত্যিকারের অ্যাক্টিভ ইউজারকে ভুলভাবে "অফলাইন" দেখাবে। ~১১০ সেকেন্ড ধরে কোনো
+// আপডেট না এলে তবেই অফলাইন গণ্য হবে।
 function recomputeActiveBadge(){
   const el=document.getElementById('activeUserBadge');
   if(!el)return;
@@ -209,6 +213,51 @@ function stopUserCountListener(){
 }
 auth.onAuthStateChanged(async user=>{const gate=document.getElementById('adminAuth');if(user && user.email.toLowerCase()===ADMIN_EMAIL){gate.style.display='none';await loadSettings();startUserCountListener();}else{gate.style.display='flex';stopUserCountListener();}});
 function requireAdmin(){const u=auth.currentUser;if(!u||u.email.toLowerCase()!==ADMIN_EMAIL){alert('Admin login required');return false}return true}
+
+// ---- পাসওয়ার্ড রিসেট (Vercel-এ হোস্ট করা ব্যাকএন্ড ফাংশন কল করে) ----
+// এখানেই নিচের লাইনটা বদলাতে হবে — Vercel-এ ডিপ্লয় করার পর যে URL পাবেন সেটা বসান।
+const RESET_PASSWORD_API_URL = 'https://mycash-admin-api.vercel.app/api/reset-password';
+
+async function doResetPassword(){
+  if(!requireAdmin())return;
+  const mobileEl=document.getElementById('resetPwMobile');
+  const pwEl=document.getElementById('resetPwNew');
+  const msgEl=document.getElementById('resetPwMessage');
+  const mobile=(mobileEl.value||'').trim();
+  const newPassword=(pwEl.value||'').trim();
+  if(!mobile||!newPassword){
+    msgEl.textContent='মোবাইল নম্বর ও নতুন পাসওয়ার্ড দুটোই দিন।';
+    msgEl.style.color='#c0392b';
+    return;
+  }
+  if(newPassword.length<6){
+    msgEl.textContent='পাসওয়ার্ড কমপক্ষে ৬ ক্যারেক্টার হতে হবে।';
+    msgEl.style.color='#c0392b';
+    return;
+  }
+  msgEl.textContent='অপেক্ষা করুন...';
+  msgEl.style.color='#666';
+  try{
+    const idToken=await auth.currentUser.getIdToken();
+    const res=await fetch(RESET_PASSWORD_API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({idToken,mobile,newPassword})
+    });
+    const data=await res.json();
+    if(res.ok && data.success){
+      msgEl.textContent='✅ সফল! '+mobile+' নম্বরের পাসওয়ার্ড বদলে দেওয়া হয়েছে। এখন ইউজারকে নতুন পাসওয়ার্ডটা জানিয়ে দিন।';
+      msgEl.style.color='#1a7f37';
+      pwEl.value='';
+    }else{
+      msgEl.textContent='❌ '+(data.error||'অজানা এরর হয়েছে।');
+      msgEl.style.color='#c0392b';
+    }
+  }catch(err){
+    msgEl.textContent='❌ নেটওয়ার্ক এরর — আবার চেষ্টা করুন। ('+(err.message||err)+')';
+    msgEl.style.color='#c0392b';
+  }
+}
 let __usersCache=[];
 let __paymentsByUid={};
 async function showUsersPage(){
@@ -218,7 +267,14 @@ document.getElementById('homePage').style.display='none';
 showBack('Users');
 const c=document.getElementById('dataPage');
 c.style.display='block';
-c.innerHTML='<div class="form show"><h3>Users</h3><input id="userSearchInput" type="text" placeholder="নাম বা মোবাইল দিয়ে সার্চ করুন" style="margin-bottom:14px" oninput="renderUsersList(this.value)"><div id="usersList">Loading...</div></div>';
+c.innerHTML='<div class="form show"><h3>Users</h3><input id="userSearchInput" type="text" placeholder="নাম বা মোবাইল দিয়ে সার্চ করুন" style="margin-bottom:14px" oninput="renderUsersList(this.value)"><div id="usersList">Loading...</div></div>'+
+'<div class="form show" style="margin-top:16px"><h3>🔒 পাসওয়ার্ড রিসেট</h3>'+
+'<p style="font-size:13px;color:#666;margin:0 0 10px">ইউজার পাসওয়ার্ড ভুলে গেলে, তার মোবাইল নম্বর দিয়ে এখান থেকেই নতুন পাসওয়ার্ড সেট করে দিতে পারবেন।</p>'+
+'<input id="resetPwMobile" type="tel" placeholder="মোবাইল নম্বর (যেমন: 01712345678)" style="margin-bottom:10px">'+
+'<input id="resetPwNew" type="text" placeholder="নতুন পাসওয়ার্ড (কমপক্ষে ৬ ক্যারেক্টার)" style="margin-bottom:10px">'+
+'<button onclick="doResetPassword()" style="width:100%">পাসওয়ার্ড সেট করুন</button>'+
+'<div id="resetPwMessage" style="margin-top:10px;font-size:14px"></div>'+
+'</div>';
 const [usersSnap,paymentsSnap,withdrawalsSnap]=await Promise.all([
 db.collection('users').orderBy('createdAt','desc').get(),
 db.collection('payments').get(),
