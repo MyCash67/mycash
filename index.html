@@ -1634,6 +1634,60 @@
 
 </head>
 <body class="notranslate" translate="no">
+<script id="maintenance-mode-block">
+// ================= MAINTENANCE MODE (site-wide) =================
+// এটা একটা সম্পূর্ণ আলাদা, স্বনির্ভর ব্লক — সাইটের বাকি কোনো কোড এই ব্লক স্পর্শ
+// করে না। মেইনটেন্যান্স বন্ধ করতে শুধু নিচের MAINTENANCE_MODE = false করে দিলেই
+// পুরো সাইট আগের মতো স্বাভাবিকভাবে কাজ করবে — আর কিছু বদলাতে হবে না।
+(function(){
+
+  // ---------- এখানেই সব কনফিগ, এখান থেকেই সব বদলান ----------
+  var MAINTENANCE_MODE = true;              // বন্ধ করতে false করুন
+  var MAINTENANCE_TITLE = 'আপডেট চলছে';
+  var MAINTENANCE_MESSAGE = 'সাইটে এই মুহূর্তে আপডেট চলছে। আজ বিকাল ৫টার মধ্যে আপডেট শেষ হয়ে যাবে, তারপর সবকিছু আবার স্বাভাবিকভাবে ব্যবহার করতে পারবেন।';
+  // ------------------------------------------------------------
+
+  if(!MAINTENANCE_MODE) return;
+
+  document.documentElement.style.overflow = 'hidden';
+
+  var style = document.createElement('style');
+  style.textContent =
+    '#maintenance-overlay{position:fixed;inset:0;z-index:2147483647;'+
+    'background:rgba(15,46,29,0.92);display:flex;align-items:center;'+
+    'justify-content:center;padding:24px;font-family:"Hind Siliguri",sans-serif;}'+
+    '#maintenance-overlay .box{background:#F6F2E9;color:#0F2E1D;'+
+    'border-radius:20px;padding:28px 22px;max-width:360px;width:100%;'+
+    'text-align:center;box-shadow:0 30px 60px -20px rgba(0,0,0,0.5);}'+
+    '#maintenance-overlay .icon{font-size:36px;margin-bottom:10px;}'+
+    '#maintenance-overlay h2{font-size:18px;font-weight:800;margin-bottom:10px;}'+
+    '#maintenance-overlay p{font-size:14px;line-height:1.6;opacity:0.85;}';
+  document.head.appendChild(style);
+
+  var overlay = document.createElement('div');
+  overlay.id = 'maintenance-overlay';
+  overlay.innerHTML =
+    '<div class="box">'+
+      '<div class="icon">🛠️</div>'+
+      '<h2>'+MAINTENANCE_TITLE+'</h2>'+
+      '<p>'+MAINTENANCE_MESSAGE+'</p>'+
+    '</div>';
+
+  // পেজের কোনো কিছুতে যেন ক্লিক/টাচ/স্ক্রল, কিছুই না পৌঁছায় তা নিশ্চিত করা হচ্ছে।
+  ['click','touchstart','touchmove','keydown','wheel','submit'].forEach(function(evt){
+    document.addEventListener(evt, function(e){
+      if(!overlay.contains(e.target)){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    }, true);
+  });
+
+  function mount(){ document.body.appendChild(overlay); }
+  if(document.body) mount();
+  else document.addEventListener('DOMContentLoaded', mount);
+})();
+</script>
 <script>
   // রেফার লিংক দিয়ে কেউ এলে (?ref=CODE), সেই কোডটা রেজিস্ট্রেশন হওয়া পর্যন্ত
   // localStorage-এ মনে রাখা হচ্ছে — যাতে ইউজার সাথে সাথে রেজিস্টার না করে
